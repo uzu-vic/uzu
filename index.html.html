@@ -1,0 +1,1754 @@
+<!doctype html>
+<!--
+  UZU Progression — application du club (version autonome, sans Claude)
+  1. Crée un projet Supabase et exécute le fichier supabase.sql dans SQL Editor.
+  2. Colle l'URL du projet et la clé "Publishable" (sb_publishable_...) dans UZU_CONFIG ci-dessous.
+  3. Mets ce fichier en ligne (Netlify, Vercel, GitHub Pages…) sous le nom index.html.
+  Sans configuration, l'app tourne en mode démo : comptes simulés et données d'exemple sur l'appareil
+  (code club de démo : VIC2026).
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111113">
+<meta name="description" content="UZU Progression : suivi des séances, du parcours et des grades du club.">
+<meta name="application-name" content="UZU">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="UZU">
+<script>
+/* ============================ CONFIGURATION SUPABASE ============================
+   url     : Project URL, du type https://abcdefghijkl.supabase.co
+             (Project Overview, bouton "Connect", ou Project Settings > Data API)
+   anonKey : clé "Publishable" (commence par sb_publishable_)
+             Project Settings > API Keys > onglet "Publishable and secret API keys"
+             (une ancienne clé "anon" fonctionne aussi). Ne jamais mettre la clé secrète.
+   ================================================================================= */
+window.UZU_CONFIG = {
+  url: "https://ixkewdxtuhxfiodwhhzr.supabase.co",
+  anonKey: "sb_publishable_qUlr2CLN-vLMpUJwTwZlqw_exmhksJv"
+};
+/* ======================================================================================== */
+</script>
+<style>
+/* Base minimale */
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>UZU Grigny Vic Fight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: colonne mobile unique (max 480px), bande d'en-tête noire collante, barre d'onglets fixe en bas.
+   Palette UZU : noir encre, blanc tatami, acier ; l'accent (rouge sceau par défaut) est la couleur du club, choisie par le prof.
+   Les couleurs de ceinture ne servent qu'aux grades. */
+:root{
+  --bg:#F5F4F1; --surface:#FFFFFF; --fg:#111113; --muted:#6B7178; --line:#E4E3E0; --steel-soft:#ECEDEE;
+  --accent:var(--club-l,#B3122E); --accent-soft:var(--club-l-soft,#F7E3E6); --on-accent:var(--club-l-on,#FFFFFF);
+  --band:#111113; --on-band:#FFFFFF; --on-band-muted:#9AA0A7;
+  --warn:#A86A12; --warn-soft:#F6ECD8; --good:#2C7A4B; --good-soft:#E2F1E7; --bad:#B42318;
+  --display:"Bodoni Moda", "Didot", Georgia, serif;
+  --body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D0D0E; --surface:#18181A; --fg:#EEEEEF; --muted:#9AA0A7; --line:#2A2A2E; --steel-soft:#232327;
+  --accent:var(--club-d,#E0354D); --accent-soft:var(--club-d-soft,#3A161B); --on-accent:var(--club-d-on,#FFFFFF);
+  --band:#000000; --on-band:#FFFFFF; --on-band-muted:#9AA0A7;
+  --warn:#E3A84A; --warn-soft:#2E2414; --good:#6CC08A; --good-soft:#15291C; --bad:#F97066; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D0D0E; --surface:#18181A; --fg:#EEEEEF; --muted:#9AA0A7; --line:#2A2A2E; --steel-soft:#232327;
+  --accent:var(--club-d,#E0354D); --accent-soft:var(--club-d-soft,#3A161B); --on-accent:var(--club-d-on,#FFFFFF);
+  --band:#000000; --on-band:#FFFFFF; --on-band-muted:#9AA0A7;
+  --warn:#E3A84A; --warn-soft:#2E2414; --good:#6CC08A; --good-soft:#15291C; --bad:#F97066; color-scheme:dark}
+
+*{box-sizing:border-box}
+/* Rôle UNIQUE : la classe du <body> décide de ce qui existe à l'écran (aucun chevauchement possible) */
+body.role-pending main>section,body.role-pending #navTabs,body.role-pending #emptyCta{display:none!important}
+body:not(.role-pending) #pendingNote{display:none!important}
+body.role-teacher:not(.train) #navTabs,body.role-teacher:not(.train) #v-today,body.role-teacher:not(.train) #v-log,body.role-teacher:not(.train) #v-path,body.role-teacher:not(.train) #v-prog,body.role-teacher #v-welcome,body.role-teacher:not(.train) #endBar{display:none!important}
+body.role-teacher.train #v-prof,body.role-teacher #tabProf,body.role-teacher #demoBox{display:none!important}
+body:not(.role-teacher) #modeSwitch{display:none!important}
+.mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.mode-switch button{font:inherit;font-weight:700;font-size:14px;border:0;border-radius:9px;padding:10px 8px;background:transparent;color:var(--muted);cursor:pointer}
+.mode-switch button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+body.role-student #v-prof,body.role-student #tabProf,body.role-pending #v-prof{display:none!important}
+body.role-teacher:not(.train) main.wrap{padding-bottom:32px}
+.demo-switch{display:flex;flex-direction:column;gap:8px;border-top:1px dashed var(--line);padding-top:12px}
+.demo-switch .row-acts{flex-wrap:wrap}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--band)}
+.wrap{max-width:480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 120px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--band);color:var(--on-band);display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px 12px;box-shadow:0 0 0 100vmax var(--band),0 3px 0 100vmax var(--accent);clip-path:inset(0 -100vmax -3px)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand svg{width:30px;height:30px}
+.brand b{display:block;font-family:var(--display);font-size:26px;font-weight:700;letter-spacing:.14em;line-height:1}
+.brand small{display:block;margin-top:4px;font-size:9.5px;font-weight:700;letter-spacing:.2em;color:var(--on-band-muted);white-space:nowrap}
+.belt{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--on-band-muted);text-align:right}
+.beltsvg{display:block;flex:none}
+h1,h2,h3{text-wrap:balance;margin:0}
+.eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+main section{display:flex;flex-direction:column;gap:16px;padding-top:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.banner{display:flex;gap:12px;align-items:center;justify-content:space-between;background:var(--warn-soft);color:var(--fg);border-radius:12px;padding:10px 14px;font-size:13px}
+.banner button{flex:none}
+.week-title{font-family:var(--display);font-size:28px;font-weight:700;line-height:1.15}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--steel-soft);color:var(--fg);width:max-content;max-width:100%}
+.progressbar{height:6px;border-radius:6px;background:var(--line);overflow:hidden}
+.progressbar span{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .3s}
+.goals{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.goal{display:flex;gap:12px;align-items:flex-start;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer}
+.goals li:first-child .goal{border-top:0}
+.goal input{appearance:none;flex:none;width:22px;height:22px;border:2px solid var(--muted);border-radius:6px;margin:1px 0 0;display:grid;place-items:center;cursor:pointer}
+.goal input:checked{background:var(--fg);border-color:var(--fg)}
+.goal input:checked::after{content:"";width:6px;height:11px;border:solid var(--bg);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.goal input:checked + span{color:var(--muted);text-decoration:line-through}
+.check{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:14px;line-height:1.45}
+.check input{appearance:none;flex:none;width:22px;height:22px;border:2px solid var(--muted);border-radius:6px;margin:1px 0 0;display:grid;place-items:center;cursor:pointer}
+.check input:checked{background:var(--fg);border-color:var(--fg)}
+.check input:checked::after{content:"";width:6px;height:11px;border:solid var(--bg);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.feat{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.feat li{display:grid;grid-template-columns:14px 1fr;gap:10px;align-items:start;font-size:14.5px}
+.feat i{width:8px;height:8px;border-radius:2px;background:var(--accent);margin-top:8px}
+.row-acts{display:flex;gap:6px;margin-top:6px}
+.icon-btn{font:inherit;font-size:12px;font-weight:600;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:4px 9px;cursor:pointer;white-space:nowrap}
+.icon-btn.danger{color:var(--on-accent);background:var(--accent);border-color:var(--accent)}
+.vid{display:block;width:100%;max-height:60vh;border-radius:10px;background:#000}
+input[type=file]{font:inherit;font-size:13.5px;color:var(--fg);max-width:100%}
+.video{display:flex;gap:12px;align-items:center;border:1px dashed var(--line);border-radius:10px;padding:12px;font-size:13px;color:var(--muted)}
+.video svg{flex:none}
+.note{margin:0;font-size:13.5px;background:var(--steel-soft);color:var(--fg);border-radius:10px;padding:10px 12px}
+.note.wait{background:var(--warn-soft)}
+.note.ok{background:var(--good-soft)}
+.btn{font:inherit;font-weight:700;border:0;border-radius:12px;padding:14px 18px;cursor:pointer;background:var(--accent);color:var(--on-accent);font-size:15px}
+.btn.ghost{background:transparent;color:var(--fg);border:1.5px solid var(--fg);padding:10px 14px;font-size:13.5px}
+.btn.big{width:100%;padding:18px;font-size:17px;border-radius:14px;box-shadow:0 10px 24px -12px var(--accent)}
+.empty-cta{border:1.5px solid var(--accent);background:var(--accent-soft,var(--surface))}
+.empty-cta p{margin:0 0 4px}
+.btn.small{padding:8px 12px;font-size:12.5px;border-radius:9px}
+.btn.quiet{background:transparent;color:var(--muted);border:1.5px solid var(--line)}
+.btn.danger,.btn.ghost.danger{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat strong{font-family:var(--display);font-size:30px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.stat small{font-size:11.5px;color:var(--muted)}
+/* Formulaire */
+form{display:flex;flex-direction:column;gap:18px}
+.field{display:flex;flex-direction:column;gap:8px}
+.field > label,.field > .lbl{font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+input[type=date],input[type=text],select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+textarea{min-height:70px;resize:vertical}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{font:inherit;font-weight:600;font-size:14px;padding:9px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.modes{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.modes button{font:inherit;font-weight:700;font-size:14px;border:0;border-radius:9px;padding:10px;background:transparent;color:var(--muted);cursor:pointer}
+.modes button[aria-pressed=true]{background:var(--band);color:var(--on-band)}
+.steppers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stepper{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.stepper .lbl{font-size:11.5px;color:var(--muted);text-align:center;font-weight:600}
+.stepper .row{display:flex;align-items:center;gap:8px}
+.stepper button{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);background:transparent;color:var(--fg);font:inherit;font-size:17px;font-weight:700;cursor:pointer;line-height:1}
+.stepper output{font-family:var(--display);font-size:24px;font-weight:700;min-width:26px;text-align:center;font-variant-numeric:tabular-nums}
+/* Parcours */
+.belt-head{display:flex;align-items:center;gap:16px}
+.belt-head > div{min-width:0}
+.belt-name{font-family:var(--display);font-size:24px;font-weight:700;line-height:1.15}
+.belt-form{display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line);padding-top:14px}
+.ladder{list-style:none;margin:0;padding:0}
+.ladder li{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.ladder li:first-child{border-top:0}
+.ladder .t{font-weight:700;font-size:14.5px}
+.ladder .b{font-size:12.5px;color:var(--muted)}
+.ladder li.future .t{color:var(--muted)}
+.tree-switch{display:grid;grid-template-columns:1fr;gap:8px}
+.lang-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.seg.mini button{padding:6px 12px;font-size:12.5px}
+.tree-switch button{font:inherit;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.tree-switch button b{font-size:14px}
+.tree-switch button small{color:var(--muted);font-size:12px}
+.tree-switch button[aria-pressed=true]{border-color:var(--fg);background:var(--steel-soft)}
+.swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.swatch{font:inherit;font-size:11.5px;font-weight:600;color:var(--fg);background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;min-width:0;text-align:center;line-height:1.2}
+.swatch i{width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(128,128,128,.35)}
+.swatch[aria-pressed=true]{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
+.timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.timeline li{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.timeline li:first-child{border-top:0}
+.wk{font-family:var(--display);font-weight:700;font-size:20px;color:var(--muted);font-variant-numeric:tabular-nums}
+.timeline li.now .wk{color:var(--accent)}
+.timeline .t{font-weight:600;font-size:14.5px;min-width:0}
+.timeline .b{font-size:12px;color:var(--muted)}
+.pill{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.pill.done{background:var(--steel-soft);color:var(--fg)}
+.pill.now{background:var(--accent);color:var(--on-accent)}
+.pill.todo{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.or{background:rgba(201,162,39,.2);color:var(--fg)}
+.pill.argent{background:rgba(150,153,158,.25);color:var(--fg)}
+.pill.bronze{background:rgba(176,106,59,.22);color:var(--fg)}
+/* Progrès */
+.chart svg{width:100%;height:auto;display:block}
+.log{list-style:none;margin:0;padding:0}
+.log li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:14px}
+.log li:first-child{border-top:0}
+.log .meta{color:var(--muted);font-size:12.5px}
+.log .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.medals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.medal{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.medal i{width:16px;height:16px;border-radius:50%;flex:none}
+.medal strong{font-family:var(--display);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.medal small{display:block;font-size:11.5px;color:var(--muted);line-height:1.2}
+/* Prof */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:0 8px 8px 0}
+td{padding:10px 8px 10px 0;border-top:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+td:first-child{font-weight:600}
+td .bcell{display:flex;align-items:center;gap:6px}
+.req{display:flex;flex-direction:column;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
+.req:first-child{border-top:0;padding-top:0}
+.req .who{font-weight:700}
+.req .chg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.req .acts{display:flex;gap:8px}
+.muted{color:var(--muted);font-size:13px}
+.sync{margin:0;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.sync.on::before{background:var(--good)}
+.empty{padding:14px 0 4px;color:var(--muted);font-size:14px;white-space:normal}
+/* Onglets */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+nav.tabs .inner{max-width:480px;margin:0 auto;display:grid;grid-auto-flow:column;grid-auto-columns:1fr}
+nav.tabs button{font:inherit;background:none;border:0;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 10px;font-size:11px;font-weight:600;cursor:pointer}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current=page]{color:var(--fg)}
+nav.tabs button.cta span.dot{display:grid;place-items:center;width:40px;height:40px;margin-top:-18px;border-radius:50%;background:var(--accent);color:var(--on-accent);box-shadow:0 0 0 5px var(--surface)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:13.5px;font-weight:600;z-index:20;max-width:calc(100% - 32px);text-align:center}
+/* --- Bord de tatami : gros compteurs et gros boutons --- */
+.steppers{grid-template-columns:1fr;gap:8px}
+.stepper{flex-direction:row;justify-content:space-between;padding:8px 10px 8px 16px;gap:12px}
+.stepper .lbl{font-size:15px;color:var(--fg);text-align:left}
+.stepper .row{gap:6px}
+.stepper button{width:56px;height:56px;font-size:26px;border-radius:14px;border-width:2px}
+.stepper output{font-size:30px;min-width:46px}
+.seg button{padding:11px 16px;font-size:15px;min-height:46px}
+.seg.mini button{padding:6px 12px;font-size:12.5px;min-height:0}
+.forme button{display:inline-flex;align-items:center;gap:8px}
+.forme i{width:12px;height:12px;border-radius:50%;flex:none}
+.fdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.f-ok{background:var(--good)}.f-fatigue{background:var(--warn)}.f-douleur{background:var(--bad)}
+.ratio{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line)}
+#rPl{background:var(--accent)}#rTk{background:var(--muted)}
+.ratio-leg{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.ratio-leg b{color:var(--fg);font-variant-numeric:tabular-nums}
+/* Lecteur vidéo épuré */
+.video{aspect-ratio:16/9;max-width:100%;background:var(--band);border:0;border-radius:12px;padding:0;display:grid;place-items:center;text-align:center}
+.video .ph{display:flex;flex-direction:column;align-items:center;gap:10px;font-size:13px;color:var(--on-band-muted);padding:16px}
+.video .ph b{color:var(--on-band)}
+.play{width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
+.brand small{text-transform:uppercase}
+/* Modules en accordéon */
+.mods{display:flex;flex-direction:column;gap:10px}
+.mod{border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.mod summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px;cursor:pointer}
+.mod summary::-webkit-details-marker{display:none}
+.mod summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);flex:none;margin:0 4px 4px}
+.mod[open] summary::after{transform:rotate(-135deg);margin:4px 4px 0}
+.mt{display:flex;flex-direction:column;min-width:0}.mt b{font-size:15.5px}.mt small{font-size:12.5px;color:var(--muted)}
+.mc{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mweeks{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.mw{padding:12px 14px;border-top:1px solid var(--line)}.mw:first-child{border-top:0}
+.mw.now{background:var(--accent-soft)}
+.mwh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.mwh .wk{font-size:17px}.mwh b{font-size:14.5px;flex:1;min-width:0}
+/* Planning des cours */
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cal-nav{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cal-nav .icon-btn{font-size:16px;padding:2px 11px}
+.icon-btn:disabled{opacity:.4;cursor:default}
+.cal{list-style:none;margin:0;padding:0}
+.cal li{display:grid;grid-template-columns:64px 1fr;gap:8px 12px;padding:12px 0;border-top:1px solid var(--line);align-items:center}
+.cal li:first-child{border-top:0}
+.cd{display:flex;flex-direction:column;font-size:12.5px;color:var(--muted);line-height:1.3;font-variant-numeric:tabular-nums}.cd b{font-size:14px;color:var(--fg)}
+.ct{min-width:0;display:flex;flex-direction:column}.ct b{font-size:14.5px}.ct .meta{font-size:12.5px;color:var(--muted)}
+.ca{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cal li.today .cd b{color:var(--accent)}
+.cal li.past .ct b{color:var(--muted)}
+.seg.att button{padding:9px 18px;font-size:14px;min-height:42px}
+.slot-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+input[type=time]{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+/* Thème en menu déroulant, actualités, gradés, fiche élève */
+select#fTheme{min-height:50px;font-size:15px}
+.news{background:var(--band);color:var(--on-band);border-color:var(--band)}
+.news .eyebrow{color:var(--accent)}
+.news p{font-size:15px;line-height:1.5}
+.grad{display:flex;align-items:baseline;gap:14px}
+.grad strong{font-family:var(--display);font-size:36px;font-weight:700;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.grad span{font-size:14px}
+.fiche{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);background:var(--steel-soft);border-radius:10px;padding:10px 12px}
+.fiche b{color:var(--fg);font-variant-numeric:tabular-nums}
+/* En-tête : logo au-dessus de UZU, nom du club en évidence */
+.brand{gap:12px;min-width:0}
+.brand .mark{display:flex;flex-direction:column;align-items:center;gap:3px;flex:none}
+.brand .mark svg{width:30px;height:30px}
+.brand .mark b{font-family:var(--body);font-size:10px;font-weight:800;letter-spacing:.32em;margin-right:-.32em;line-height:1;color:var(--on-band-muted)}
+.brand .club{font-family:var(--display);font-size:22px;font-weight:700;line-height:1.1;color:var(--on-band);text-wrap:balance;min-width:0;padding-left:12px;border-left:1px solid rgba(255,255,255,.2)}
+@media (max-width:430px){#hBeltLabel{display:none}.brand .club{font-size:19px}}
+/* Étoiles de maîtrise */
+.stars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.star{font:inherit;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;min-height:68px}
+.star svg{width:16px;height:16px}
+.star b{font-size:12.5px;font-weight:700}
+.star[aria-pressed=true]{border-color:var(--fg);color:var(--fg);background:var(--steel-soft);box-shadow:inset 0 0 0 1px var(--fg)}
+.star[aria-pressed=true] svg{color:var(--accent)}
+.star-desc{font-size:12.5px;color:var(--muted);margin:0;min-height:18px}
+.stars-inline{color:var(--accent);font-size:12px;margin-left:6px;letter-spacing:1px}
+.rolltag{font-size:11px;font-weight:700;color:var(--accent);margin-left:6px}
+/* Modale */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(10,10,12,.55);display:flex;align-items:flex-end;justify-content:center;padding-top:16px;padding-bottom:max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.modal-box{background:var(--surface);color:var(--fg);border-radius:16px;max-width:480px;width:100%;max-height:85vh;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal-box h2{font-family:var(--display);font-size:22px}
+.modal-box p,.modal-box li{font-size:14px;line-height:1.55;margin:0}
+.modal-box ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+@media (min-width:600px){.modal{align-items:center}}
+.linkish{font:inherit;font-size:12.5px;color:var(--muted);background:none;border:0;text-decoration:underline;cursor:pointer;padding:4px 0;align-self:flex-start}
+/* Bandeau fin de cours */
+.endbar{display:flex;flex-direction:column;gap:10px;background:var(--warn-soft);border:1.5px solid var(--warn);border-radius:12px;padding:12px 14px;font-size:14.5px;font-weight:600}
+.endbar .acts{display:flex;gap:8px;flex-wrap:wrap}
+/* Appel du prof */
+.roll{list-style:none;margin:0;padding:0}
+.roll li{border-top:1px solid var(--line)}.roll li:first-child{border-top:0}
+.roll label{display:flex;align-items:center;gap:14px;padding:12px 2px;cursor:pointer;font-size:15px;font-weight:600}
+.roll label small{font-weight:500;color:var(--muted);font-size:12px;margin-left:auto}
+.roll input{appearance:none;flex:none;width:28px;height:28px;border:2px solid var(--muted);border-radius:8px;display:grid;place-items:center;cursor:pointer;margin:0}
+.roll input:checked{background:var(--accent);border-color:var(--accent)}
+.roll input:checked::after{content:"";width:7px;height:13px;border:solid var(--on-accent);border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.fiche-wrap{display:flex;flex-direction:column;gap:10px}
+.fiche-wrap textarea{min-height:60px}
+/* Liste des élèves et fiche */
+.plist-tools{display:flex;flex-direction:column;gap:10px}
+.csv-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}.chk-inline{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}.chk-inline input{width:auto;margin:0}
+input[type=search]{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+.sname{font:inherit;font-weight:700;color:var(--fg);background:none;border:0;padding:4px 0;cursor:pointer;text-align:left;display:inline-flex;align-items:center;gap:6px;min-height:32px}
+.sname::after{content:"›";color:var(--muted);font-weight:400;font-size:18px;line-height:1}
+.sname:hover,.sname:focus-visible{color:var(--accent)}
+.sf-head{display:flex;align-items:center;gap:14px}
+.sf-head > div{min-width:0}
+.sf-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.sf-stats div{background:var(--steel-soft);border-radius:10px;padding:10px 12px;min-width:0}
+.sf-stats b{display:block;font-family:var(--display);font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.sf-stats span{font-size:12px;color:var(--muted)}
+.sf-h{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+#sfNote{min-height:90px}
+.login{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;padding-top:max(24px,env(safe-area-inset-top,0px));padding-bottom:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.login-box{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-top:16px}
+.login-brand{display:flex;align-items:center;gap:12px}
+.lmark{display:flex;flex-direction:column;align-items:center;gap:4px;flex:none}
+.lmark b{font-size:11px;font-weight:800;letter-spacing:.32em;margin-right:-.32em;line-height:1;color:var(--muted)}
+.lclub{font-family:var(--display);font-size:28px;font-weight:700;line-height:1.1;padding-left:14px;border-left:1px solid var(--line);text-wrap:balance}
+.lg-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.lg-tabs button{font:inherit;font-weight:700;font-size:14px;border:0;border-radius:9px;padding:11px 8px;background:transparent;color:var(--muted);cursor:pointer}
+.lg-tabs button[aria-selected=true]{background:var(--fg);color:var(--bg)}
+.lg-row{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:10px}
+.lg-up{display:flex;flex-direction:column;gap:12px}
+.lg-quick{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.lg-quick summary{cursor:pointer;font-weight:700}
+.lg-quick-acts{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.lsig{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:18px;color:var(--muted);text-align:center}
+.lsig::before,.lsig::after{content:"";flex:1;height:1px;background:var(--line)}
+.lsig span{font-size:11px;font-weight:800;letter-spacing:.34em;text-transform:uppercase;white-space:nowrap}
+.lsig span::first-letter{color:#E8283F}
+input[type=email],input[type=password]{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<!-- Écran de connexion : comptes Supabase en production, comptes simulés en mode démo -->
+<div class="login" id="loginOv" hidden>
+  <div class="login-box">
+    <div class="login-brand"><div class="lmark"><svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><path id="spiralLogin" fill="none" stroke="#E8283F" stroke-width="3.2" stroke-linecap="round"/></svg><b>UZU</b></div><span class="lclub" id="loginClub">Grigny Vic Fight</span></div>
+    <div class="lg-tabs" role="tablist" aria-label="Connexion">
+      <button type="button" role="tab" id="lgTabIn" data-lt="in" aria-selected="true">Se connecter</button>
+      <button type="button" role="tab" id="lgTabUp" data-lt="up" aria-selected="false">Rejoindre mon club</button>
+    </div>
+    <h1 class="week-title" id="lgTitle">Content de te revoir</h1>
+    <div class="lg-row" data-only="up" hidden>
+      <div class="field"><label for="lgFirst">Prénom</label><input type="text" id="lgFirst" maxlength="30" autocomplete="given-name" placeholder="Yanis"></div>
+      <div class="field lg-init"><label for="lgInit">Initiale du nom</label><input type="text" id="lgInit" maxlength="2" autocomplete="off" autocapitalize="characters" placeholder="B"></div>
+    </div>
+    <div class="field"><label for="lgEmail">E-mail</label><input type="email" id="lgEmail" autocomplete="email" placeholder="prenom@exemple.fr"></div>
+    <div class="field"><label for="lgPass" id="lgPassLbl">Mot de passe</label><input type="password" id="lgPass" autocomplete="current-password"></div>
+    <div class="lg-up" data-only="up" hidden>
+      <div class="field"><label for="lgCode">Code invitation club</label><input type="text" id="lgCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Demande-le à ton prof sur le tatami"></div>
+      <label class="check"><input type="checkbox" id="lgAge"><span>J'ai 16 ans ou plus</span></label>
+      <label class="check"><input type="checkbox" id="lgData"><span>J'accepte que mes données d'entraînement soient enregistrées et visibles par les profs de mon club. Mon état physique et mes notes restent visibles par moi seul.</span></label>
+    </div>
+    <p class="muted" id="lgDemo" hidden style="margin:0;font-size:12.5px">Mode démo : les comptes sont simulés sur cet appareil (code club : VIC2026).</p>
+    <p class="note wait" id="lgErr" hidden></p>
+    <button class="btn" type="button" id="lgIn" data-only="in">Se connecter</button>
+    <button class="icon-btn" type="button" id="lgForgot" data-only="in" style="align-self:flex-start">Mot de passe oublié</button>
+    <button class="btn" type="button" id="lgUp" data-only="up" hidden>Rejoindre le club</button>
+    <button type="button" class="linkish" data-legal="1">Mentions légales &amp; Confidentialité</button>
+    <details class="lg-quick" id="lgQuick" hidden>
+      <summary>Bascule rapide démo</summary>
+      <div class="lg-quick-acts">
+        <button class="btn ghost small" type="button" data-quick="student">Tester comme Élève Ceinture Blanche</button>
+        <button class="btn ghost small" type="button" data-quick="teacher">Tester comme Professeur Ceinture Noire</button>
+      </div>
+    </details>
+    <div class="lsig" aria-label="The mat doesn't lie"><span>The mat doesn't lie</span></div>
+  </div>
+</div>
+<header class="top wrap">
+  <div class="brand">
+    <div class="mark" aria-label="UZU"><svg viewBox="0 0 40 40" aria-hidden="true"><path id="spiral" fill="none" stroke="#E8283F" stroke-width="3.2" stroke-linecap="round"/></svg><b>UZU</b></div>
+    <span class="club" id="hClub">Grigny Vic Fight</span>
+  </div>
+  <div class="belt"><span id="hBeltLabel">Ceinture blanche</span><span id="hBeltIcon"></span></div>
+</header>
+
+<main class="wrap">
+  <p class="sync" id="pendingNote">Connexion à ton club…</p>
+  <div class="mode-switch" id="modeSwitch" hidden role="group" aria-label="Interface prof"><button type="button" data-tmode="prof" aria-pressed="true">Vue Prof / Gestion du Club</button><button type="button" data-tmode="train" aria-pressed="false">Mon Entraînement</button></div>
+  <!-- BIENVENUE (première connexion) -->
+  <section id="v-welcome" aria-label="Bienvenue" hidden>
+    <div>
+      <span class="eyebrow">Bienvenue sur UZU</span>
+      <h1 class="week-title">Ton suivi, de la blanche à la noire</h1>
+    </div>
+    <div class="card">
+      <ul class="feat">
+        <li><i></i><span><b>Chaque semaine</b>, un thème et 3 objectifs pour savoir quoi travailler au cours.</span></li>
+        <li><i></i><span><b>Après chaque cours</b>, ta séance saisie en 10 secondes, et tes résultats en compétition.</span></li>
+        <li><i></i><span><b>Ta ceinture et tes barrettes</b>, validées par ton prof, avec ta progression jusqu'à la noire.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Tes données</span>
+      <p style="margin:0">Tes séances, tes compétitions et ta ceinture sont enregistrées dans ta fiche. Seuls toi et les profs de ton club peuvent les voir. Ton état physique et tes notes restent visibles par toi seul. Tu peux tout supprimer à tout moment depuis l'onglet Progrès.</p>
+      <div class="field"><label for="wName">Ton prénom et l'initiale de ton nom</label><input type="text" id="wName" maxlength="40" autocomplete="name" placeholder="Ex. : Yanis B."></div>
+      <label class="check"><input type="checkbox" id="wAge"><span>J'ai 16 ans ou plus</span></label>
+      <label class="check"><input type="checkbox" id="wData"><span>J'accepte que mes données d'entraînement soient enregistrées et visibles par les profs de mon club</span></label>
+      <p class="note wait" id="wMinor" hidden>Pendant la phase de test, UZU est réservé aux 16 ans et plus. Parles-en à ton prof.</p>
+    </div>
+    <button class="btn" type="button" id="wStart">Commencer</button>
+  </section>
+
+  <!-- SEMAINE -->
+  <section id="v-today" aria-label="Ta semaine">
+    <div class="endbar" id="endBar" role="status" hidden>
+      <span>🥋 Fin du cours ! As-tu pensé à saisir ta séance pour ne rien oublier ? (10 secondes chrono)</span>
+      <div class="acts"><button class="btn small" type="button" id="endLog">Saisir ma séance</button><button class="btn quiet small" type="button" id="endLater">Plus tard</button></div>
+    </div>
+    <div class="banner" id="sampleBanner" hidden>
+      <span>Données d'exemple pour la démo. Tes séances s'ajoutent à la suite.</span>
+      <button class="btn ghost small" type="button" id="clearSample">Effacer</button>
+    </div>
+    <p class="sync" id="syncNote">Connexion à ton club…</p>
+    <div class="card empty-cta" id="emptyCta" hidden>
+      <span class="eyebrow">Premier pas</span>
+      <h2 class="week-title">Bienvenue sur le tatami !</h2>
+      <p>Saisis ta première séance pour lancer ton compteur.</p>
+      <button class="btn big" type="button" data-go="log">Saisir ma séance</button>
+    </div>
+    <div class="stats" id="statsRow">
+      <div class="stat"><strong id="sStreak">0</strong><small>semaines d'affilée</small></div>
+      <div class="stat"><strong id="sMonth">0</strong><small>séances sur 30 jours</small></div>
+      <div class="stat"><strong id="sHours">0</strong><small>heures de tapis</small></div>
+    </div>
+    <div class="card news" id="newsCard" hidden>
+      <span class="eyebrow" id="newsTitle">Actualités du club</span>
+      <p id="newsText" style="margin:0;white-space:pre-line"></p>
+    </div>
+    <div class="card" id="clubWeek" hidden>
+      <span class="eyebrow">Au club cette semaine</span>
+      <h2 class="week-title" style="font-size:22px" id="cwTheme"></h2>
+      <div id="cwVideo"></div>
+    </div>
+    <div class="card">
+      <span class="eyebrow" id="tWeekLabel">Semaine</span>
+      <h1 class="week-title" id="tWeekTitle"></h1>
+      <span class="tag" id="tBlock"></span>
+      <div class="progressbar" aria-hidden="true"><span id="tBar"></span></div>
+      <ul class="goals" id="tGoals"></ul>
+      <div class="video" id="tVideo"><div class="ph"><span class="play"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3.5l11 6.5-11 6.5z" fill="currentColor"/></svg></span><span><b>Vidéo du prof</b><br>Chargement…</span></div></div>
+      <p class="note" id="cycleNote" hidden>Cycle terminé. Fais le point avec ton prof pour ta prochaine barrette ou ta prochaine ceinture.</p>
+      <button class="btn ghost" type="button" id="nextWeek" hidden>Passer à la semaine suivante</button>
+      <button class="btn" type="button" id="chooseSchool" data-go="path" hidden>Choisir dans Parcours</button>
+    </div>
+    <button class="btn" type="button" data-go="log" id="logMain">Saisir ma séance</button>
+    <div class="card" id="calCard">
+      <div class="cal-head"><span class="eyebrow">Cours du club</span><div class="cal-nav"><button type="button" class="icon-btn" id="calPrev" aria-label="Semaine précédente">‹</button><span id="calRange"></span><button type="button" class="icon-btn" id="calNext" aria-label="Semaine suivante">›</button></div></div>
+      <ul class="cal" id="calList"></ul>
+      <p class="muted" id="calNote" style="margin:0"></p>
+    </div>
+  </section>
+
+  <!-- SAISIR -->
+  <section id="v-log" aria-label="Saisir" hidden>
+    <div class="modes" id="logMode">
+      <button type="button" data-mode="session" aria-pressed="true">Séance</button>
+      <button type="button" data-mode="comp" aria-pressed="false">Compétition</button>
+    </div>
+    <div id="sessionPane" style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <span class="eyebrow">Après le cours</span>
+        <h2 class="week-title" style="font-size:26px" id="sTitle">Ta séance en 10 secondes</h2>
+      </div>
+      <form id="logForm" novalidate>
+        <div class="field"><label for="fDate">Date</label><input type="date" id="fDate" required></div>
+        <div class="field"><span class="lbl">Tenue</span>
+          <div class="seg" id="fType"><button type="button" data-v="Gi" aria-pressed="true">Gi</button><button type="button" data-v="No-gi" aria-pressed="false">No-gi</button></div></div>
+        <div class="field"><span class="lbl">Durée</span>
+          <div class="seg" id="fDur"><button type="button" data-v="60" aria-pressed="false">1 h</button><button type="button" data-v="90" aria-pressed="true">1 h 30</button><button type="button" data-v="120" aria-pressed="false">2 h</button></div></div>
+        <div class="field"><label for="fTheme">Thème travaillé</label><select id="fTheme"></select></div>
+        <div class="field"><span class="lbl">Niveau de confort sur ce mouvement aujourd'hui</span>
+          <div class="stars" id="fStars">
+            <button type="button" class="star" data-star="1" aria-pressed="false" aria-label="1 étoile : découverte"><span style="display:flex;gap:1px"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg></span><b>Découverte</b></button>
+            <button type="button" class="star" data-star="2" aria-pressed="false" aria-label="2 étoiles : intermédiaire"><span style="display:flex;gap:1px"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg></span><b>Intermédiaire</b></button>
+            <button type="button" class="star" data-star="3" aria-pressed="false" aria-label="3 étoiles : maîtrisé"><span style="display:flex;gap:1px"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg></span><b>Maîtrisé</b></button>
+          </div>
+          <p class="star-desc" id="starDesc">Touche une case pour noter ton niveau (facultatif).</p></div>
+        <div class="steppers">
+          <div class="stepper"><span class="lbl">Rounds</span><div class="row"><button type="button" data-step="rounds" data-d="-1" aria-label="Moins de rounds">−</button><output id="o-rounds">0</output><button type="button" data-step="rounds" data-d="1" aria-label="Plus de rounds">+</button></div></div>
+          <div class="stepper"><span class="lbl">Soumissions placées</span><div class="row"><button type="button" data-step="placed" data-d="-1" aria-label="Moins">−</button><output id="o-placed">0</output><button type="button" data-step="placed" data-d="1" aria-label="Plus">+</button></div></div>
+          <div class="stepper"><span class="lbl">Subies contre une ceinture blanche</span><div class="row"><button type="button" data-step="takenW" data-d="-1" aria-label="Moins de soumissions subies contre une blanche">−</button><output id="o-takenW">0</output><button type="button" data-step="takenW" data-d="1" aria-label="Plus de soumissions subies contre une blanche">+</button></div></div>
+          <div class="stepper"><span class="lbl">Subies contre un gradé (bleue et +)</span><div class="row"><button type="button" data-step="takenG" data-d="-1" aria-label="Moins de soumissions subies contre un gradé">−</button><output id="o-takenG">0</output><button type="button" data-step="takenG" data-d="1" aria-label="Plus de soumissions subies contre un gradé">+</button></div></div>
+        </div>
+        <div class="field"><span class="lbl">État physique après le cours</span>
+          <div class="seg forme" id="fForme"><button type="button" data-v="ok" aria-pressed="false"><i style="background:var(--good)"></i>En forme</button><button type="button" data-v="fatigue" aria-pressed="false"><i style="background:var(--warn)"></i>Fatigué</button><button type="button" data-v="douleur" aria-pressed="false"><i style="background:var(--bad)"></i>Douleur / blessé</button></div></div>
+        <div class="field"><label for="fNote">Note privée (facultatif)</label><textarea id="fNote" placeholder="Ex. : genou sensible, ma guillotine passe quand je monte le coude"></textarea><span class="muted" style="font-size:12px">Ton état physique et ta note restent privés : ton prof ne les voit pas.</span></div>
+        <button class="btn" type="submit" id="fSubmit">Enregistrer la séance</button>
+        <button class="btn quiet" type="button" id="fCancel" hidden>Annuler</button>
+      </form>
+    </div>
+    <div id="compPane" hidden style="flex-direction:column;gap:16px">
+      <div>
+        <span class="eyebrow">Après la compétition</span>
+        <h2 class="week-title" style="font-size:26px" id="cTitle">Ton résultat</h2>
+      </div>
+      <form id="compForm" novalidate>
+        <div class="field"><label for="cDate">Date</label><input type="date" id="cDate" required></div>
+        <div class="field"><label for="cEvent">Compétition</label><input type="text" id="cEvent" placeholder="Ex. : Open de l'Essonne" maxlength="80"></div>
+        <div class="field"><span class="lbl">Tenue</span>
+          <div class="seg" id="cType"><button type="button" data-v="Gi" aria-pressed="true">Gi</button><button type="button" data-v="No-gi" aria-pressed="false">No-gi</button></div></div>
+        <div class="field"><span class="lbl">Résultat</span>
+          <div class="seg" id="cResult"><button type="button" data-v="or" aria-pressed="false">Or</button><button type="button" data-v="argent" aria-pressed="false">Argent</button><button type="button" data-v="bronze" aria-pressed="false">Bronze</button><button type="button" data-v="aucun" aria-pressed="true">Sans podium</button></div></div>
+        <div class="steppers">
+          <div class="stepper"><span class="lbl">Victoires</span><div class="row"><button type="button" data-cstep="wins" data-d="-1" aria-label="Moins de victoires">−</button><output id="c-wins">0</output><button type="button" data-cstep="wins" data-d="1" aria-label="Plus de victoires">+</button></div></div>
+          <div class="stepper"><span class="lbl">Défaites</span><div class="row"><button type="button" data-cstep="losses" data-d="-1" aria-label="Moins de défaites">−</button><output id="c-losses">0</output><button type="button" data-cstep="losses" data-d="1" aria-label="Plus de défaites">+</button></div></div>
+          <div class="stepper"><span class="lbl">Gagnés par soumission</span><div class="row"><button type="button" data-cstep="subs" data-d="-1" aria-label="Moins">−</button><output id="c-subs">0</output><button type="button" data-cstep="subs" data-d="1" aria-label="Plus">+</button></div></div>
+        </div>
+        <button class="btn" type="submit" id="cSubmit">Enregistrer la compétition</button>
+        <button class="btn quiet" type="button" id="cCancel" hidden>Annuler</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- PARCOURS -->
+  <section id="v-path" aria-label="Parcours" hidden>
+    <div>
+      <span class="eyebrow">Ton parcours</span>
+      <h2 class="week-title" style="font-size:26px">De la blanche à la noire</h2>
+      <p class="muted" style="margin:6px 0 0">En blanche, un programme commun pour apprendre le dessous, le dessus et la lutte. À partir de la bleue, tu te spécialises dans une école. Ton prof valide chaque barrette et chaque ceinture.</p>
+    </div>
+    <div class="lang-row"><span class="muted">Noms des spécialisations</span><div class="seg mini" id="langSeg"><button type="button" data-lang="en" aria-pressed="true">English</button><button type="button" data-lang="fr" aria-pressed="false">Français</button></div></div>
+    <div class="card">
+      <div class="belt-head">
+        <span id="pBeltIcon"></span>
+        <div><div class="belt-name" id="pBeltName"></div><div class="muted" id="pBeltSince"></div></div>
+      </div>
+      <p class="note" id="beltStatus" hidden></p>
+      <button class="btn ghost small" type="button" id="editBelt" style="width:max-content">Déclarer ma ceinture</button>
+      <div class="belt-form" id="beltForm" hidden>
+        <div class="field"><label for="bRank">Ceinture</label><select id="bRank"></select></div>
+        <div class="field"><span class="lbl">Barrettes</span><div class="seg" id="bStripes"></div></div>
+        <div class="field"><label for="bSince">Date de passage</label><input type="date" id="bSince"></div>
+        <button class="btn" type="button" id="bSave">Envoyer à mon prof pour validation</button>
+      </div>
+    </div>
+    <div class="card" style="gap:4px">
+      <span class="eyebrow">Ton chemin vers la noire</span>
+      <ul class="ladder" id="ladder"></ul>
+    </div>
+    <div class="card" id="schoolCard" hidden>
+      <span class="eyebrow">Ta spécialisation</span>
+      <div class="tree-switch" id="schoolSwitch">
+        <button type="button" data-school="lutte"><b>Front headlock</b><small>Snap down, scrambles, guillotine, bras-tête, anaconda</small></button>
+        <button type="button" data-school="pologne"><b>Leglocks</b><small>Entrées, ashi garami, clés de jambes</small></button>
+        <button type="button" data-school="meta"><b>Back attack</b><small>Wrestle-up, body lock, prise de dos, étranglement arrière</small></button>
+      </div>
+    </div>
+    <div class="card" style="gap:4px">
+      <span class="eyebrow" id="progTitle">Programme</span>
+      <ul class="timeline" id="pathList"></ul>
+      <div class="mods" id="pathMods"></div>
+    </div>
+  </section>
+
+  <!-- PROGRÈS -->
+  <section id="v-prog" aria-label="Progrès" hidden>
+    <div><span class="eyebrow">Ta progression</span><h2 class="week-title" style="font-size:26px">The mat doesn't lie</h2></div>
+    <div class="card">
+      <div class="belt-head"><span id="gBeltIcon"></span><div><div style="font-weight:700" id="gBeltName"></div><div class="muted" id="gBeltTime"></div></div></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><strong id="pTotal">0</strong><small>séances au total</small></div>
+      <div class="stat"><strong id="pGoals">0</strong><small>objectifs validés</small></div>
+      <div class="stat"><strong id="pRatio">0</strong><small>placées / subies entre blanches</small></div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Ratio à niveau égal</span>
+      <div class="ratio" aria-hidden="true"><span id="rPl"></span><span id="rTk"></span></div>
+      <div class="ratio-leg"><span>Placées <b id="rPlN">0</b></span><span>Subies contre des blanches <b id="rTkN">0</b></span></div>
+      <p class="muted" style="margin:0;font-size:12.5px">Le ratio ne compte que les soumissions subies contre d'autres ceintures blanches.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Apprentissage face aux gradés</span>
+      <div class="grad"><strong id="gradN">0</strong><span id="gradNote"></span></div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Mes techniques</span>
+      <p class="muted" id="techSum" style="margin:0"></p>
+      <ul class="log" id="techList"></ul>
+    </div>
+    <div class="card">
+      <span class="eyebrow">État physique, 30 derniers jours</span>
+      <div class="medals">
+        <div class="medal"><i style="background:var(--good)"></i><div><strong id="fOk">0</strong><small>en forme</small></div></div>
+        <div class="medal"><i style="background:var(--warn)"></i><div><strong id="fFat">0</strong><small>fatigué</small></div></div>
+        <div class="medal"><i style="background:var(--bad)"></i><div><strong id="fPain">0</strong><small>douleur</small></div></div>
+      </div>
+      <p class="muted" id="formeNote" style="margin:0"></p>
+    </div>
+    <div class="card"><span class="eyebrow">Assiduité, 30 derniers jours</span><p style="margin:0" id="assid"></p></div>
+    <div class="card">
+      <span class="eyebrow">Palmarès en compétition</span>
+      <div class="medals">
+        <div class="medal"><i style="background:#C9A227"></i><div><strong id="mOr">0</strong><small>or</small></div></div>
+        <div class="medal"><i style="background:#A3A6AB"></i><div><strong id="mArgent">0</strong><small>argent</small></div></div>
+        <div class="medal"><i style="background:#B06A3B"></i><div><strong id="mBronze">0</strong><small>bronze</small></div></div>
+      </div>
+      <p class="muted" id="fightStats" style="margin:0"></p>
+      <ul class="log" id="compList"></ul>
+      <button class="btn ghost small" type="button" data-go="log" data-mode-go="comp" style="width:max-content">Ajouter une compétition</button>
+    </div>
+    <div class="card chart">
+      <span class="eyebrow">Séances par semaine, 8 dernières semaines</span>
+      <div id="chart"></div>
+    </div>
+    <div class="card"><span class="eyebrow">Dernières séances</span><ul class="log" id="logList"></ul></div>
+    <div class="card">
+      <span class="eyebrow">Mes données</span>
+      <p class="muted" style="margin:0">Supprime définitivement tes séances, tes compétitions, ta progression et ton accord. Ta ceinture validée reste enregistrée par ton prof : demande-lui de la retirer si tu quittes le club.</p>
+      <div class="demo-switch" hidden><span class="eyebrow">Mode démo</span><div class="row-acts"><button type="button" class="btn ghost small" data-demorole="student">Tester comme élève</button><button type="button" class="btn ghost small" data-demorole="teacher">Tester comme prof</button></div></div>
+      <div class="field"><label for="meName">Ton prénom (affiché à ton prof)</label><input type="text" id="meName" maxlength="40" placeholder="Ex. : Yanis B."></div>
+      <button class="btn ghost small" type="button" id="meNameSave" style="width:max-content">Enregistrer mon prénom</button>
+      <button class="btn ghost small" type="button" id="delAll" style="width:max-content">Supprimer toutes mes données</button>
+      <div id="pwBox" hidden style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px">
+        <span class="eyebrow">Changer mon mot de passe</span>
+        <div class="field"><label for="pwOld">Mot de passe actuel</label><input type="password" id="pwOld" autocomplete="current-password"></div>
+        <div class="field"><label for="pwNew">Nouveau mot de passe (8 caractères minimum)</label><input type="password" id="pwNew" autocomplete="new-password"></div>
+        <div class="field"><label for="pwNew2">Confirme le nouveau mot de passe</label><input type="password" id="pwNew2" autocomplete="new-password"></div>
+        <button class="btn ghost small" type="button" id="pwSave" style="width:max-content">Changer mon mot de passe</button>
+      </div>
+      <button class="btn quiet small" type="button" id="logout" style="width:max-content" hidden>Se déconnecter</button>
+    </div>
+    <div class="card">
+      <span class="eyebrow">L'application</span>
+      <button class="btn ghost small" type="button" id="installBtn" style="width:max-content" hidden>Installer l'application sur mon écran d'accueil</button>
+      <button type="button" class="linkish" data-legal="1">Mentions légales &amp; Confidentialité</button>
+    </div>
+  </section>
+
+  <!-- PROF -->
+  <section id="v-prof" aria-label="Vue prof" hidden>
+    <div><span class="eyebrow" id="profEyebrow">Vue prof</span><h2 class="week-title" style="font-size:26px" id="profTitle">Ton groupe</h2>
+      <p class="muted" style="margin:6px 0 0" id="profSub">Réservée aux profs du club.</p></div>
+    <div class="stats">
+      <div class="stat"><strong id="cActive">0</strong><small>élèves actifs</small></div>
+      <div class="stat"><strong id="cWarn">0</strong><small>à relancer</small></div>
+      <div class="stat"><strong id="cReq">0</strong><small>demandes de grade</small></div>
+    </div>
+    <div class="card" id="rollCard">
+      <span class="eyebrow">Faire l'appel du jour</span>
+      <div class="field"><label for="rollSlot">Cours</label><select id="rollSlot"></select></div>
+      <div class="lang-row"><span class="muted" id="rollCount">0 présent</span><button type="button" class="icon-btn" id="rollAll">Tout cocher</button></div>
+      <ul class="roll" id="rollList"></ul>
+      <button class="btn" type="button" id="rollSave">Valider l'appel</button>
+      <p class="muted" style="margin:0;font-size:12.5px">Chaque élève coché reçoit une séance pré-remplie avec le thème de la semaine. Il pourra la compléter.</p>
+    </div>
+    <div class="card"><span class="eyebrow">Présences cette semaine</span><ul class="log" id="profAtt"></ul></div>
+    <div class="card">
+      <span class="eyebrow">Demandes de ceinture à valider</span>
+      <div id="reqList"></div>
+    </div>
+    <div class="card">
+      <span class="eyebrow" id="pListTitle">Mes élèves</span>
+      <div class="plist-tools">
+        <input type="search" id="pSearch" placeholder="Rechercher un élève" aria-label="Rechercher un élève" autocomplete="off">
+        <div class="lang-row">
+          <div class="seg mini" id="pFilter"><button type="button" data-pf="all" aria-pressed="true">Tous</button><button type="button" data-pf="active" aria-pressed="false">Actifs</button><button type="button" data-pf="late" aria-pressed="false">À relancer</button></div>
+          <select id="pSort" aria-label="Trier la liste" style="width:auto"><option value="activity">Dernière activité</option><option value="name">Nom</option><option value="belt">Ceinture</option><option value="n30">Séances sur 30 jours</option></select>
+        </div>
+        <p class="muted" style="margin:0;font-size:12.5px">Touche un nom pour ouvrir sa fiche complète.</p>
+        <div class="csv-row"><button type="button" class="btn ghost small" id="pCsv">Exporter la liste (CSV)</button><label class="chk-inline"><input type="checkbox" id="pCsvNotes"> Inclure les notes privées</label></div>
+      </div>
+      <div class="table-wrap"><table>
+      <thead><tr><th>Élève</th><th>Ceinture</th><th>École</th><th>30 j</th><th>Statut</th></tr></thead>
+      <tbody id="profRows"></tbody></table></div>
+      <p class="muted" style="margin:0">« À relancer » : aucune séance saisie depuis plus de 14 jours.</p></div>
+    <div class="card">
+      <span class="eyebrow">Attribuer une barrette ou une ceinture</span>
+      <div class="field"><label for="aWho">Élève</label><select id="aWho"></select></div>
+      <div class="field"><label for="aRank">Ceinture</label><select id="aRank"></select></div>
+      <div class="field"><span class="lbl">Barrettes</span><div class="seg" id="aStripes"></div></div>
+      <div class="field"><label for="aSince">Date de passage</label><input type="date" id="aSince"></div>
+      <button class="btn" type="button" id="aSave">Valider le grade</button>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Compétitions récentes du groupe</span>
+      <ul class="log" id="profComps"></ul>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Vidéos du programme</span>
+      <p class="muted" style="margin:0" id="vidNote"></p>
+      <div id="vidTools" style="display:flex;flex-direction:column;gap:12px">
+        <div class="field"><label for="vWeek">Semaine</label><select id="vWeek"></select></div>
+        <div class="field"><label for="vFile">Vidéo</label><input type="file" id="vFile" accept="video/mp4,video/webm,video/quicktime"></div>
+        <button class="btn" type="button" id="vUpload">Envoyer la vidéo</button>
+      </div>
+      <ul class="log" id="vidList"></ul>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Gestion du club</span>
+      <p class="muted" style="margin:0">Le nom, la couleur d'accent, le thème de la semaine, les actualités et le planning s'appliquent à tous les élèves du club. La vidéo de la semaine s'envoie dans le bloc Vidéos ci-dessus.</p>
+      <div class="field"><label for="clubName">Nom du club</label><input type="text" id="clubName" maxlength="40" placeholder="Ex. : Grigny Vic Fight"></div>
+      <div class="field"><label for="clubTheme">Thème de la semaine au club</label><input type="text" id="clubTheme" maxlength="100" placeholder="Ex. : Le passage de garde en demi-garde"></div>
+      <div class="field"><label for="clubNews">Actualités du club (280 caractères max)</label><textarea id="clubNews" maxlength="280" placeholder="Ex. : Rappel : pensez à couper vos ongles avant de monter sur le tatami. Stage le samedi 28 novembre !"></textarea></div>
+      <div class="field"><span class="lbl">Planning des cours</span>
+        <ul class="log" id="slotList"></ul>
+        <div class="slot-form">
+          <select id="slDay" aria-label="Jour"><option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option><option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option><option value="7">Dimanche</option></select>
+          <input type="text" id="slTitle" maxlength="40" placeholder="Ex. : JJB Gi adultes" aria-label="Nom du cours">
+          <input type="time" id="slStart" value="19:00" aria-label="Début du cours">
+          <input type="time" id="slEnd" value="20:30" aria-label="Fin du cours">
+        </div>
+        <button class="btn ghost small" type="button" id="slAdd" style="width:max-content">Ajouter ce cours au planning</button>
+      </div>
+      <div class="field"><span class="lbl">Couleur d'accent</span><div class="swatches" id="swatches"></div></div>
+      <button class="btn" type="button" id="clubSave">Appliquer au club</button>
+    </div>
+    <div class="card" id="profAccount">
+      <span class="eyebrow">Mon compte prof</span>
+      <p class="muted" style="margin:0">Compte prof : tu gères le club. Tu n'as pas de fiche élève, de séances ni de compteurs à ton nom.</p>
+      <div id="profAccSlot" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div class="demo-switch" hidden><span class="eyebrow">Mode démo</span><div class="row-acts"><button type="button" class="btn ghost small" data-demorole="student">Tester comme élève</button><button type="button" class="btn ghost small" data-demorole="teacher">Tester comme prof</button></div></div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="Navigation" id="navTabs">
+  <div class="inner">
+    <button type="button" data-go="today" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Semaine</button>
+    <button type="button" data-go="path"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4v16M6 8h8a3 3 0 0 1 0 6H6M14 14h4"/></svg>Parcours</button>
+    <button type="button" data-go="log" class="cta" aria-label="Saisir"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></span>Saisir</button>
+    <button type="button" data-go="prog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V11M12 19V5M19 19v-6"/></svg>Progrès</button>
+    <button type="button" data-go="prof" id="tabProf" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5M15 19c0-2 1.5-3.5 4-3.5"/></svg>Prof</button>
+  </div>
+</nav>
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-box"><h2 id="modalTitle"></h2><div id="modalBody" style="display:flex;flex-direction:column;gap:10px"></div><button class="btn" type="button" id="modalClose">J'ai compris</button></div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script>
+/* =====================================================================================
+   Connexion et serveur
+   - PRODUCTION (UZU_CONFIG rempli) : connecteur Supabase. Il fournit à l'application la
+     même interface que la plateforme Claude (window.claude.use("db" | "user" | "assets")),
+     branchée sur la table public.docs, la table public.club_roles et le stockage "videos".
+     Les règles d'accès et le code club sont vérifiés côté serveur (supabase.sql).
+   - DÉMO (UZU_CONFIG vide) : comptes simulés dans le localStorage de l'appareil.
+   ===================================================================================== */
+(function(){
+  var C=window.UZU_CONFIG||{},$=function(id){return document.getElementById(id)};
+  var LIVE=!!(window.supabase&&C.url&&C.anonKey&&!/VOTRE/.test(C.url+C.anonKey));
+  var DEMO_CODE="VIC2026"; // code club utilisé uniquement en mode démo (en production, il est stocké côté serveur)
+  var INVALID="Code club invalide. Demande le code à ton prof sur le tatami.";
+
+  // ---------- Icône d'écran d'accueil et manifeste, générés à la volée ----------
+  (function(){try{var cv=document.createElement("canvas");cv.width=cv.height=192;var x=cv.getContext("2d");
+    x.fillStyle="#111113";x.fillRect(0,0,192,192);x.strokeStyle="#E8283F";x.lineWidth=13;x.lineCap="round";x.beginPath();
+    for(var i=0;i<=160;i++){var t=i/160*Math.PI*5.2,rr=5+t*4.9,px=96+rr*Math.cos(t-Math.PI/2),py=96+rr*Math.sin(t-Math.PI/2);if(i)x.lineTo(px,py);else x.moveTo(px,py)}x.stroke();
+    var url=cv.toDataURL("image/png"),l=document.createElement("link");l.rel="apple-touch-icon";l.href=url;document.head.appendChild(l);
+    var m=document.createElement("link");m.rel="manifest";m.href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify({name:"UZU Grigny Vic Fight",short_name:"UZU",display:"standalone",start_url:".",background_color:"#111113",theme_color:"#111113",icons:[{src:url,sizes:"192x192",type:"image/png"}]}));document.head.appendChild(m)}catch(e){}})();
+
+  // ---------- Formulaire de connexion (commun) ----------
+  (function(){var d="",i,t,rr;for(i=0;i<=120;i++){t=i/120*Math.PI*5.2;rr=1.2+t*1.05;d+=(i?"L":"M")+(20+rr*Math.cos(t-Math.PI/2)).toFixed(2)+" "+(20+rr*Math.sin(t-Math.PI/2)).toFixed(2)}$("spiralLogin").setAttribute("d",d)})();
+  function say(m){$("lgErr").textContent=m;$("lgErr").hidden=!m}
+  function info(title,msg){if(window.UZU_MODAL){say("");window.UZU_MODAL(title,"<p>"+msg+"</p>")}else say(msg)}
+  function emailOk(e){return /^\S+@\S+\.\S+$/.test(e)}
+  // Deux onglets : « Se connecter » (e-mail, mot de passe) et « Rejoindre mon club » (inscription)
+  var TAB="in";
+  function setTab(t){TAB=t;say("");
+    Array.prototype.forEach.call(document.querySelectorAll("#loginOv [data-only]"),function(el){el.hidden=el.dataset.only!==t});
+    $("lgTabIn").setAttribute("aria-selected",t==="in");$("lgTabUp").setAttribute("aria-selected",t==="up");
+    $("lgTitle").textContent=t==="in"?"Content de te revoir":"Rejoins ton club";
+    $("lgPassLbl").textContent=t==="in"?"Mot de passe":"Mot de passe (8 caractères minimum)";
+    $("lgPass").setAttribute("autocomplete",t==="in"?"current-password":"new-password")}
+  $("lgTabIn").addEventListener("click",function(){setTab("in")});
+  $("lgTabUp").addEventListener("click",function(){setTab("up")});
+  setTab("in");
+  function creds(withCode){var e=$("lgEmail").value.trim(),p=$("lgPass").value,o={email:e,password:p};
+    if(withCode){var f=$("lgFirst").value.trim().replace(/\s+/g," "),i=$("lgInit").value.trim().replace(/[^A-Za-zÀ-ÿ]/g,"").slice(0,1).toUpperCase();
+      if(!f){say("Indique ton prénom pour que ton prof te reconnaisse.");$("lgFirst").focus();return null}
+      if(!i){say("Indique l'initiale de ton nom.");$("lgInit").focus();return null}
+      o.name=(f.charAt(0).toUpperCase()+f.slice(1)).slice(0,30)+" "+i+"."}
+    if(!emailOk(e)){say("Indique une adresse e-mail valide.");return null}
+    if(p.length<8){say("Mot de passe : 8 caractères minimum.");return null}
+    if(withCode){o.code=$("lgCode").value.trim().toUpperCase();if(!o.code){say("Indique le code invitation club. Demande-le à ton prof sur le tatami.");return null}
+      if(!$("lgAge").checked){say("Pendant la phase de test, UZU est réservé aux 16 ans et plus. Parles-en à ton prof.");return null}
+      if(!$("lgData").checked){say("Coche l'accord sur tes données pour rejoindre le club.");return null}}
+    say("");return o}
+  // Prénom et accord transmis à l'application (lus une seule fois à l'arrivée dans l'app)
+  function keepSignup(o,fresh){try{localStorage.setItem("uzu-signup",JSON.stringify({name:o.name,at:new Date().toISOString(),fresh:!!fresh}))}catch(e){}}
+  function dropSignup(){try{localStorage.removeItem("uzu-signup")}catch(e){}}
+  function signedUp(){if(window.UZU_SIGNED_UP)window.UZU_SIGNED_UP()}
+  function busy(b,on,label){b.disabled=on;b.textContent=label}
+  $("lgPass").addEventListener("keydown",function(e){if(e.key==="Enter"&&TAB==="in")$("lgIn").click()});
+
+  if(!LIVE){demo();return}
+
+  // =================================== PRODUCTION ===================================
+  var SB=window.supabase.createClient(C.url,C.anonKey);
+  var cache={},listeners=[],uid=null,chan=null,profP=null,manual=false;
+  function err(e){var m=(e&&e.message)||"Erreur",x=new Error(m);
+    x.code=(e&&(e.code==="42501"||/row-level security|permission denied/i.test(m)))?"not_granted":"upstream_error";return x}
+  function snapDoc(p){var r=cache[p];return {exists:!!r,id:p.split("/").pop(),data:function(){return r?r.data:undefined},metadata:{fromCache:false}}}
+  function under(prefix,p){return p.indexOf(prefix+"/")===0&&p.slice(prefix.length+1).indexOf("/")<0}
+  function colSnap(prefix){return {docs:Object.keys(cache).filter(function(p){return under(prefix,p)}).sort().map(snapDoc)}}
+  function notify(p){listeners.slice().forEach(function(l){if(l.doc?l.path===p:under(l.path,p))l.cb(l.doc?snapDoc(p):colSnap(l.path))})}
+  function realtime(){if(chan)return;
+    chan=SB.channel("uzu-docs").on("postgres_changes",{event:"*",schema:"public",table:"docs"},function(pl){
+      if(pl.eventType==="DELETE"){var p=pl.old&&pl.old.path;if(p&&cache[p]){delete cache[p];notify(p)}}
+      else if(pl.new&&pl.new.path){cache[pl.new.path]={data:pl.new.data};notify(pl.new.path)}
+    }).subscribe()}
+  function listen(l,load,ecb){listeners.push(l);realtime();load.then(function(r){if(r.error){if(ecb)ecb(err(r.error));return}l.loaded(r.data)});
+    return function(){var i=listeners.indexOf(l);if(i>-1)listeners.splice(i,1)}}
+  var db={
+    doc:function(path){return {
+      onSnapshot:function(cb,ecb){var l={doc:true,path:path,cb:cb,loaded:function(row){if(row)cache[path]={data:row.data};else delete cache[path];cb(snapDoc(path))}};
+        return listen(l,SB.from("docs").select("path,data").eq("path",path).maybeSingle(),ecb)},
+      set:function(data){var d=JSON.parse(JSON.stringify(data));
+        return SB.from("docs").upsert({path:path,data:d,updated_at:new Date().toISOString()}).then(function(r){if(r.error)throw err(r.error);cache[path]={data:d};notify(path)})},
+      update:function(data){var cur=cache[path]?cache[path].data:{};return this.set(Object.assign({},cur,data))},
+      delete:function(){return SB.from("docs").delete().eq("path",path).then(function(r){if(r.error)throw err(r.error);if(cache[path]){delete cache[path];notify(path)}})}
+    }},
+    collection:function(prefix){return {
+      onSnapshot:function(cb,ecb){var l={doc:false,path:prefix,cb:cb,loaded:function(rows){(rows||[]).forEach(function(row){cache[row.path]={data:row.data}});cb(colSnap(prefix))}};
+        return listen(l,SB.from("docs").select("path,data").like("path",prefix+"/%"),ecb)}
+    }}
+  };
+  var user={
+    id:function(){return Promise.resolve(uid)},
+    canEdit:function(){if(!profP)profP=SB.from("club_roles").select("role").eq("user_id",uid).maybeSingle().then(function(r){return !!(r.data&&r.data.role==="prof")});return profP},
+    // Rôle UNIQUE de l'application : club_roles.role 'prof' → 'teacher', 'eleve' (défaut à l'inscription) → 'student'
+    role:function(){return this.canEdit().then(function(p){return p?"teacher":"student"})},
+    profiles:function(ids){var o={};ids.forEach(function(id){var c=cache["members/"+id];o[id]={name:(c&&c.data&&c.data.name)||"",isMe:id===uid}});return Promise.resolve(o)}
+  };
+  var assets={
+    upload:function(file,opt){var t=(opt&&opt.type)||file.type,p=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8)+(t==="video/webm"?".webm":".mp4");
+      return SB.storage.from("videos").upload(p,file,{contentType:t,upsert:false}).then(function(r){
+        if(r.error){var m=String(r.error.statusCode||"")+" "+(r.error.message||""),x=new Error(m);
+          x.code=/413|size|large/i.test(m)?"too_large":/mime|type/i.test(m)?"unsupported_type":/403|row-level|unauthori/i.test(m)?"not_granted":"upstream_error";throw x}
+        return {id:p,url:window.UZU_BLOB(p),sizeBytes:file.size,contentType:t}})},
+    delete:function(id){return SB.storage.from("videos").remove([id]).then(function(r){if(r.error)throw err(r.error);return {deleted:true}})}
+  };
+  window.UZU_BLOB=function(id){return SB.storage.from("videos").getPublicUrl(id).data.publicUrl};
+  window.UZU_LOGOUT=function(){SB.auth.signOut().then(function(){location.reload()})};
+  window.UZU_SETPW=function(oldPw,newPw){return SB.auth.getUser().then(function(r){
+    var em=r.data&&r.data.user&&r.data.user.email;if(!em)return "Session expirée : reconnecte-toi.";
+    return SB.auth.signInWithPassword({email:em,password:oldPw}).then(function(a){if(a.error)return "Mot de passe actuel incorrect.";
+      return SB.auth.updateUser({password:newPw}).then(function(u){if(!u.error)return "Mot de passe modifié.";var m=u.error.message||"";
+        if(/weak|should be|at least/i.test(m))return "Nouveau mot de passe trop faible : 8 caractères minimum.";
+        if(/same|different from the old/i.test(m))return "Choisis un mot de passe différent de l'actuel.";
+        if(/reauthenticat|nonce/i.test(m))return "Supabase demande une vérification par e-mail : désactive « Secure password change » dans Authentication > Sign In / Providers > Email.";
+        return "Modification impossible : "+m})})})};
+  var ready=new Promise(function(res){
+    function start(s){if(uid||manual)return;uid=s.user.id;$("loginOv").hidden=true;res(s)}
+    SB.auth.getSession().then(function(r){var s=r.data&&r.data.session;if(s)start(s);else $("loginOv").hidden=false});
+    SB.auth.onAuthStateChange(function(ev,s){
+      if(ev==="PASSWORD_RECOVERY"){var np=window.prompt("Choisis ton nouveau mot de passe (8 caractères minimum)");
+        if(np&&np.length>=8)SB.auth.updateUser({password:np}).then(function(r){window.alert(r.error?"Échec : "+r.error.message:"Mot de passe modifié.")})}
+      if(s)start(s)});
+  });
+  window.claude={use:function(name){return ready.then(function(){
+    if(name==="db")return db;if(name==="user")return user;
+    if(name==="assets")return user.canEdit().then(function(p){return p?assets:null});
+    return null})}};
+  function fr(e){var m=(e&&e.message)||"";
+    if(/Invalid login/i.test(m))return "E-mail ou mot de passe incorrect.";
+    if(/Database error saving new user|Code club invalide/i.test(m))return INVALID;
+    if(/already registered|already exists/i.test(m))return "Un compte existe déjà avec cet e-mail : connecte-toi.";
+    if(/Password should be|weak/i.test(m))return "Mot de passe trop faible : 8 caractères minimum.";
+    if(/not confirmed/i.test(m))return "Confirme d'abord ton e-mail avec le lien reçu.";
+    if(/not authorized|Signups not allowed/i.test(m))return "Les inscriptions sont fermées : demande à ton prof de t'ajouter.";
+    if(/rate limit/i.test(m))return "Trop de tentatives, réessaie dans quelques minutes.";
+    return "Connexion impossible : "+m}
+  $("lgIn").addEventListener("click",function(){var c=creds(false),b=this;if(!c)return;busy(b,true,"Connexion…");manual=true;
+    SB.auth.signInWithPassword({email:c.email,password:c.password}).then(function(r){if(r.error){manual=false;busy(b,false,"Se connecter");say(fr(r.error));return}
+      location.reload()})});
+  $("lgUp").addEventListener("click",function(){var c=creds(true),b=this;if(!c)return;busy(b,true,"Création…");keepSignup(c,false);manual=true;
+    SB.auth.signUp({email:c.email,password:c.password,options:{data:{club_code:c.code,name:c.name}}}).then(function(r){busy(b,false,"Rejoindre le club");if(r.error){manual=false;dropSignup();say(fr(r.error));return}
+      if(!r.data.session){manual=false;setTab("in");say("Compte créé. Ouvre le lien de confirmation reçu par e-mail, puis connecte-toi.");return}
+      location.reload()})});
+  $("lgForgot").addEventListener("click",function(){var e=$("lgEmail").value.trim();if(!emailOk(e)){say("Indique d'abord ton e-mail.");return}
+    SB.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname}).then(function(r){
+      if(r.error){say(fr(r.error));return}
+      info("Mot de passe oublié","Si un compte existe pour cette adresse, un e-mail de réinitialisation vient de t'être envoyé. Pense à vérifier tes spams.")})});
+
+  // ====================================== DÉMO ======================================
+  function demo(){
+    var ACC="uzu-demo-accounts",SES="uzu-demo-session";
+    function load(){try{return JSON.parse(localStorage.getItem(ACC))||{}}catch(e){return {}}}
+    function store(a){try{localStorage.setItem(ACC,JSON.stringify(a))}catch(e){}}
+    function h(x){var v=5381;for(var i=0;i<x.length;i++)v=((v<<5)+v+x.charCodeAt(i))|0;return "h"+(v>>>0)} // empreinte simple (démo uniquement)
+    var sess=null;try{sess=localStorage.getItem(SES)}catch(e){}
+    $("lgDemo").hidden=false;$("lgQuick").hidden=false;
+    if(!sess||!load()[sess])$("loginOv").hidden=false;
+    // Ouverture d'un compte : rôle unique enregistré, données d'un autre compte effacées, page rechargée
+    function open(email){var a=load()[email]||{},last=null;try{last=localStorage.getItem("uzu-demo-last")}catch(e){}
+      try{localStorage.setItem(SES,email);localStorage.setItem("uzu-demo-role",a.role==="teacher"?"teacher":"student");
+        if(last!==email){localStorage.removeItem("uzu-gvf-v2");if(a.seed)localStorage.setItem("uzu-gvf-v2",a.seed);localStorage.setItem("uzu-demo-last",email)}}catch(e){}
+      location.reload()}
+    function quick(r){var all=load(),k=r==="teacher"?"prof.demo@uzu.app":"eleve.demo@uzu.app";
+      all[k]={h:h("demo-"+r),at:new Date().toISOString(),role:r,name:r==="teacher"?"Prof démo":"Yanis B."};
+      // Prof démo : « Mon Entraînement » démarre vide, en ceinture noire (aucune donnée d'élève)
+      if(r==="teacher")all[k].seed=JSON.stringify({belt:{rank:"noire",stripes:0,since:"2015-06-01"},request:null,school:"meta",schoolChosen:true,week:1,weekRank:"noire",done:{},sessions:[],comps:[],consent:{at:new Date().toISOString()},att:{},name:"Prof démo"});
+      store(all);
+      if(r==="student")keepSignup({name:"Yanis B."},false); // élève ceinture blanche avec ses données d'exemple
+      try{localStorage.removeItem("uzu-demo-last")}catch(e){}open(k)}
+    Array.prototype.forEach.call(document.querySelectorAll("[data-quick]"),function(b){b.addEventListener("click",function(){quick(b.dataset.quick)})});
+    $("lgIn").addEventListener("click",function(){var c=creds(false);if(!c)return;var a=load()[c.email.toLowerCase()];
+      if(!a){say("Aucun compte avec cet e-mail : passe par l'onglet « Rejoindre mon club ».");return}
+      if(a.h!==h(c.password)){say("E-mail ou mot de passe incorrect.");return}open(c.email.toLowerCase())});
+    $("lgUp").addEventListener("click",function(){var c=creds(true);if(!c)return;
+      if(c.code!==DEMO_CODE){say(INVALID);return}
+      var all=load(),k=c.email.toLowerCase();if(all[k]){say("Un compte existe déjà avec cet e-mail : connecte-toi.");return}
+      all[k]={h:h(c.password),at:new Date().toISOString(),name:c.name,role:"student"};store(all); // toute inscription = élève
+      keepSignup(c,true);open(k)});
+    $("lgForgot").addEventListener("click",function(){var e=$("lgEmail").value.trim();if(!emailOk(e)){say("Indique d'abord ton e-mail.");return}
+      info("Mot de passe oublié","Un e-mail de réinitialisation vous a été envoyé via notre service d'authentification (Simulation).")});
+    window.UZU_LOGOUT=function(){try{localStorage.removeItem(SES)}catch(e){}location.reload()};
+    window.UZU_SETPW=function(o,n){var all=load();if(!sess||!all[sess]||all[sess].h!==h(o))return Promise.resolve("Mot de passe actuel incorrect.");
+      all[sess].h=h(n);store(all);return Promise.resolve("Mot de passe modifié.")};
+  }
+})();
+</script>
+<script>
+(function(){
+// Logo tourbillon
+(function(){var d="",cx=20,cy=20;for(var i=0;i<=120;i++){var t=i/120*Math.PI*5.2,r=1.2+t*1.05;var x=cx+r*Math.cos(t-Math.PI/2),y=cy+r*Math.sin(t-Math.PI/2);d+=(i?"L":"M")+x.toFixed(2)+" "+y.toFixed(2)}document.getElementById("spiral").setAttribute("d",d)})();
+
+// ---------- Identité du club ----------
+var PRESETS={
+ cyan:{n:"Cyan électrique",l:"#0891B2",ls:"#DCF3F8",lo:"#FFFFFF",d:"#22D3EE",ds:"#0E2A31",dn:"#0D0D0E"},
+ sceau:{n:"Rouge sceau (UZU)",l:"#B3122E",ls:"#F7E3E6",lo:"#FFFFFF",d:"#E0354D",ds:"#3A161B",dn:"#FFFFFF"},
+ vic:{n:"Rouge vif",l:"#C8102E",ls:"#FBE4E7",lo:"#FFFFFF",d:"#E8283F",ds:"#3A1419",dn:"#FFFFFF"},
+ orange:{n:"Orange",l:"#C2410C",ls:"#FCE9DE",lo:"#FFFFFF",d:"#F07A3A",ds:"#3A2014",dn:"#0D0D0E"},
+ or:{n:"Or",l:"#8A6A0E",ls:"#F5EDD5",lo:"#FFFFFF",d:"#D9AE3C",ds:"#33290F",dn:"#0D0D0E"},
+ vert:{n:"Vert",l:"#1F6B45",ls:"#E1EFE6",lo:"#FFFFFF",d:"#4FBF85",ds:"#14291D",dn:"#0D0D0E"},
+ turquoise:{n:"Turquoise",l:"#0F766E",ls:"#DDF1EF",lo:"#FFFFFF",d:"#3CC2B5",ds:"#11292A",dn:"#0D0D0E"},
+ marine:{n:"Bleu marine",l:"#1E3A5F",ls:"#E2E8F0",lo:"#FFFFFF",d:"#8FB0DA",ds:"#17202C",dn:"#0D0D0E"},
+ acier:{n:"Acier sobre",l:"#3F4650",ls:"#E6E8EB",lo:"#FFFFFF",d:"#B8C0CA",ds:"#24282D",dn:"#0D0D0E"}};
+var CLUB_KEY="uzu-club-gvf2",club={name:"Grigny Vic Fight",accent:"cyan",weekTheme:"",schedule:[]},clubForm={accent:"cyan"};
+function normSched(a){return Array.isArray(a)?a.filter(function(x){return x&&x.id&&x.d>=1&&x.d<=7&&/^\d\d:\d\d$/.test(x.s)&&/^\d\d:\d\d$/.test(x.e)}).slice(0,30).map(function(x){return {id:String(x.id).slice(0,20),d:+x.d,s:x.s,e:x.e,t:String(x.t||"Cours").slice(0,40)}}):[]}
+var DEMO_NEWS="Rappel : pensez à couper vos ongles avant de monter sur le tatami. Stage le samedi 28 novembre !";
+function clubNews(){return club.news||(mode==="cloud"?"":DEMO_NEWS)}
+function normClub(d){d=d||{};return {name:String(d.name||"").slice(0,40),accent:PRESETS[d.accent]?d.accent:"cyan",weekTheme:String(d.weekTheme||"").slice(0,100),schedule:normSched(d.schedule),news:String(d.news||"").slice(0,280)}}
+try{var cachedClub=localStorage.getItem(CLUB_KEY);if(cachedClub)club=normClub(JSON.parse(cachedClub))}catch(e){}
+function applyAccent(key){var p=PRESETS[key]||PRESETS.sceau,s=document.documentElement.style;
+ s.setProperty("--club-l",p.l);s.setProperty("--club-l-soft",p.ls);s.setProperty("--club-l-on",p.lo);
+ s.setProperty("--club-d",p.d);s.setProperty("--club-d-soft",p.ds);s.setProperty("--club-d-on",p.dn)}
+function applyClub(){applyAccent(club.accent)}
+function cacheClub(){try{localStorage.setItem(CLUB_KEY,JSON.stringify(club))}catch(e){}}
+applyClub();
+
+// ---------- Ceintures ----------
+var BELTS=[
+ {k:"blanche",n:"blanche",c:"#F4F4F0",bar:"#151515",p:"Programme commun : dessous, dessus, lutte"},
+ {k:"bleue",n:"bleue",c:"#2F57C6",bar:"#151515",p:"Spécialisation dans une école"},
+ {k:"violette",n:"violette",c:"#6C3FA6",bar:"#151515",p:"Deuxième école et système complet"},
+ {k:"marron",n:"marron",c:"#7A4A2A",bar:"#151515",p:"Jeu complet et compétition"},
+ {k:"noire",n:"noire",c:"#151515",bar:"#C8102E",p:"Transmettre et continuer d'apprendre"}];
+function beltIdx(k){for(var i=0;i<BELTS.length;i++)if(BELTS[i].k===k)return i;return 0}
+function beltSvg(k,st,w){var b=BELTS[beltIdx(k)],W=w||44,H=Math.max(8,Math.round(W*0.27)),bx=W*0.58,bw=W*0.28,s="";
+ for(var i=0;i<4;i++)s+='<rect x="'+(bx+bw*0.12+i*bw*0.2).toFixed(1)+'" y="1" width="'+(bw*0.1).toFixed(1)+'" height="'+(H-2)+'" fill="'+(i<(st||0)?"#FFFFFF":"rgba(255,255,255,.22)")+'"/>';
+ return '<svg class="beltsvg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" aria-hidden="true"><rect x="0.5" y="0.5" width="'+(W-1)+'" height="'+(H-1)+'" rx="2" fill="'+b.c+'" stroke="rgba(128,128,128,.6)"/><rect x="'+bx.toFixed(1)+'" y="0.5" width="'+bw.toFixed(1)+'" height="'+(H-1)+'" fill="'+b.bar+'"/>'+s+'</svg>'}
+function stripesTxt(n){return n?n+" barrette"+(n>1?"s":""):"sans barrette"}
+function beltLabel(b){return "Ceinture "+BELTS[beltIdx(b.rank)].n}
+function beltShort(b){return BELTS[beltIdx(b.rank)].n.charAt(0).toUpperCase()+BELTS[beltIdx(b.rank)].n.slice(1)+(b.stripes?" "+b.stripes+" b.":"")}
+
+// ---------- Programmes ----------
+var WHITE=[
+ {t:"Garde fermée : contrôler et attaquer",b:"Le Dessous",o:["Casser la posture du partenaire en garde fermée","Placer le hip bump et le balayage en ciseaux","Tenter une attaque (clé de bras ou triangle) en sparring"]},
+ {t:"Demi-garde : survivre et revenir",b:"Le Dessous",o:["Prendre le underhook et placer le cadre en demi-garde","Revenir en garde complète depuis la demi-garde","Tenir 2 min en demi-garde sans se faire passer"]},
+ {t:"S'échapper de la monte",b:"Le Dessous",o:["Réussir le pont et la roulade (upa)","Sortir en coude-genou vers la demi-garde","Sortir 2 fois de la monte en sparring"]},
+ {t:"S'échapper du contrôle latéral",b:"Le Dessous",o:["Placer ses cadres (avant-bras) sous pression","Faire 20 crevettes propres à l'échauffement","Récupérer la garde depuis le côté 2 fois en sparring"]},
+ {t:"Passer la garde",b:"Le Dessus",o:["Garder une posture solide dans la garde fermée","Placer le passage genou en travers (knee cut) ou le body lock","Réussir 1 passage en sparring"]},
+ {t:"Contrôle latéral et monte",b:"Le Dessus",o:["Tenir le contrôle latéral 30 secondes","Passer du contrôle latéral à la monte","Garder la monte malgré le pont du partenaire"]},
+ {t:"Prendre le dos",b:"Le Dessus",o:["Placer la ceinture de sécurité (seatbelt) et les crochets","Suivre le partenaire quand il tourne","Garder le dos 30 secondes en sparring"]},
+ {t:"Finir : clé de bras et étranglement arrière",b:"Le Dessus",o:["Placer la clé de bras depuis la monte, des deux côtés","Placer l'étranglement arrière en combattant les mains","Finir une fois en sparring"]},
+ {t:"Posture, déplacements et sprawl",b:"La Lutte & Amenées au sol",o:["Garder une posture basse et équilibrée","Sprawler sur une entrée de jambe","Faire 2 rounds debout sans tomber sur le dos"]},
+ {t:"Single leg et double leg",b:"La Lutte & Amenées au sol",o:["Placer le single leg en drill, 20 répétitions","Placer le double leg en drill, 20 répétitions","Amener au sol 1 fois en sparring"]},
+ {t:"Snap down et guillotine",b:"La Lutte & Amenées au sol",o:["Placer le snap down vers le contrôle tête-bras","Placer la guillotine sur une entrée de jambe","Enchaîner sprawl et snap down en sparring"]},
+ {t:"Tirer la garde (pull-guard) et bilan",b:"La Lutte & Amenées au sol",o:["Tirer la garde avec prises, sans s'asseoir dans le vide","Faire 5 rounds en reliant lutte, dessus et dessous","Faire le point avec ton prof et choisir ta spécialisation pour la bleue"]}];
+var SCHOOL={
+ lutte:[{t:"Snap down et contrôle tête-bras",o:["Placer le snap down en drill, 20 répétitions","Tenir le contrôle tête-bras (front headlock) 20 secondes","Commencer 2 rounds debout en sparring"]},
+    {t:"Guillotine",o:["Placer la guillotine bras dedans en drill","Finir avec le coude haut, sans forcer avec les bras","Tenter la guillotine sur une entrée de jambe en sparring"]},
+    {t:"Étranglement bras-tête",o:["Placer le bras-tête depuis le contrôle latéral","Passer du bon côté avant de serrer","Tenter le bras-tête en sparring"]},
+    {t:"Anaconda",o:["Placer l'anaconda depuis le contrôle tête-bras","Rouler du bon côté pour finir","Placer l'entrée une fois en sparring"]},
+    {t:"Scrambles",o:["Revenir sur ses appuis après une chute","Passer dans le dos sur un sprawl (go-behind)","Gagner 2 scrambles en sparring"]},
+    {t:"Enchaîner guillotine, bras-tête, anaconda",o:["Drill : changer de finition selon la réaction du partenaire","Placer l'enchaînement une fois en sparring","Noter la finition qui marche le mieux pour toi"]},
+    {t:"Sparring à thème : départ tête-bras",o:["Faire 5 rounds en partant du contrôle tête-bras","Finir au moins une fois","Noter tes deux erreurs principales"]}],
+ pologne:[{t:"Entrer dans les jambes",o:["Entrer en single leg X depuis la garde assise","Garder le contrôle du talon et du genou","Placer l'entrée 2 fois en sparring"]},
+    {t:"Contrôler en ashi garami",o:["Placer l'ashi garami de base des deux côtés","Bloquer les hanches du partenaire","Tenir la position 30 secondes en sparring"]},
+    {t:"Clé de cheville droite",o:["Placer la clé de cheville avec une finition propre","Serrer lentement et lâcher dès la frappe","Tenter la clé en sparring, sous l'œil du prof"]},
+    {t:"Défendre ses jambes",o:["Cacher le talon et dégager le genou","Tourner dans le bon sens pour sortir","Sortir 2 fois d'une attaque de jambes en sparring"]},
+    {t:"Clé de genou, en drill encadré",o:["Placer la clé de genou lentement, en drill uniquement","Vérifier les règles de ta compétition avant de la tenter","Garder le contrôle des hanches pendant la finition"]},
+    {t:"Enchaîner balayage et attaque de jambes",o:["Drill : balayer depuis la single leg X, puis attaquer la cheville","Placer l'enchaînement une fois en sparring","Noter l'entrée qui marche le mieux pour toi"]},
+    {t:"Sparring à thème : jambes",o:["Faire 5 rounds en cherchant les jambes","Finir ou contrôler au moins une fois","Noter tes deux erreurs principales"]}],
+ meta:[{t:"Garde assise et wrestle-up",o:["Tenir la garde assise face à un partenaire debout","Se relever en single leg depuis la garde assise","Placer 2 wrestle-ups en sparring"]},
+    {t:"Garde papillon et tibia contre tibia",o:["Placer le tibia contre tibia et le contrôle du bras","Soulever et balayer en drill","Placer 1 balayage en sparring"]},
+    {t:"Passage body lock",o:["Verrouiller les mains autour des hanches","Écraser et dégager la jambe","Réussir 1 passage body lock en sparring"]},
+    {t:"Prendre le dos",o:["Placer la ceinture de sécurité (seatbelt)","Mettre les crochets ou le triangle de corps","Prendre le dos 2 fois en sparring"]},
+    {t:"Garder le dos",o:["Suivre le partenaire quand il tourne","Rétablir le contrôle quand il glisse","Garder le dos 30 secondes en sparring"]},
+    {t:"Étranglement arrière",o:["Placer l'étranglement arrière en drill, des deux côtés","Combattre les mains avant de serrer","Finir une fois en sparring"]},
+    {t:"Enchaîner wrestle-up, body lock, dos",o:["Drill : de la garde assise jusqu'à l'étranglement","Placer l'enchaînement une fois en sparring","Noter l'étape où tu bloques le plus"]}]};
+var BLUE_END=[
+ {t:"Contres et ré-attaques",b:"Maîtrise et compétition",o:["Repérer les 2 défenses les plus fréquentes contre ton école","Préparer une ré-attaque pour chacune","Placer une ré-attaque en sparring"]},
+ {t:"Ton école en gi et en no-gi",b:"Maîtrise et compétition",o:["Adapter tes prises avec et sans kimono","Faire 2 rounds dans chaque tenue","Noter ce qui change pour toi"]},
+ {t:"Se défendre contre les autres écoles",b:"Maîtrise et compétition",o:["Sortir d'une guillotine et du contrôle tête-bras","Protéger ses jambes face à une entrée en ashi garami","Sortir du dos sans exposer le cou"]},
+ {t:"Ton école en compétition",b:"Maîtrise et compétition",o:["Connaître les règles et les points de ta compétition","Faire 3 rounds chronométrés avec arbitrage","Fixer ta prochaine compétition"]},
+ {t:"Sparring dirigé et bilan",b:"Maîtrise et compétition",o:["Faire 5 rounds en appliquant ton école","Faire le point avec ton prof","Fixer les 3 objectifs du prochain cycle"]}];
+var ADV={
+ violette:{t:"Objectifs de la ceinture violette",b:"Deuxième école et système complet",o:["Ajouter une deuxième école complémentaire à la tienne","Relier dessus, dessous et lutte en un seul système","Aider les débutants pendant les drills"]},
+ marron:{t:"Objectifs de la ceinture marron",b:"Jeu complet et compétition",o:["Affiner ton plan A et préparer ton plan B","Préparer et analyser tes compétitions","Animer un échauffement ou une partie de cours"]},
+ noire:{t:"Objectifs de la ceinture noire",b:"Transmettre et continuer d'apprendre",o:["Construire ton propre programme d'enseignement","Continuer à compéter ou à transmettre","Rester élève : un nouveau thème chaque saison"]}};
+var SCHOOL_NAME={lutte:"Front headlock",pologne:"Leglocks",meta:"Back attack"};
+var SCHOOL_SHORT={lutte:"Headlock",pologne:"Leglocks",meta:"Back attack"};
+var NAMES={en:{lutte:"Front headlock",pologne:"Leglocks",meta:"Back attack"},fr:{lutte:"Contrôle de tête",pologne:"Clés de jambes",meta:"Prise de dos"}};
+var SHORTS={en:{lutte:"Headlock",pologne:"Leglocks",meta:"Back attack"},fr:{lutte:"Tête",pologne:"Jambes",meta:"Dos"}};
+var lang="en";try{if(localStorage.getItem("uzu-lang")==="fr")lang="fr"}catch(e){}
+function setLang(l){lang=l==="fr"?"fr":"en";Object.keys(NAMES.en).forEach(function(k){SCHOOL_NAME[k]=NAMES[lang][k];SCHOOL_SHORT[k]=SHORTS[lang][k]})}
+setLang(lang);
+var RESULT={or:"Or",argent:"Argent",bronze:"Bronze",aucun:"Sans podium"};
+function normSchool(t){return SCHOOL[t]?t:"lutte"}
+function program(st){var r=st.belt.rank;
+ if(r==="blanche")return WHITE;
+ if(r==="bleue"){var k=normSchool(st.school);return SCHOOL[k].map(function(w){return {t:w.t,b:SCHOOL_NAME[k],o:w.o}}).concat(BLUE_END)}
+ return [ADV[r]]}
+
+// ---------- Dates ----------
+function pad(n){return (n<10?"0":"")+n}
+function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function parse(s){var p=String(s||"").split("-");return new Date(+p[0],+p[1]-1,+p[2])}
+function addDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x}
+function weekStart(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
+var TODAY=new Date();TODAY=new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate());
+function frDate(s){return parse(s).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}
+function frShort(s){return parse(s).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}
+function duration(s){var a=parse(s),m=(TODAY.getFullYear()-a.getFullYear())*12+TODAY.getMonth()-a.getMonth();if(TODAY.getDate()<a.getDate())m--;if(m<1)return "moins d'un mois";if(m<12)return m+" mois";var y=Math.floor(m/12),r=m%12;return y+" an"+(y>1?"s":"")+(r?" et "+r+" mois":"")}
+
+// ---------- État ----------
+function sample(){var s=[],themes=["Garder sa garde et balayer","Passer la garde","Stabiliser le dessus","Sortir de la monte et du contrôle latéral","Attaquer depuis la monte"];
+ for(var i=40;i>=1;i--){var d=addDays(TODAY,-i),wd=d.getDay();if((wd===1||wd===3||wd===6)&&i%11!==4){s.push({id:"s"+i,date:ymd(d),type:wd===3?"No-gi":"Gi",dur:wd===6?120:90,theme:themes[(i>>3)%themes.length],rounds:4+(i%3),placed:i%4===0?1:0,taken:2+(i%2),note:"",sample:true})}}return s}
+function sampleComps(){return [
+ {id:"c1",date:ymd(addDays(TODAY,-75)),event:"Open régional (exemple)",type:"Gi",result:"bronze",wins:2,losses:1,subs:1,sample:true},
+ {id:"c2",date:ymd(addDays(TODAY,-24)),event:"Coupe no-gi (exemple)",type:"No-gi",result:"argent",wins:3,losses:1,subs:2,sample:true}]}
+// Données de démo : 2 séances et 1 compétition passée (jamais envoyées au club)
+function defaults(){return {belt:{rank:"blanche",stripes:2,since:ymd(addDays(TODAY,-210))},request:null,school:"lutte",schoolChosen:false,week:3,weekRank:"blanche",
+ done:{"blanche-1":[true,true,true],"blanche-2":[true,true,true],"blanche-3":[true,false,false]},
+ sessions:[{id:"s1",date:ymd(addDays(TODAY,-5)),type:"No-gi",dur:60,theme:"Garde fermée : contrôler et attaquer",rounds:4,placed:0,taken:3,takenW:1,takenG:2,note:"",forme:"fatigue",sample:true},
+  {id:"s2",date:ymd(addDays(TODAY,-2)),type:"Gi",dur:90,theme:"Demi-garde : survivre et revenir",rounds:5,placed:1,taken:2,takenW:1,takenG:1,note:"",forme:"ok",sample:true}],
+ comps:[{id:"c1",date:ymd(addDays(TODAY,-24)),event:"Open régional (exemple)",type:"Gi",result:"bronze",wins:2,losses:1,subs:1,sample:true}],consent:null,att:{}}}
+function demoDefaults(){var done={};[1,2,3,4].forEach(function(w){done["blanche-"+w]=[true,true,true]});done["blanche-5"]=[true,false,false];
+ return {belt:{rank:"blanche",stripes:2,since:ymd(addDays(TODAY,-210))},request:null,school:"lutte",week:5,weekRank:"blanche",sessions:sample(),comps:sampleComps(),done:done,consent:null}}
+function normBelt(b){b=b||{};return {rank:BELTS[beltIdx(b.rank)].k,stripes:Math.max(0,Math.min(4,+b.stripes||0)),since:typeof b.since==="string"?b.since:""}}
+function normalize(d){d=d||{};var r=d.request&&d.request.rank?d.request:null;
+ return {belt:normBelt(d.belt),request:r?{rank:normBelt(r).rank,stripes:normBelt(r).stripes,since:normBelt(r).since,at:String(r.at||"")}:null,
+  school:normSchool(d.school||d.tree),week:Math.max(1,+d.week||1),weekRank:BELTS[beltIdx(d.weekRank||(d.belt&&d.belt.rank))].k,
+  done:(d.done&&typeof d.done==="object")?JSON.parse(JSON.stringify(d.done)):{},
+  sessions:Array.isArray(d.sessions)?JSON.parse(JSON.stringify(d.sessions)):[],
+  comps:Array.isArray(d.comps)?JSON.parse(JSON.stringify(d.comps)):[],
+  rollLocal:Array.isArray(d.rollLocal)?JSON.parse(JSON.stringify(d.rollLocal)):[],
+  schoolChosen:!!d.schoolChosen,
+  name:String(d.name||"").slice(0,40),
+  att:(d.att&&typeof d.att==="object"&&!Array.isArray(d.att))?JSON.parse(JSON.stringify(d.att)):{},
+  consent:(d.consent&&d.consent.at)?{at:String(d.consent.at)}:null}}
+function emptyState(){return {belt:{rank:"blanche",stripes:0,since:""},request:null,school:"lutte",schoolChosen:false,week:1,weekRank:"blanche",done:{},sessions:[],comps:[],consent:null,att:{},name:""}}
+var KEY="uzu-gvf-v2",state,raw=null;
+try{raw=JSON.parse(localStorage.getItem(KEY))}catch(e){raw=null}
+state=(raw&&raw.sessions&&raw.belt)?normalize(raw):defaults();
+if(raw&&raw.belt&&!raw.comps)state.comps=[];
+function dk(w){return state.belt.rank+"-"+w}
+function curWeek(){var N=program(state).length;return Math.min(state.weekRank===state.belt.rank?state.week:1,N)}
+
+var priv={},privRef=null,lastPriv="{}";
+function mergePriv(){if(mode!=="cloud"||role==="teacher")return;state.sessions.forEach(function(s){var p=priv[s.id];s.note=p?p.n:"";s.forme=p?p.f:""})}
+var mode="local",myRef=null,dbNs=null,myUid=null,myGrade=null,writing=Promise.resolve(),readOnly=false,current="today",isProf=false,members=null,grades={},userNs=null,names={};
+function applyGrade(){if(mode==="cloud"&&role!=="teacher")state.belt=myGrade?normBelt(myGrade):{rank:"blanche",stripes:0,since:""}}
+function isPending(req,g){return !!(req&&req.at&&(!g||!g.decidedAt||g.decidedAt<req.at))}
+function save(){
+ if(role==="teacher"&&mode==="cloud"){ // prof : uniquement son entraînement privé, jamais une fiche élève
+  if(!coachRef)return;var cb=JSON.parse(JSON.stringify(Object.assign({},state,{sessions:state.sessions.filter(function(x){return !x.sample}).slice(-300),comps:state.comps.filter(function(c){return !c.sample}).slice(-100),updatedAt:new Date().toISOString()})));
+  writing=writing.then(function(){return coachRef.set(cb)}).catch(function(){toast("Connexion perdue, ta dernière saisie n'est pas synchronisée")});return}
+ if(mode!=="cloud"){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}return}
+ if(readOnly){toast("Enregistrement impossible : reconnecte-toi puis réessaie");return}
+ var body=JSON.parse(JSON.stringify({consent:state.consent,request:state.request,name:state.name||"",school:state.school,schoolChosen:state.schoolChosen,att:state.att,week:state.week,weekRank:state.weekRank,done:state.done,
+  sessions:state.sessions.filter(function(s){return !s.sample}).slice(-300).map(function(s){var c=Object.assign({},s);delete c.note;delete c.forme;return c}),comps:state.comps.filter(function(c){return !c.sample}).slice(-100),updatedAt:new Date().toISOString()}));
+ var pm={};state.sessions.forEach(function(s){if(!s.sample&&(s.note||s.forme))pm[s.id]={n:s.note||"",f:s.forme||""}});priv=pm;var pj=JSON.stringify(pm);
+ if(privRef&&pj!==lastPriv){lastPriv=pj;writing=writing.then(function(){return privRef.set({s:pm})}).catch(function(){})}
+ writing=writing.then(function(){return myRef.set(body)}).catch(function(e){
+  if(e&&(e.code==="invalid_argument"||e.code==="not_granted")){readOnly=true;toast("Enregistrement refusé : reconnecte-toi puis réessaie")}
+  else if(e&&e.code==="quota_exceeded"){toast("Espace de stockage du club plein, préviens ton prof")}
+  else{toast("Connexion perdue, ta dernière saisie n'est pas synchronisée")}});}
+var gradeWrites=Promise.resolve();
+/* =====================================================================================
+   SÉCURITÉ — À LIRE AVANT TOUTE MODIFICATION
+   Masquer l'onglet Prof et appeler requireProf() ne protège RIEN : ce n'est que du confort
+   d'interface. Un élève peut ouvrir la console ou appeler l'API Supabase directement.
+   La protection réelle est côté serveur, dans les règles RLS (supabase.sql) :
+     grades/<id>     validation des ceintures et barrettes   → écriture : profs uniquement
+     roll/<id>       appel du prof (présences)                → écriture : profs uniquement
+     club/settings   nom, couleur, planning, actualités       → écriture : profs uniquement
+     videos/<…>      vidéos (table docs + stockage "videos")  → écriture : profs uniquement
+     notes/<id>      note privée du prof                      → lecture et écriture : profs
+     club_roles      rôle prof / élève                        → aucune écriture depuis l'app
+   Fonctions SQL concernées : public.docs_can_read(), public.docs_can_write(), public.is_prof().
+   Toute nouvelle donnée réservée aux profs DOIT y être ajoutée, sinon elle sera modifiable
+   par n'importe quel élève connecté.
+   ===================================================================================== */
+function requireProf(action){if(isProf)return true;toast((action||"Cette action")+" est réservée aux profs du club");return false}
+/* ---------- Rôle UNIQUE de l'utilisateur : 'student' OU 'teacher', jamais les deux ----------
+   teacher : uniquement le tableau de bord Prof, sans navigation basse ni fiche élève
+   student : interface élève avec navigation basse, vue Prof inexistante
+   Production : rôle lu côté serveur (table club_roles : 'eleve' → student, 'prof' → teacher).
+   Démo : rôle du compte fictif, conservé dans localStorage ("uzu-demo-role"). */
+var role=null,trainMode=false,coachRef=null;
+/* Prof : deux interfaces séparées, jamais affichées ensemble.
+   « Vue prof »         : gestion du club (élèves, appel, grades, planning).
+   « Mon entraînement » : son suivi perso, stocké dans data/users/<id>/training, visible par lui seul.
+   Ce suivi n'est PAS une fiche élève : il n'apparaît ni dans la liste des élèves, ni dans l'appel,
+   ni dans les statistiques du club. */
+function setTrain(on){trainMode=!!on&&role==="teacher";document.body.classList.toggle("train",trainMode);
+ try{localStorage.setItem("uzu-teacher-mode",trainMode?"train":"prof")}catch(e){}
+ Array.prototype.forEach.call(document.querySelectorAll("#modeSwitch button"),function(b){b.setAttribute("aria-pressed",(b.dataset.tmode==="train")===trainMode)});
+ renderHeader();go(trainMode?"today":"prof");window.scrollTo(0,0)}
+function demoRole(){try{return localStorage.getItem("uzu-demo-role")==="teacher"?"teacher":"student"}catch(e){return "student"}}
+function setRole(r){role=r==="teacher"?"teacher":"student";isProf=role==="teacher";
+ var b=document.body;b.classList.remove("role-pending");b.classList.toggle("role-teacher",isProf);b.classList.toggle("role-student",!isProf);
+ $("modeSwitch").hidden=!isProf; // bascule réservée aux profs
+ $("tabProf").hidden=true; // plus d'onglet Prof dans la navigation : le prof a sa propre interface
+ if(isProf){["pwBox","logout"].forEach(function(id){var el=$(id);if(el){$("profAccSlot").appendChild(el);el.hidden=id==="logout"?!window.UZU_LOGOUT:!window.UZU_SETPW}})}
+ if(isProf){var tm="prof";try{tm=localStorage.getItem("uzu-teacher-mode")||"prof"}catch(e){}trainMode=tm==="train";document.body.classList.toggle("train",trainMode);
+  Array.prototype.forEach.call(document.querySelectorAll("#modeSwitch button"),function(b){b.setAttribute("aria-pressed",(b.dataset.tmode==="train")===trainMode)})}
+ renderDemoSwitch();go(isProf&&!trainMode?"prof":(current==="prof"?"today":current))}
+function renderDemoSwitch(){var on=!myUid&&!window.UZU_LOGOUT; // démo sans écran de connexion (aperçu dans Claude)
+ Array.prototype.forEach.call(document.querySelectorAll(".demo-switch"),function(el){el.hidden=!on})}
+function setTabProf(){if(role)setRole(role)}
+function writeGrade(uid,belt,status,comment){if(!requireProf("La validation des grades"))return;var body={rank:belt.rank,stripes:belt.stripes,since:belt.since||"",status:status,comment:String(comment||"").slice(0,300),decidedAt:new Date().toISOString(),by:myUid||""};
+ gradeWrites=gradeWrites.then(function(){return dbNs.doc("grades/"+uid).set(body)}).then(function(){toast(status==="validé"?"Grade validé":"Demande refusée")}).catch(function(){toast("Validation impossible : il faut être prof")});}
+
+var $=function(id){return document.getElementById(id)};
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+// ---------- Vidéos du programme (videos/<semaine> -> {id}) ----------
+var videos={},assetsNs=null,badVid={},VID_PH=$("tVideo").innerHTML;
+function blobUrl(id){return window.UZU_BLOB?window.UZU_BLOB(id):"/_blob/"+id}
+function vidId(k){var v=videos[k];return v&&v.id&&!badVid[v.id]?String(v.id):""}
+function mountVideo(el,id,ph){if(el.dataset.vid===id)return;el.dataset.vid=id;
+ if(id){el.className="";el.innerHTML='<video class="vid" controls playsinline preload="metadata" src="'+esc(blobUrl(id))+'"></video>';el.querySelector("video").addEventListener("error",function(){badVid[id]=1;el.dataset.vid="";el.className=ph?"video":"";el.innerHTML=ph||""})}
+ else{el.className=ph?"video":"";el.innerHTML=ph||""}}
+function vkey(rank,school,w){if(rank==="blanche")return "blanche-"+w;if(rank==="bleue")return "bleue-"+normSchool(school)+"-"+w;return rank+"-1"}
+function allWeeks(){var out=[{k:"club-semaine",label:"Vidéo de la semaine au club (tous les élèves)"}];
+ WHITE.forEach(function(W,i){out.push({k:"blanche-"+(i+1),label:"Blanche · S"+(i+1)+" · "+W.t})});
+ Object.keys(SCHOOL).forEach(function(s){program({belt:{rank:"bleue"},school:s}).forEach(function(W,i){out.push({k:"bleue-"+s+"-"+(i+1),label:"Bleue "+SCHOOL_SHORT[s]+" · S"+(i+1)+" · "+W.t})})});
+ ["violette","marron","noire"].forEach(function(r){out.push({k:r+"-1",label:"Ceinture "+r+" · objectifs"})});return out}
+function renderVideos(){var ok=mode==="cloud"&&isProf&&!!assetsNs;$("vidTools").hidden=!ok;
+ $("vidNote").textContent=ok?"Une vidéo courte par semaine : 30 à 60 s filmées au téléphone, en MP4 ou WebM, 50 Mo maximum. Les élèves la voient dans leur onglet Semaine.":"L'envoi de vidéos est réservé aux comptes prof, une fois connecté au club.";
+ var W=allWeeks();if(ok){var sel=$("vWeek").value;$("vWeek").innerHTML=W.map(function(x){return '<option value="'+x.k+'"'+(x.k===sel?" selected":"")+'>'+esc(x.label)+(videos[x.k]&&videos[x.k].id?" (vidéo en ligne)":"")+'</option>'}).join("")}
+ var have=W.filter(function(x){return videos[x.k]&&videos[x.k].id});
+ $("vidList").innerHTML=have.map(function(x){return '<li><div style="min-width:0">'+esc(x.label)+'</div>'+(ok?'<button type="button" class="icon-btn" data-vdel="'+x.k+'">Retirer</button>':'')+'</li>'}).join("")||'<li class="empty">Aucune vidéo pour l\'instant.</li>'}
+function uploadVideo(btn){if(!requireProf("L'envoi de vidéos"))return;var f=$("vFile").files&&$("vFile").files[0],k=$("vWeek").value;
+ if(!assetsNs||!dbNs){toast("Envoi indisponible ici");return}
+ if(!f){toast("Choisis d'abord une vidéo");return}
+ var t=f.type==="video/webm"?"video/webm":(f.type==="video/mp4"||f.type==="video/quicktime"||/\.(mp4|m4v|mov)$/i.test(f.name))?"video/mp4":"";
+ if(!t){toast("Format non accepté : envoie une vidéo MP4 ou WebM");return}
+ if(f.size>50*1024*1024){toast("Vidéo trop lourde (50 Mo max) : raccourcis-la ou filme en 720p");return}
+ btn.disabled=true;btn.textContent="Envoi en cours…";var old=videos[k]&&videos[k].id;
+ assetsNs.upload(f,{type:t}).then(function(r){return dbNs.doc("videos/"+k).set({id:r.id,uploadedAt:new Date().toISOString()}).then(function(){videos[k]={id:r.id};if(old&&old!==r.id)assetsNs.delete(old).catch(function(){});$("vFile").value="";toast("Vidéo ajoutée");renderVideos()})})
+ .catch(function(e){var c=e&&e.code;toast(c==="too_large"?"Vidéo trop lourde (50 Mo max)":c==="unsupported_type"?"Format non accepté : envoie une vidéo MP4 ou WebM":c==="quota_or_state"?"Espace de stockage plein : retire d'anciennes vidéos":c==="rate_limited"?"Trop d'envois d'affilée, réessaie dans un instant":"Envoi impossible pour l'instant, réessaie plus tard")})
+ .then(function(){btn.disabled=false;btn.textContent="Envoyer la vidéo"})}
+function removeVideo(k){var v=videos[k];if(!v||!dbNs)return;
+ dbNs.doc("videos/"+k).delete().then(function(){delete videos[k];if(assetsNs&&v.id)assetsNs.delete(v.id).catch(function(){});toast("Vidéo retirée");renderVideos()}).catch(function(){toast("Impossible de retirer la vidéo pour l'instant")})}
+
+// ---------- Confirmation en deux temps (pas de boîte de dialogue) ----------
+function confirmTap(btn,label,fn){if(btn.dataset.armed){delete btn.dataset.armed;fn();return}
+ var t=btn.textContent;btn.dataset.armed="1";btn.textContent=label;btn.classList.add("danger");
+ setTimeout(function(){if(btn.isConnected&&btn.dataset.armed){delete btn.dataset.armed;btn.textContent=t;btn.classList.remove("danger")}},3500)}
+function acts(k,id){return '<div class="row-acts"><button type="button" class="icon-btn" data-edit-'+k+'="'+esc(id)+'">Modifier</button><button type="button" class="icon-btn" data-del-'+k+'="'+esc(id)+'">Supprimer</button></div>'}
+function deleteAll(){
+ if(role==="teacher"&&mode==="cloud"){if(coachRef)writing=writing.then(function(){return coachRef.delete()}).catch(function(){});state=emptyState();toast("Ton entraînement perso a été effacé");go("today");return}
+ if(mode==="cloud"){if(readOnly){toast("Suppression impossible : reconnecte-toi puis réessaie");return}
+  writing=writing.then(function(){return myRef.delete()}).then(function(){return dbNs.doc("roll/"+myUid).delete().catch(function(){})}).then(function(){return privRef?privRef.delete().catch(function(){}):null}).then(function(){priv={};lastPriv="{}";state=emptyState();applyGrade();toast("Toutes tes données ont été supprimées");go("today")}).catch(function(){toast("Suppression impossible pour l'instant, réessaie plus tard")});return}
+ try{localStorage.removeItem(KEY)}catch(e){}state=emptyState();toast("Toutes tes données ont été supprimées");go("today")}
+
+// ---------- Rendus ----------
+function renderHeader(){$("hClub").textContent=club.name||"The mat doesn't lie";if(isProf&&!trainMode){$("hBeltLabel").textContent="Compte prof";$("hBeltIcon").innerHTML='<span class="pill done">Prof</span>';return}$("hBeltLabel").textContent=beltLabel(state.belt)+(state.belt.stripes?" · "+state.belt.stripes+" b.":"");$("hBeltIcon").innerHTML=beltSvg(state.belt.rank,state.belt.stripes,40)}
+
+// ---------- Étoiles de maîtrise ----------
+var STAR_DESC={1:"Découverte : compris la théorie, mais dur en sparring.",2:"Intermédiaire : placé parfois en sparring.",3:"Maîtrisé : automatisme acquis."};
+function setStars(n){Array.prototype.forEach.call(document.querySelectorAll("#fStars .star"),function(b){b.setAttribute("aria-pressed",+b.dataset.star===n)});$("starDesc").textContent=n?STAR_DESC[n]:"Touche une case pour noter ton niveau (facultatif)."}
+function bestStars(S){var m={};S.forEach(function(s){if(s.stars)m[s.theme]=Math.max(m[s.theme]||0,+s.stars)});return m}
+function count3(S){var m=bestStars(S);return Object.keys(m).filter(function(k){return m[k]===3}).length}
+function medalsOf(C){var m={or:0,argent:0,bronze:0};(C||[]).forEach(function(c){if(m[c.result]!==undefined)m[c.result]++});return m}
+// ---------- Séances créées par l'appel du prof (roll/<id>) ----------
+var myRoll=[],rollDocs={},rollChecked={},rollKey="",commentDraft={};
+function rollToSession(r){return {id:"r-"+r.k,date:r.date,type:/no.?gi/i.test(r.title||"")?"No-gi":"Gi",dur:+r.dur||90,theme:r.theme||r.title||"Cours du club",rounds:0,placed:0,takenW:0,takenG:0,roll:true,slot:r.title||""}}
+function mergeRoll(own,rolls){return (rolls||[]).filter(function(r){return r&&r.date&&!own.some(function(s){return s.date===r.date})}).map(rollToSession).concat(own)}
+function allSessions(){return mergeRoll(state.sessions,mode==="cloud"?myRoll:(state.rollLocal||[]))}
+// ---------- Modale (mentions légales, installation, messages) ----------
+function showModal(title,html,closeLabel){$("modalClose").textContent=closeLabel||"J'ai compris";$("modalTitle").textContent=title;$("modalBody").innerHTML=html;$("modal").hidden=false;$("modalClose").focus()}
+function hideModal(){$("modal").hidden=true}
+window.UZU_MODAL=showModal;
+function legalHtml(){var host=window.UZU_CONFIG?"Vercel (page de l'application) et Supabase (données, hébergées dans l'Union européenne)":"plateforme Claude (Anthropic)";
+ return '<p><b>Conformément au RGPD, UZU collecte vos données d\'entraînement pour votre suivi pédagogique. Vos données de santé (état physique, fatigue) restent strictement privées et invisibles par les professeurs.</b></p><ul>'+
+ '<li><b>Responsable du traitement</b> : '+esc(club.name||"le club")+'. '+esc(LEGAL.editeur)+'</li>'+
+ '<li><b>Données collectées</b> : prénom, e-mail de connexion, séances, présences, compétitions, ceinture et barrettes, niveau de confort sur les techniques.</li>'+
+ '<li><b>Données de santé</b> : état physique et notes privées, enregistrés dans un espace que seul l\'élève peut lire.</li>'+
+ '<li><b>Finalité</b> : suivi pédagogique et organisation des cours du club. Aucune revente, aucune publicité.</li>'+
+ '<li><b>Base légale</b> : ton consentement, donné à la première ouverture et retirable à tout moment.</li>'+
+ '<li><b>Destinataires</b> : toi et les professeurs du club (sans les données de santé).</li>'+
+ '<li><b>Conservation</b> : tant que ton compte existe. Tu peux tout supprimer depuis Progrès, bloc Mes données.</li>'+
+ '<li><b>Tes droits</b> : accès, rectification, effacement, opposition. Contact : '+esc(LEGAL.contact)+'. Tu peux aussi saisir la CNIL (cnil.fr).</li>'+
+ '<li><b>Hébergement</b> : '+esc(host)+'.</li>'+
+ '<li><b>Âge</b> : application réservée aux 16 ans et plus.</li></ul>'+
+ '<p class="muted" style="font-size:12.5px">Mentions légales. Éditeur : '+esc(LEGAL.editeur)+' Directeur de la publication : '+esc(LEGAL.directeur)+'</p>'}
+// Coordonnées légales du club : à compléter avant l'ouverture aux élèves
+var LEGAL={editeur:"[Nom de l'association, adresse du siège et n° RNA : à compléter]",contact:"[e-mail de contact du club : à compléter]",directeur:"[nom : à compléter]"};
+// ---------- Installation sur l'écran d'accueil ----------
+var deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferredPrompt=e;renderInstall()});
+function isStandalone(){return (window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||window.navigator.standalone===true}
+function renderInstall(){var b=$("installBtn");if(b)b.hidden=!window.UZU_CONFIG||isStandalone()}
+function installApp(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(function(){deferredPrompt=null;renderInstall()});return}
+ var ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+ showModal("Installer UZU",ios?'<p>Sur iPhone, dans <b>Safari</b> :</p><ul><li>touche le bouton <b>Partager</b> (le carré avec une flèche) ;</li><li>choisis <b>Sur l\'écran d\'accueil</b> ;</li><li>touche <b>Ajouter</b>.</li></ul><p>UZU s\'ouvrira ensuite en plein écran, comme une application.</p>'
+  :'<p>Sur Android, dans <b>Chrome</b> :</p><ul><li>touche le menu <b>⋮</b> en haut à droite ;</li><li>choisis <b>Installer l\'application</b> ou <b>Ajouter à l\'écran d\'accueil</b> ;</li><li>confirme.</li></ul><p>UZU s\'ouvrira ensuite depuis son icône, en plein écran.</p>')}
+// ---------- Rappel de fin de cours ----------
+function endDismissed(){try{return JSON.parse(localStorage.getItem("uzu-endbar"))||{}}catch(e){return {}}}
+function renderEndBar(){var now=new Date(),today=ymd(now),dn=isoDay(now),mins=now.getHours()*60+now.getMinutes(),best=null,dis=endDismissed();
+ schedule().forEach(function(x){if(x.d!==dn)return;var e=x.e.split(":"),em=+e[0]*60+ +e[1];if(mins>=em&&mins-em<=180&&(!best||em>best.em))best={x:x,em:em}});
+ var key=best?today+"|"+best.x.id:"",show=!!best&&!state.sessions.some(function(s){return s.date===today})&&state.att[key]!=="non"&&!dis[key]&&!needsWelcome();
+ $("endBar").hidden=!show;if(show)$("endLog").dataset.logfrom=key;$("endLater").dataset.key=key}
+setInterval(function(){if(current==="today"&&!needsWelcome())renderEndBar()},60000);
+function renderToday(){var P=program(state),N=P.length,w=curWeek(),W=P[w-1],d=state.done[dk(w)]||[false,false,false],n=d.filter(Boolean).length;
+ $("tWeekLabel").textContent=N>1?beltLabel(state.belt)+" · semaine "+w+" sur "+N:beltLabel(state.belt);
+ $("tWeekTitle").textContent=W.t;$("tBlock").textContent=W.b;
+ $("tBar").style.width=(N>1?(w-1+n/3)/N:n/3)*100+"%";
+ $("tGoals").innerHTML=W.o.map(function(o,i){return '<li><label class="goal"><input type="checkbox" data-goal="'+i+'" id="g'+i+'"'+(d[i]?" checked":"")+'><span>'+esc(o)+'</span></label></li>'}).join("");
+ var vid=vidId(vkey(state.belt.rank,state.school,w));mountVideo($("tVideo"),vid,VID_PH);$("tVideo").hidden=!vid; // aucun bloc tant que le prof n'a rien publié
+ $("nextWeek").hidden=!(n===3&&w<N);
+ $("cycleNote").hidden=!(n===3&&w===N);
+ $("sampleBanner").hidden=!(state.sessions.some(function(s){return s.sample})||state.comps.some(function(c){return c.sample}));
+ var AS=allSessions(),weeks={};AS.forEach(function(s){weeks[ymd(weekStart(parse(s.date)))]=1});
+ var k=weekStart(TODAY);if(!weeks[ymd(k)])k=addDays(k,-7);var streak=0;while(weeks[ymd(k)]){streak++;k=addDays(k,-7)}
+ $("sStreak").textContent=streak;
+ var lim=ymd(addDays(TODAY,-30));$("sMonth").textContent=AS.filter(function(s){return s.date>lim}).length;
+ var hrs=Math.round(AS.reduce(function(a,s){return a+(+s.dur||0)},0)/60);$("sHours").textContent=hrs;renderEndBar();
+ // État vide : compteurs à 0 → invitation à saisir la première séance
+ var empty=streak===0&&+$("sMonth").textContent===0&&hrs===0;$("emptyCta").hidden=!empty;$("statsRow").hidden=empty;$("logMain").hidden=empty;
+ var nw=clubNews();$("newsCard").hidden=!nw;$("newsTitle").textContent="Actualités du "+(club.name||"club");$("newsText").textContent=nw;
+ var cv=vidId("club-semaine");$("clubWeek").hidden=!(club.weekTheme||cv);$("cwTheme").textContent=club.weekTheme||"Vidéo de la semaine";mountVideo($("cwVideo"),cv,"");
+ var needChoice=state.belt.rank==="bleue"&&!state.schoolChosen;
+ if(needChoice){$("tWeekLabel").textContent="Ceinture bleue";$("tWeekTitle").textContent="Choisis ta spécialisation";$("tBlock").textContent=SCHOOL_NAME.lutte+", "+SCHOOL_NAME.pologne+" ou "+SCHOOL_NAME.meta;$("tGoals").innerHTML="";$("tBar").style.width="0%";$("tVideo").hidden=true;$("nextWeek").hidden=true;$("cycleNote").hidden=true}
+ $("chooseSchool").hidden=!needChoice;renderCal();}
+
+var logMode="session";
+// Fondamentaux proposés dans « Thème travaillé »
+var TECH=[
+ ["Le Dessous",["Garde fermée : clé de bras","Garde fermée : triangle","Garde fermée : renversement","Demi-garde : recomposition","Demi-garde : underhook","Sortie de la monte","Sortie des 100 kilos"]],
+ ["Le Dessus",["Passage de garde : toréando","Passage de garde : knee cut","Contrôle latéral : stabilisation 100 kilos","La monte : contrôle","La monte : clé de bras"]],
+ ["Lutte",["Takedown : double leg","Takedown : single leg","Pull-guard : sauter dans la garde"]]];
+// Soumissions subies : contre une ceinture blanche / contre un gradé (anciennes séances : tout compte comme blanche)
+function tw(s){return s.takenW!=null?(+s.takenW||0):(+s.taken||0)}
+function tg(s){return +s.takenG||0}
+var editing=null,logPrefill=null;
+// ---------- Planning des cours et présences (club.schedule, state.att["AAAA-MM-JJ|idCours"]) ----------
+var calOffset=0,DAYS=["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"],DSHORT=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+var DEMO_SCHEDULE=[{id:"x1",d:1,s:"19:00",e:"20:30",t:"JJB Gi"},{id:"x2",d:3,s:"19:00",e:"20:30",t:"Grappling No-gi"},{id:"x3",d:6,s:"10:00",e:"12:00",t:"Open mat"}];
+function schedule(){return club.schedule&&club.schedule.length?club.schedule:(mode==="cloud"?[]:DEMO_SCHEDULE)}
+function sortedSched(){return schedule().slice().sort(function(a,b){return a.d-b.d||(a.s<b.s?-1:1)})}
+function isoDay(d){return (d.getDay()+6)%7+1}
+function slotMin(x){var a=x.s.split(":"),b=x.e.split(":");return (+b[0]*60+ +b[1])-(+a[0]*60+ +a[1])}
+function sessionOn(date){return allSessions().filter(function(s){return s.date===date})[0]}
+function renderCal(){var S=sortedSched(),ws=addDays(weekStart(TODAY),7*calOffset),we=addDays(ws,6),t=ymd(TODAY);
+ $("calRange").textContent=calOffset===0?"Cette semaine":ws.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" – "+we.toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+ $("calPrev").disabled=calOffset<=-8;$("calNext").disabled=calOffset>=4;
+ if(!S.length){$("calList").innerHTML='<li class="empty" style="display:block">Ton prof n\'a pas encore publié le planning des cours.</li>';$("calNote").textContent="";return}
+ $("calList").innerHTML=S.map(function(x){var dt=addDays(ws,x.d-1),ds=ymd(dt),key=ds+"|"+x.id,a=state.att[key]||"",past=ds<t,today=ds===t,se=sessionOn(ds);
+  var meta=today?(se?"Aujourd'hui · séance saisie":a==="oui"?"Aujourd'hui · tu y vas":a==="non"?"Aujourd'hui · absent":"Aujourd'hui"):past?(se?"Séance saisie":a==="oui"?"Présent":a==="non"?"Absent":"Passé"):(a==="oui"?"Tu as prévu d'y aller":a==="non"?"Absence prévenue":"À venir");
+  var dot=se&&se.forme?'<i class="fdot f-'+esc(se.forme)+'"></i>':'';
+  var log=(past||today)&&a==="oui"&&!se?'<button type="button" class="icon-btn" data-logfrom="'+esc(key)+'">Saisir la séance</button>':'';
+  return '<li class="'+(past?"past":"")+(today?" today":"")+'"><div class="cd"><b>'+DSHORT[x.d-1]+' '+dt.getDate()+'</b><span>'+x.s+' – '+x.e+'</span></div><div class="ct"><b>'+esc(x.t)+'</b><span class="meta">'+dot+esc(meta)+'</span></div><div class="ca"><div class="seg mini att"><button type="button" data-att="'+esc(key)+'" data-v="oui" aria-pressed="'+(a==="oui")+'">Présent</button><button type="button" data-att="'+esc(key)+'" data-v="non" aria-pressed="'+(a==="non")+'">Absent</button></div>'+log+'</div></li>'}).join("");
+ $("calNote").textContent=(club.schedule&&club.schedule.length)||mode==="cloud"?"":"Planning d'exemple pour la démo.";}
+function saveSchedule(list,msg){list=normSched(list);var nc={name:club.name,accent:club.accent,weekTheme:club.weekTheme||"",schedule:list,news:club.news||""};
+ if(mode==="cloud"&&isProf){dbNs.doc("club/settings").set(nc).then(function(){toast(msg)}).catch(function(){toast("Enregistrement impossible : il faut être prof")});club=nc;cacheClub();renderProf();return}
+ club=nc;cacheClub();renderProf();toast(msg+" (démo, sur cet appareil)")}
+function addSlot(){var t=$("slTitle").value.trim(),st=$("slStart").value,en=$("slEnd").value,d=+$("slDay").value;
+ if(!t){toast("Indique le nom du cours");$("slTitle").focus();return}
+ if(!st||!en||en<=st){toast("Vérifie les horaires : la fin doit être après le début");return}
+ saveSchedule((club.schedule||[]).concat([{id:"c"+Date.now().toString(36),d:d,s:st,e:en,t:t}]),"Cours ajouté au planning");$("slTitle").value=""}
+function renderSlots(){var L=(club.schedule||[]).slice().sort(function(a,b){return a.d-b.d||(a.s<b.s?-1:1)});
+ $("slotList").innerHTML=L.map(function(x){return '<li><div style="min-width:0"><div>'+esc(x.t)+'</div><div class="meta">'+DAYS[x.d-1]+' · '+x.s+' – '+x.e+'</div></div><button type="button" class="icon-btn" data-sldel="'+esc(x.id)+'">Retirer</button></li>'}).join("")||'<li class="empty">Aucun cours au planning'+(mode==="cloud"?"":" : la démo affiche un planning d\'exemple")+'.</li>'}
+function rollOptions(){var out=[],t=ymd(TODAY),S=schedule();
+ for(var k=0;k<8;k++){var dd=addDays(TODAY,-k),ds=ymd(dd),dn=isoDay(dd);S.filter(function(x){return x.d===dn}).sort(function(a,b){return a.s<b.s?1:-1}).forEach(function(x){out.push({key:ds+"|"+x.id,date:ds,title:x.t,dur:Math.max(30,slotMin(x)),label:(k===0?"Aujourd'hui":DSHORT[dn-1]+" "+dd.getDate())+" · "+x.s+" · "+x.t})})}
+ if(!out.length||out[0].date!==t)out.unshift({key:t+"|libre",date:t,title:"Cours du jour",dur:90,label:"Aujourd'hui · cours hors planning"});return out}
+function rollStudents(){if(mode==="cloud"&&isProf)return (members||[]).filter(function(m){return m.id!==myUid}).map(function(m){return {id:m.id,name:(m.data&&m.data.name)||"Élève"}}).sort(function(a,b){return a.name.localeCompare(b.name)});
+ return CLUB.map(function(r){return {id:r.id,name:r.name}})} // le prof n'apparaît jamais dans la liste des élèves
+function hasRoll(uid,key){if(uid==="me")return (state.rollLocal||[]).some(function(r){return r.k===key});var d=rollDocs[uid];return !!(d&&(d.s||[]).some(function(r){return r.k===key}))}
+function renderRoll(){var opts=rollOptions(),sel=$("rollSlot").value;if(!opts.some(function(o){return o.key===sel}))sel=opts[0].key;
+ $("rollSlot").innerHTML=opts.map(function(o){return '<option value="'+esc(o.key)+'"'+(o.key===sel?" selected":"")+'>'+esc(o.label)+'</option>'}).join("");
+ if(rollKey!==sel){rollKey=sel;rollChecked={};rollStudents().forEach(function(st){if(hasRoll(st.id,sel))rollChecked[st.id]=true})}
+ var L=rollStudents();
+ $("rollList").innerHTML=L.length?L.map(function(st){return '<li><label><input type="checkbox" data-roll="'+esc(st.id)+'"'+(rollChecked[st.id]?" checked":"")+'><span>'+esc(st.name)+'</span>'+(hasRoll(st.id,sel)?'<small>déjà noté</small>':'')+'</label></li>'}).join(""):'<li class="empty" style="padding:12px 0">Aucun élève inscrit pour l\'instant.</li>';
+ updateRollCount()}
+function updateRollCount(){var n=Object.keys(rollChecked).filter(function(k){return rollChecked[k]}).length;$("rollCount").textContent=n+" présent"+(n>1?"s":"");$("rollSave").textContent=n?"Valider l'appel ("+n+" présent"+(n>1?"s":"")+")":"Valider l'appel"}
+function saveRoll(){if(!requireProf("L'appel"))return;var o=rollOptions().filter(function(x){return x.key===rollKey})[0];if(!o)return;
+ var entry={k:o.key,date:o.date,title:o.title,theme:club.weekTheme||o.title,dur:o.dur},L=rollStudents(),n=0;
+ if(mode==="cloud"&&isProf){var jobs=[];
+  L.forEach(function(st){var cur=((rollDocs[st.id]&&rollDocs[st.id].s)||[]).slice(),had=cur.some(function(r){return r.k===o.key}),want=!!rollChecked[st.id];if(want)n++;
+   if(want&&!had)cur.push(entry);else if(!want&&had)cur=cur.filter(function(r){return r.k!==o.key});else return;
+   jobs.push(dbNs.doc("roll/"+st.id).set({s:cur.slice(-200)}))});
+  Promise.all(jobs).then(function(){toast("Appel enregistré : "+n+" présent"+(n>1?"s":""))},function(){toast("Appel impossible : il faut être prof")});return}
+ L.forEach(function(st){var want=!!rollChecked[st.id];if(want)n++;
+  if(st.id==="me"){var rl=(state.rollLocal||[]).filter(function(r){return r.k!==o.key});if(want)rl.push(entry);state.rollLocal=rl;return}
+  var r=CLUB.filter(function(x){return x.id===st.id})[0];if(r&&want&&!r._r){r._r={};}if(r&&want&&!r._r[o.key]){r._r[o.key]=1;r.n30++;r.hours+=Math.round(o.dur/60);r.days=0}});
+ save();renderProf();toast("Appel enregistré : "+n+" présent"+(n>1?"s":"")+" (démo)")}
+function renderProfAtt(){var S=sortedSched(),ws=weekStart(TODAY),t=ymd(TODAY),live=mode==="cloud"&&isProf;
+ if(!S.length){$("profAtt").innerHTML='<li class="empty">Ajoute le planning des cours dans Gestion du club.</li>';return}
+ var A=live&&members?members.map(function(m){return normalize(m.data).att}):[];
+ $("profAtt").innerHTML=S.map(function(x,i){var dt=addDays(ws,x.d-1),ds=ymd(dt),key=ds+"|"+x.id,oui=0,non=0,past=ds<t;
+  if(live)A.forEach(function(a){if(a[key]==="oui")oui++;else if(a[key]==="non")non++});else{oui=6+2*i;non=1+i%2}
+  return '<li><div style="min-width:0"><div style="font-weight:600">'+esc(x.t)+'</div><div class="meta">'+DSHORT[x.d-1]+' '+dt.getDate()+' · '+x.s+' – '+x.e+'</div></div><div class="r"><b>'+oui+'</b> '+(past?"présent":"prévu")+(oui>1?"s":"")+'<div class="meta">'+non+' absent'+(non>1?"s":"")+'</div></div></li>'}).join("")+(live?"":'<li class="empty">Chiffres d\'exemple pour la démo.</li>')}
+function setSeg(id,val){Array.prototype.forEach.call($(id).children,function(c){c.setAttribute("aria-pressed",c.dataset.v===String(val))})}
+function resetForms(){form={type:"Gi",dur:90,rounds:0,placed:0,takenW:0,takenG:0,forme:"",stars:0};cform={type:"Gi",result:"aucun",wins:0,losses:0,subs:0};$("fNote").value="";$("cEvent").value=""}
+function renderLogForm(){var P=program(state),
+  es=editing&&editing.kind==="s"?state.sessions.filter(function(x){return x.id===editing.id})[0]:null,
+  ec=editing&&editing.kind==="c"?state.comps.filter(function(x){return x.id===editing.id})[0]:null;
+ if(editing&&!es&&!ec)editing=null;
+ $("fDate").value=es?es.date:ymd(TODAY);if(!es&&logPrefill){$("fDate").value=logPrefill.date;logPrefill=null}$("cDate").value=ec?ec.date:ymd(TODAY);
+ var groups=[];if(club.weekTheme)groups.push(["Cette semaine au club",[club.weekTheme]]);
+ TECH.forEach(function(g){groups.push(g)});groups.push(["Ton programme",P.map(function(W){return W.t})]);
+ var other=["Sparring libre","Préparation compétition"],all=[];groups.forEach(function(g){all=all.concat(g[1])});
+ if(es&&es.theme&&all.indexOf(es.theme)<0&&other.indexOf(es.theme)<0)other.unshift(es.theme);groups.push(["Autre",other]);
+ var selT=es?es.theme:(club.weekTheme||(P[curWeek()-1]||{}).t||TECH[0][1][0]),done1=false;
+ $("fTheme").innerHTML=groups.map(function(g){return '<optgroup label="'+esc(g[0])+'">'+g[1].map(function(t){var sel=!done1&&t===selT;if(sel)done1=true;return '<option'+(sel?' selected':'')+'>'+esc(t)+'</option>'}).join("")+'</optgroup>'}).join("");
+ if(es){form={type:es.type,dur:es.dur,rounds:es.rounds||0,placed:es.placed||0,takenW:tw(es),takenG:tg(es),forme:es.forme||"",stars:+es.stars||0};$("fNote").value=es.note||""}
+ if(ec){cform={type:ec.type,result:ec.result,wins:ec.wins||0,losses:ec.losses||0,subs:ec.subs||0};$("cEvent").value=ec.event||""}
+ setSeg("fType",form.type);setSeg("fForme",form.forme);setStars(form.stars);setSeg("fDur",form.dur);setSeg("cType",cform.type);setSeg("cResult",cform.result);
+ ["rounds","placed","takenW","takenG"].forEach(function(k){$("o-"+k).textContent=form[k]});["wins","losses","subs"].forEach(function(k){$("c-"+k).textContent=cform[k]});
+ $("sTitle").textContent=es?"Modifier la séance":"Ta séance en 10 secondes";$("fSubmit").textContent=es?"Enregistrer les modifications":"Enregistrer la séance";$("fCancel").hidden=!es;
+ $("cTitle").textContent=ec?"Modifier la compétition":"Ton résultat";$("cSubmit").textContent=ec?"Enregistrer les modifications":"Enregistrer la compétition";$("cCancel").hidden=!ec;
+ $("logMode").hidden=!!editing;
+ Array.prototype.forEach.call(document.querySelectorAll("#logMode button"),function(b){b.setAttribute("aria-pressed",b.dataset.mode===logMode)});
+ $("sessionPane").hidden=logMode!=="session";$("compPane").hidden=logMode!=="comp";$("compPane").style.display=logMode==="comp"?"flex":"none";}
+
+var bForm={stripes:0},aForm={stripes:0};
+function beltStatusNote(){var el=$("beltStatus"),r=state.request;
+ if(mode!=="cloud"){el.hidden=false;el.className="note";el.textContent="Mode démo : ta ceinture s'enregistre directement. Dans le club, c'est ton prof qui la valide.";return}
+ if(isProf){el.hidden=false;el.className="note ok";el.textContent="Tu es prof : tes changements de grade sont validés directement.";return}
+ if(isPending(r,myGrade)){el.hidden=false;el.className="note wait";el.textContent="Demande envoyée : "+beltLabel(r)+", "+stripesTxt(r.stripes)+". En attente de validation par ton prof.";return}
+ if(myGrade&&myGrade.status==="refusé"&&r&&myGrade.decidedAt>=r.at){el.hidden=false;el.className="note";el.textContent="Ton prof n'a pas validé ta dernière demande."+(myGrade.comment?" Axe de travail : "+myGrade.comment:" Parles-en avec lui au prochain cours.");return}
+ if(myGrade){el.hidden=false;el.className="note ok";el.textContent="Grade validé par ton prof le "+frDate(String(myGrade.decidedAt).slice(0,10))+"."+(myGrade.comment?" Message du prof : "+myGrade.comment:"");return}
+ el.hidden=false;el.className="note wait";el.textContent="Déclare ta ceinture actuelle : ton prof la validera.";}
+function renderPath(){var b=state.belt,ci=beltIdx(b.rank);setTimeout(function(){if(role==="teacher")$("beltStatus").hidden=true},0);
+ $("pBeltIcon").innerHTML=beltSvg(b.rank,b.stripes,96);
+ $("pBeltName").textContent=beltLabel(b);
+ $("pBeltSince").textContent=stripesTxt(b.stripes)+" · "+(b.since?"depuis le "+frDate(b.since):"date de passage à renseigner");
+ beltStatusNote();
+ var direct=mode!=="cloud"||isProf;
+ $("editBelt").textContent=direct?"Mettre à jour ma ceinture":"Déclarer ma ceinture";
+ $("bSave").textContent=direct?"Enregistrer":"Envoyer à mon prof pour validation";
+ $("ladder").innerHTML=BELTS.map(function(x,i){var cls=i<ci?"done":i===ci?"now":"todo",lab=i<ci?"Validée":i===ci?"En cours":"À venir";
+  return '<li class="'+(i>ci?"future":"")+'"><span>'+beltSvg(x.k,i===ci?b.stripes:(i<ci?4:0),48)+'</span><div style="min-width:0"><div class="t">Ceinture '+x.n+'</div><div class="b">'+esc(x.p)+'</div></div><span class="pill '+cls+'">'+lab+'</span></li>'}).join("");
+ $("schoolCard").hidden=b.rank==="blanche";
+ Array.prototype.forEach.call(document.querySelectorAll("#schoolSwitch button"),function(x){x.setAttribute("aria-pressed",x.dataset.school===state.school);x.querySelector("b").textContent=SCHOOL_NAME[x.dataset.school]});
+ Array.prototype.forEach.call(document.querySelectorAll("#langSeg button"),function(x){x.setAttribute("aria-pressed",x.dataset.lang===lang)});
+ var P=program(state),cw=curWeek();
+ $("pathMods").innerHTML="";$("pathList").hidden=false;
+ if(b.rank==="bleue"&&!state.schoolChosen){$("progTitle").textContent="Choisis ta spécialisation pour débloquer ton programme";$("pathList").innerHTML="";$("pathList").hidden=true}
+ else if(P.length>1){$("progTitle").textContent=b.rank==="blanche"?"Les fondations · programme obligatoire":"Ta spécialisation · "+SCHOOL_NAME[state.school];
+  $("pathList").innerHTML="";$("pathList").hidden=true;$("pathMods").innerHTML=modulesHtml(P,cw)}
+ else{var A=P[0],d=state.done[dk(1)]||[];$("progTitle").textContent=A.t+" · "+A.b;
+  $("pathList").innerHTML=A.o.map(function(o,i){return '<li><span class="wk">'+pad(i+1)+'</span><div class="t">'+esc(o)+'</div><span class="pill '+(d[i]?"done":"todo")+'">'+(d[i]?"Validé":"À faire")+'</span></li>'}).join("")+'<li><span></span><div class="muted">Le programme détaillé de cette ceinture se construit avec ton prof.</div><span></span></li>'}}
+
+var MOD_SUB={"Le Dessous":"Garde fermée, demi-garde, s'échapper du bas","Le Dessus":"Passage de garde, contrôle latéral, monter, dos","La Lutte & Amenées au sol":"Takedowns, snap down, tirer la garde","Maîtrise et compétition":"Contres, gi et no-gi, défense, compétition, bilan"};
+function modulesHtml(P,cw){var mods=[];P.forEach(function(W,i){var m=mods[mods.length-1];if(!m||m.b!==W.b){m={b:W.b,weeks:[]};mods.push(m)}m.weeks.push({W:W,n:i+1})});
+ return mods.map(function(m){var got=0,tot=m.weeks.length*3,open=m.weeks.some(function(x){return x.n===cw});
+  var body=m.weeks.map(function(x){var d=state.done[dk(x.n)]||[];got+=d.filter(Boolean).length;
+   return '<div class="mw'+(x.n===cw?' now':'')+'"><div class="mwh"><span class="wk">'+pad(x.n)+'</span><b>'+esc(x.W.t)+'</b>'+(x.n===cw?'<span class="pill now">Cette semaine</span>':'')+'</div><ul class="goals">'+x.W.o.map(function(o,i){return '<li><label class="goal"><input type="checkbox" data-pgoal="'+x.n+'-'+i+'"'+(d[i]?' checked':'')+'><span>'+esc(o)+'</span></label></li>'}).join('')+'</ul></div>'}).join('');
+  return '<details class="mod"'+(open?' open':'')+'><summary><span class="mt"><b>'+esc(m.b)+'</b>'+(MOD_SUB[m.b]?'<small>'+esc(MOD_SUB[m.b])+'</small>':'')+'</span><span class="mc">'+got+' / '+tot+'</span></summary><div class="mweeks">'+body+'</div></details>'}).join('')}
+function rankOptions(sel){return BELTS.map(function(x){return '<option value="'+x.k+'"'+(x.k===sel?" selected":"")+'>Ceinture '+x.n+'</option>'}).join("")}
+function stripesBtns(cur,attr){return [0,1,2,3,4].map(function(n){return '<button type="button" '+attr+'="'+n+'" aria-pressed="'+(n===cur)+'">'+n+'</button>'}).join("")}
+function openBeltForm(){var b=isPending(state.request,myGrade)?state.request:state.belt;$("beltForm").hidden=false;
+ $("bSave").textContent=role==="teacher"?"Enregistrer ma ceinture":"Envoyer à mon prof pour validation";$("bRank").innerHTML=rankOptions(b.rank);bForm.stripes=b.stripes;$("bStripes").innerHTML=stripesBtns(bForm.stripes,"data-stripes");$("bSince").value=b.since||ymd(TODAY)}
+
+function changePw(btn){var o=$("pwOld").value,n=$("pwNew").value,n2=$("pwNew2").value;
+ if(!o){toast("Indique ton mot de passe actuel");return}
+ if(n.length<8){toast("Nouveau mot de passe : 8 caractères minimum");return}
+ if(n!==n2){toast("Les deux nouveaux mots de passe ne sont pas identiques");return}
+ if(n===o){toast("Choisis un mot de passe différent de l'actuel");return}
+ btn.disabled=true;btn.textContent="Modification…";
+ window.UZU_SETPW(o,n).then(function(m){toast(m);if(m==="Mot de passe modifié."){$("pwOld").value="";$("pwNew").value="";$("pwNew2").value=""}},function(){toast("Modification impossible pour l'instant, réessaie plus tard")}).then(function(){btn.disabled=false;btn.textContent="Changer mon mot de passe"})}
+function renderProg(){var S=state.sessions,b=state.belt;if(document.activeElement!==$("meName"))$("meName").value=state.name||"";$("logout").hidden=!window.UZU_LOGOUT;$("pwBox").hidden=!window.UZU_SETPW;S=allSessions();$("pTotal").textContent=S.length;renderInstall();
+ $("gBeltIcon").innerHTML=beltSvg(b.rank,b.stripes,64);$("gBeltName").textContent=beltLabel(b)+", "+stripesTxt(b.stripes);
+ var since=b.since,nb=since?S.filter(function(s){return s.date>=since}).length:null;
+ $("gBeltTime").textContent=since?"Depuis "+duration(since)+" · "+nb+" séance"+(nb>1?"s":"")+" depuis ton passage":"Date de passage à renseigner dans Parcours";
+ var g=0;Object.keys(state.done).forEach(function(k){g+=(state.done[k]||[]).filter(Boolean).length});$("pGoals").textContent=g;
+ var pl=S.reduce(function(a,s){return a+(s.placed||0)},0),tk=S.reduce(function(a,s){return a+tw(s)},0),tkG=S.reduce(function(a,s){return a+tg(s)},0);$("pRatio").textContent=pl+"/"+tk;var tt=pl+tk;$("rPl").style.width=(tt?pl/tt*100:0)+"%";$("rTk").style.width=(tt?tk/tt*100:0)+"%";$("rPlN").textContent=pl;$("rTkN").textContent=tk;$("gradN").textContent=tkG;
+ $("gradNote").textContent=tkG?"soumission"+(tkG>1?"s":"")+" subie"+(tkG>1?"s":"")+" contre des gradés. Elles ne comptent pas dans ton ratio : chaque tap contre plus fort que toi est une leçon.":"Aucune pour l'instant. Roule avec les gradés : c'est en tapant contre plus fort que toi qu'on progresse le plus vite.";
+ var lim30=ymd(addDays(TODAY,-30)),fc={ok:0,fatigue:0,douleur:0};S.forEach(function(s){if(s.date>lim30&&fc[s.forme]!==undefined)fc[s.forme]++});
+ var bs=bestStars(S),tk3=Object.keys(bs).sort(function(a,b){return bs[b]-bs[a]||a.localeCompare(b)}),n3=count3(S);
+ $("techSum").textContent=tk3.length?n3+" technique"+(n3>1?"s":"")+" maîtrisée"+(n3>1?"s":"")+" (3 étoiles) sur "+tk3.length+" notée"+(tk3.length>1?"s":"")+".":"Note ton niveau de confort (1 à 3 étoiles) quand tu saisis une séance : tes techniques s'afficheront ici.";
+ $("techList").innerHTML=tk3.slice(0,12).map(function(t){return '<li><div style="min-width:0">'+esc(t)+'</div><div class="r"><span class="stars-inline" style="margin:0">'+"★".repeat(bs[t])+'<span style="opacity:.25">'+"★".repeat(3-bs[t])+'</span></span></div></li>'}).join("");
+ $("fOk").textContent=fc.ok;$("fFat").textContent=fc.fatigue;$("fPain").textContent=fc.douleur;
+ var lastPain=S.filter(function(s){return s.forme==="douleur"}).sort(function(a,b){return a.date<b.date?1:-1})[0];
+ $("formeNote").textContent=lastPain?"Dernière douleur signalée le "+frDate(lastPain.date)+". Parles-en à ton prof si elle persiste.":(fc.ok+fc.fatigue?"Aucune douleur signalée sur la période.":"Indique ton état physique quand tu saisis tes séances.");
+ var sch=schedule(),tot=0,pr=0;for(var k=0;k<30;k++){var dd=addDays(TODAY,-k),dS=ymd(dd),dn=isoDay(dd);sch.forEach(function(x){if(x.d!==dn)return;tot++;var a=state.att[dS+"|"+x.id];if(a==="oui"||(a!=="non"&&sessionOn(dS)))pr++})}
+ $("assid").textContent=tot?"Tu as participé à "+pr+" cours sur "+tot+" ("+Math.round(pr/tot*100)+" %).":"Aucun cours au planning sur cette période.";
+ // Palmarès
+ var C=state.comps,m={or:0,argent:0,bronze:0},w=0,l=0,su=0;C.forEach(function(c){if(m[c.result]!==undefined)m[c.result]++;w+=c.wins||0;l+=c.losses||0;su+=c.subs||0});
+ $("mOr").textContent=m.or;$("mArgent").textContent=m.argent;$("mBronze").textContent=m.bronze;
+ $("fightStats").textContent=C.length?C.length+" compétition"+(C.length>1?"s":"")+" · "+w+" victoire"+(w>1?"s":"")+", "+l+" défaite"+(l>1?"s":"")+(w+l?" ("+Math.round(w/(w+l)*100)+" % de victoires)":"")+" · "+su+" par soumission":"Aucune compétition enregistrée pour l'instant.";
+ $("compList").innerHTML=C.slice().sort(function(a,b){return a.date<b.date?1:-1}).slice(0,10).map(function(c){return '<li><div style="min-width:0"><div>'+esc(c.event||"Compétition")+'</div><div class="meta">'+frShort(c.date)+' · '+esc(c.type)+' · '+(c.wins||0)+' V / '+(c.losses||0)+' D'+(c.sample?" · exemple":"")+'</div>'+acts("c",c.id)+'</div><span class="pill '+(c.result==="aucun"?"todo":c.result)+'">'+RESULT[c.result]+'</span></li>'}).join("");
+ // Graphique
+ var start=addDays(weekStart(TODAY),-49),cnt=[];for(var i=0;i<8;i++)cnt.push(0);
+ S.forEach(function(s){var idx=Math.round((weekStart(parse(s.date))-start)/(7*864e5));if(idx>=0&&idx<8)cnt[idx]++});
+ var max=Math.max(4,Math.max.apply(null,cnt)),W=320,H=150,L=22,B=24,T=10,bw=(W-L-8)/8;
+ var svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Séances par semaine sur 8 semaines">';
+ [0,Math.round(max/2),max].forEach(function(v){var y=H-B-(v/max)*(H-B-T);svg+='<line x1="'+L+'" x2="'+(W-4)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)"/><text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="var(--muted)">'+v+'</text>'});
+ cnt.forEach(function(c,i){var h=(c/max)*(H-B-T),x=L+4+i*bw,y=H-B-h,cur=i===7,ws=addDays(start,i*7);
+  svg+='<rect x="'+x+'" y="'+y+'" width="'+(bw-8)+'" height="'+h+'" rx="4" fill="'+(cur?"var(--accent)":"var(--muted)")+'" fill-opacity="'+(cur?1:.45)+'"/>';
+  if(c)svg+='<text x="'+(x+(bw-8)/2)+'" y="'+(y-4)+'" text-anchor="middle" font-size="10" font-weight="700" fill="var(--fg)">'+c+'</text>';
+  svg+='<text x="'+(x+(bw-8)/2)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9.5" fill="var(--muted)">'+(cur?"Cette sem.":pad(ws.getDate())+"/"+pad(ws.getMonth()+1))+'</text>'});
+ $("chart").innerHTML=svg+"</svg>";
+ var rec=S.slice().sort(function(a,b){return a.date<b.date?1:-1}).slice(0,15);
+ $("logList").innerHTML=rec.map(function(s){var d=parse(s.date);return '<li><div style="min-width:0"><div>'+esc(s.theme)+(s.stars?'<span class="stars-inline" aria-label="'+s.stars+' étoiles">'+"★".repeat(+s.stars)+'</span>':'')+(s.roll?'<span class="rolltag">Appel du prof</span>':'')+'</div><div class="meta">'+(s.forme?'<i class="fdot f-'+esc(s.forme)+'"></i>':'')+d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})+' · '+esc(s.type)+(s.sample?" · exemple":"")+'</div>'+(s.roll?'<div class="row-acts"><button type="button" class="icon-btn" data-complete="'+esc(s.date)+'">Compléter ma séance</button></div>':acts("s",s.id))+'</div><div class="r">'+(s.dur/60).toString().replace(".",",")+' h<div class="meta">'+s.rounds+' rounds</div></div></li>'}).join("")||'<li class="muted">Aucune séance pour l\'instant. Saisis ta première après le cours.</li>';}
+
+// ---------- Vue prof ----------
+var CLUB=[
+ {id:"d1",name:"Yanis B.",belt:{rank:"blanche",stripes:4,since:"2025-10-02"},req:{rank:"bleue",stripes:0},school:"lutte",n30:9,days:2},
+ {id:"d2",name:"Sarah M.",belt:{rank:"bleue",stripes:1,since:"2026-02-14"},req:null,school:"meta",n30:8,days:1},
+ {id:"d3",name:"Karim D.",belt:{rank:"bleue",stripes:3,since:"2025-06-20"},req:null,school:"pologne",n30:11,days:3},
+ {id:"d4",name:"Inès T.",belt:{rank:"blanche",stripes:1,since:"2026-05-03"},req:{rank:"blanche",stripes:2},school:"lutte",n30:6,days:4},
+ {id:"d5",name:"Léo P.",belt:{rank:"blanche",stripes:1,since:"2026-09-01"},req:{rank:"blanche",stripes:2},school:"lutte",n30:2,days:19},
+ {id:"d6",name:"Moussa K.",belt:{rank:"violette",stripes:0,since:"2026-01-10"},req:null,school:"pologne",n30:10,days:2},
+ {id:"d7",name:"Hugo R.",belt:{rank:"blanche",stripes:2,since:"2026-03-22"},req:null,school:"lutte",n30:1,days:23},
+ {id:"d8",name:"Nadia L.",belt:{rank:"bleue",stripes:0,since:"2026-06-30"},req:null,school:"meta",n30:7,days:5}];
+CLUB.forEach(function(r,i){if(r.stars3==null)r.stars3=[6,9,14,3,1,18,2,8][i]||2;if(!r.medals)r.medals=[{or:0,argent:1,bronze:2},{or:1,argent:0,bronze:1},{or:2,argent:1,bronze:0},{or:0,argent:0,bronze:1},{or:0,argent:0,bronze:0},{or:3,argent:2,bronze:1},{or:0,argent:0,bronze:0},{or:0,argent:1,bronze:0}][i]||{or:0,argent:0,bronze:0};if(r.hours==null)r.hours=[62,48,95,30,14,120,22,55][i]||20;if(r.goals==null)r.goals=[33,41,52,18,9,60,15,38][i]||10});
+var CLUB_COMPS=[{who:"Karim D.",event:"Open régional",date:ymd(addDays(TODAY,-6)),result:"or"},{who:"Sarah M.",event:"Coupe no-gi",date:ymd(addDays(TODAY,-13)),result:"bronze"},{who:"Moussa K.",event:"Championnat de France",date:ymd(addDays(TODAY,-40)),result:"argent"}];
+function ordFr(n){return n===1?"1re":n+"e"}
+var ficheOpen={};
+function countGoals(done){var g=0;Object.keys(done||{}).forEach(function(k){g+=(done[k]||[]).filter(Boolean).length});return g}
+function ficheBlock(r){var o=!!ficheOpen[r.id],m=r.medals||{or:0,argent:0,bronze:0},pl=function(n,w){return n+" "+w+(n>1?"s":"")};
+ return '<button type="button" class="icon-btn" data-fiche="'+esc(r.id)+'" aria-expanded="'+o+'" style="align-self:flex-start">'+(o?"Masquer la fiche":"Voir la fiche")+'</button>'+
+  '<div class="fiche-wrap"'+(o?'':' hidden')+'><div class="fiche">'+
+   '<span><b>'+(r.hours||0)+' h</b> de tapis au total</span>'+
+   '<span><b>'+(r.stars3||0)+'</b> '+((r.stars3||0)>1?"techniques maîtrisées":"technique maîtrisée")+' (3 étoiles)</span>'+
+   '<span>Médailles : <b>'+m.or+' or · '+m.argent+' argent · '+m.bronze+' bronze</b></span>'+
+   '<span><b>'+pl(r.n30||0,"séance")+'</b> sur 30 jours</span>'+
+   '<span><b>'+pl(r.goals||0,"objectif")+'</b> validé'+((r.goals||0)>1?"s":"")+'</span>'+
+   (r.belt&&r.belt.since?'<span>À ce grade depuis <b>'+esc(duration(r.belt.since))+'</b></span>':'')+'</div>'+
+   '<div class="field"><label for="cm-'+esc(r.id)+'">Commentaire / axe de travail du prof (facultatif)</label><textarea id="cm-'+esc(r.id)+'" data-cm="'+esc(r.id)+'" maxlength="300" placeholder="Ex. : travaille la sortie de monte avant la prochaine barrette">'+esc(commentDraft[r.id]||"")+'</textarea></div></div>'}
+function reqText(a,b){var bn=BELTS[beltIdx(b.rank)].n;if(a.rank===b.rank&&b.stripes>a.stripes)return "Demande de "+ordFr(b.stripes)+" barrette "+bn;if(a.rank!==b.rank)return "Demande de ceinture "+bn+(b.stripes?", "+stripesTxt(b.stripes):"");return "Correction de grade"}
+function profData(){
+ if(mode==="cloud"&&isProf){if(!members)return null;var lim=ymd(addDays(TODAY,-30));
+  return members.map(function(m){var x=normalize(m.data),g=grades[m.id],S=mergeRoll(x.sessions,(rollDocs[m.id]&&rollDocs[m.id].s)||[]),last=S.reduce(function(a,s){return s.date>a?s.date:a},""),days=last?Math.round((TODAY-parse(last))/864e5):999;
+   return {id:m.id,name:null,belt:g?normBelt(g):{rank:"blanche",stripes:0,since:""},req:isPending(x.request,g)?x.request:null,school:x.school,n30:S.filter(function(s){return s.date>lim}).length,days:days,sess:S,att:x.att,dname:x.name||"",comps:x.comps,hours:Math.round(S.reduce(function(a,s){return a+(+s.dur||0)},0)/60),goals:countGoals(x.done),stars3:count3(x.sessions),medals:medalsOf(x.comps)}})}
+ return CLUB}
+function nameOf(r){return r.name||names[r.id]||"Élève"}
+function nameCell(r){return r.name?'<td>'+esc(r.name)+'</td>':'<td data-uid="'+esc(r.id)+'">'+esc(names[r.id]||"…")+'</td>'}
+function renderClubCard(){if(document.activeElement!==$("clubName"))$("clubName").value=club.name;if(document.activeElement!==$("clubTheme"))$("clubTheme").value=club.weekTheme||"";if(document.activeElement!==$("clubNews"))$("clubNews").value=club.news||"";
+ $("swatches").innerHTML=Object.keys(PRESETS).map(function(k){var p=PRESETS[k];return '<button type="button" class="swatch" data-swatch="'+k+'" aria-pressed="'+(k===clubForm.accent)+'"><i style="background:'+p.l+'"></i>'+esc(p.n)+'</button>'}).join("")}
+function syncText(){return "Synchronisé avec "+(club.name||"ton club")}
+// ---------- Liste des élèves et fiche complète ----------
+var lastProfRows=[],lastShown=[],profFilter="all",notesDocs={};
+function displayName(r){return r.name||r.dname||names[r.id]||"Élève"}
+function normTxt(t){return String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")}
+function renderProfList(){var rows=lastProfRows||[],act=0,warn=0;rows.forEach(function(r){if(r.days>14)warn++;else act++});
+ $("cActive").textContent=act;$("cWarn").textContent=warn;$("pListTitle").textContent="Mes élèves ("+rows.length+")";
+ Array.prototype.forEach.call(document.querySelectorAll("#pFilter button"),function(b){b.setAttribute("aria-pressed",b.dataset.pf===profFilter)});
+ var q=normTxt($("pSearch").value.trim()),srt=$("pSort").value;
+ var shown=rows.filter(function(r){var late=r.days>14;return (profFilter==="all"||(profFilter==="late"?late:!late))&&(!q||normTxt(displayName(r)).indexOf(q)>-1)});
+ shown.sort(function(a,b){if(srt==="name")return displayName(a).localeCompare(displayName(b));
+  if(srt==="belt")return (beltIdx(b.belt.rank)-beltIdx(a.belt.rank))||(b.belt.stripes-a.belt.stripes)||displayName(a).localeCompare(displayName(b));
+  if(srt==="n30")return (b.n30-a.n30)||(a.days-b.days);return a.days-b.days});
+ lastShown=shown;$("pCsv").textContent="Exporter "+(shown.length===rows.length?"la liste":shown.length+" élève"+(shown.length>1?"s":""))+" (CSV)";$("pCsv").disabled=!shown.length;
+ if(!rows.length){$("profRows").innerHTML='<tr><td colspan="5" class="empty">Aucun élève pour l\'instant. Chaque élève apparaît ici dès qu\'il a créé son compte et rempli l\'accueil.</td></tr>';return}
+ if(!shown.length){$("profRows").innerHTML='<tr><td colspan="5" class="empty">Aucun élève ne correspond à ta recherche.</td></tr>';return}
+ $("profRows").innerHTML=shown.map(function(r){var late=r.days>14,nm=displayName(r);
+  return '<tr><td><button type="button" class="sname" data-student="'+esc(r.id)+'"'+(r.name||r.dname?'':' data-uid="'+esc(r.id)+'"')+'>'+esc(nm)+'</button></td><td><span class="bcell">'+beltSvg(r.belt.rank,r.belt.stripes,36)+'</span></td><td>'+(r.belt.rank==="blanche"?"Commun":SCHOOL_SHORT[normSchool(r.school)])+'</td><td>'+r.n30+'</td><td><span class="pill '+(late?"warn":"done")+'">'+(late?"À relancer":"Actif")+'</span></td></tr>'}).join("")}
+function csvCell(v){v=v==null?"":String(v);if(/^[=+\-@\t\r]/.test(v))v="'"+v;return /[";\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function lastDateOf(r){var live=mode==="cloud"&&isProf;if(live&&r.sess&&r.sess.length){return r.sess.map(function(x){return x.date}).sort().pop()}return r.days<999?ymd(addDays(TODAY,-r.days)):""}
+function frNum(d){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||"");return m?m[3]+"/"+m[2]+"/"+m[1]:""}
+function profCsv(withNotes){var head=["Élève","Ceinture","Barrettes","À ce grade depuis","Spécialisation","Heures de tapis","Séances (30 j)","Dernière séance","Jours sans séance","Statut","Techniques à 3 étoiles","Objectifs validés","Or","Argent","Bronze","Demande de grade en attente"];
+ if(withNotes)head.push("Note privée du prof");
+ var lines=[head.map(csvCell).join(";")];
+ lastShown.forEach(function(r){var m=r.medals||{or:0,argent:0,bronze:0},bn=BELTS[beltIdx(r.belt.rank)].n,row=[displayName(r),bn.charAt(0).toUpperCase()+bn.slice(1),r.belt.stripes||0,frNum(r.belt.since),r.belt.rank==="blanche"?"Programme commun":SCHOOL_NAME[normSchool(r.school)],String(r.hours||0).replace(".",","),r.n30||0,frNum(lastDateOf(r)),r.days<999?r.days:"",r.days>14?"À relancer":"Actif",r.stars3||0,r.goals||0,m.or,m.argent,m.bronze,r.req?reqText(r.belt,r.req):""];
+  if(withNotes)row.push(noteOf(r.id));lines.push(row.map(csvCell).join(";"))});
+ return "﻿"+lines.join("\r\n")+"\r\n"}
+function exportCsv(){if(!lastShown.length){toast("Aucun élève à exporter");return}
+ var csv=profCsv($("pCsvNotes").checked),fn="eleves-"+(club.name||"club").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+ymd(TODAY)+".csv";
+ var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+ var viaLink=function(){try{var u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);toast("Fichier CSV téléchargé")}catch(e){toast("Téléchargement impossible sur cet appareil")}};
+ var p=window.claude&&window.claude.use?window.claude.use("downloads"):Promise.resolve(null);
+ Promise.resolve(p).then(function(dl){if(!dl){viaLink();return}
+  dl.save({filename:fn,data:blob}).then(function(){toast("Fichier CSV enregistré")},function(e){var c=e&&e.code;if(c==="declined")return;toast(c==="rate_limited"?"Patiente un instant puis réessaie":"Téléchargement indisponible ici")})},viaLink)}
+function demoNotes(){try{return JSON.parse(localStorage.getItem("uzu-demo-notes"))||{}}catch(e){return {}}}
+function noteOf(id){return mode==="cloud"&&isProf?((notesDocs[id]&&notesDocs[id].text)||""):(demoNotes()[id]||"")}
+function demoSessions(r){var flat=[];TECH.forEach(function(g){flat=flat.concat(g[1])});var out=[],n=Math.min(6,r.n30||0);
+ for(var i=0;i<n;i++)out.push({id:"x"+i,date:ymd(addDays(TODAY,-(r.days+3*i))),type:i%3===1?"No-gi":"Gi",dur:90,theme:flat[(i*5+r.id.length)%flat.length],stars:(i%3)+1});return out}
+function assidOf(att,sessions){var sch=schedule(),tot=0,pr=0;
+ for(var k=0;k<30;k++){var dd=addDays(TODAY,-k),dS=ymd(dd),dn=isoDay(dd);sch.forEach(function(x){if(x.d!==dn)return;tot++;var a=(att||{})[dS+"|"+x.id];if(a==="oui"||(a!=="non"&&sessions.some(function(s){return s.date===dS})))pr++})}
+ return {pr:pr,tot:tot}}
+function openStudent(id){var r=(lastProfRows||[]).filter(function(x){return x.id===id})[0];if(!r)return;
+ var live=mode==="cloud"&&isProf,nm=displayName(r),sess=live?(r.sess||[]):demoSessions(r),m=r.medals||{or:0,argent:0,bronze:0};
+ var comps=live?(r.comps||[]):CLUB_COMPS.filter(function(c){return c.who===r.name});
+ var srt=sess.slice().sort(function(a,b){return a.date<b.date?1:-1}),last=srt[0],g=live?grades[id]:null,as=live?assidOf(r.att,sess):null;
+ var stat=function(v,l){return '<div><b>'+v+'</b><span>'+l+'</span></div>'};
+ var html='<div class="sf-head">'+beltSvg(r.belt.rank,r.belt.stripes,72)+'<div><b>'+esc(beltLabel(r.belt))+', '+esc(stripesTxt(r.belt.stripes))+'</b><div class="muted">'+(r.belt.since?'À ce grade depuis '+esc(duration(r.belt.since)):'Date de passage non renseignée')+' · '+esc(r.belt.rank==="blanche"?"Programme commun":SCHOOL_NAME[normSchool(r.school)])+'</div></div></div>'+
+  '<div class="sf-stats">'+stat((r.hours||0)+' h',"de tapis au total")+stat(r.n30||0,"séances sur 30 jours")+stat(r.stars3||0,"techniques à 3 étoiles")+stat(r.goals||0,"objectifs validés")+'</div>'+
+  '<p>Dernière séance : <b>'+(last?esc(frDate(last.date)):(r.days<999&&!live?"il y a "+r.days+" jours":"aucune"))+'</b>'+(r.days>14?' <span class="pill warn">À relancer</span>':'')+'</p>'+
+  (as&&as.tot?'<p>Assiduité sur 30 jours : <b>'+as.pr+' cours sur '+as.tot+' ('+Math.round(as.pr/as.tot*100)+' %)</b></p>':'')+
+  '<p>Médailles : <b>'+m.or+' or · '+m.argent+' argent · '+m.bronze+' bronze</b></p>'+
+  (r.req?'<p class="note wait">Demande en attente : '+esc(reqText(r.belt,r.req))+'</p>':'')+
+  (g&&g.decidedAt?'<p class="muted">Dernière décision : '+esc(g.status||"validé")+' le '+esc(frDate(String(g.decidedAt).slice(0,10)))+(g.comment?' · « '+esc(g.comment)+' »':'')+'</p>':'')+
+  '<h3 class="sf-h">Dernières séances</h3><ul class="log">'+(srt.slice(0,8).map(function(x){return '<li><div style="min-width:0"><div>'+esc(x.theme)+(x.stars?'<span class="stars-inline">'+"★".repeat(+x.stars)+'</span>':'')+(x.roll?'<span class="rolltag">Appel</span>':'')+'</div><div class="meta">'+esc(frShort(x.date))+' · '+esc(x.type||"Gi")+'</div></div><div class="r">'+String((+x.dur||0)/60).replace(".",",")+' h</div></li>'}).join("")||'<li class="empty">Aucune séance enregistrée.</li>')+'</ul>'+
+  '<h3 class="sf-h">Compétitions</h3><ul class="log">'+(comps.slice().sort(function(a,b){return a.date<b.date?1:-1}).slice(0,5).map(function(c){return '<li><div style="min-width:0"><div>'+esc(c.event||"Compétition")+'</div><div class="meta">'+esc(frShort(c.date))+'</div></div><span class="pill '+(c.result==="aucun"?"todo":c.result)+'">'+RESULT[c.result]+'</span></li>'}).join("")||'<li class="empty">Aucune compétition.</li>')+'</ul>'+
+  '<h3 class="sf-h">Note privée du prof</h3><p class="muted" style="font-size:12.5px">Visible uniquement par les profs du club, jamais par l\'élève.</p>'+
+  '<textarea id="sfNote" maxlength="600" placeholder="Ex. : genou fragile, à surveiller en sparring ; prêt pour la 3e barrette en janvier">'+esc(noteOf(id))+'</textarea>'+
+  '<div class="row-acts"><button type="button" class="btn small" data-savenote="'+esc(id)+'">Enregistrer la note</button><button type="button" class="btn ghost small" data-grantfor="'+esc(id)+'">Attribuer un grade</button></div>'+
+  (live?'':'<p class="muted" style="font-size:12.5px">Démo : historique d\'exemple.</p>');
+ showModal(nm,html,"Fermer")}
+function saveNote(id){var t=$("sfNote").value.trim().slice(0,600);
+ if(mode==="cloud"&&isProf){dbNs.doc("notes/"+id).set({text:t,updatedAt:new Date().toISOString(),by:myUid||""}).then(function(){notesDocs[id]={text:t};toast("Note enregistrée")},function(){toast("Enregistrement impossible : il faut être prof")});return}
+ var all=demoNotes();all[id]=t;try{localStorage.setItem("uzu-demo-notes",JSON.stringify(all))}catch(e){}toast("Note enregistrée (démo)")}
+function renderProf(){var live=mode==="cloud"&&isProf,rows=profData();
+ $("profTitle").textContent=club.name||"Ton groupe";
+ renderClubCard();renderVideos();renderSlots();renderRoll();renderProfAtt();
+ $("profEyebrow").textContent=live?"Vue prof · en direct":"Vue prof · démo";
+ $("profSub").textContent=live?"Élèves qui saisissent leurs séances dans UZU. Mise à jour en temps réel.":"Démo avec des élèves fictifs. Connecte-toi avec un compte prof pour voir ton vrai groupe.";
+ if(!rows){$("profRows").innerHTML='<tr><td colspan="5" class="empty">Chargement du groupe…</td></tr>';$("reqList").innerHTML="";return}
+ rows=rows.slice().sort(function(a,b){return a.days-b.days});
+ var act=0,warn=0,reqs=rows.filter(function(r){return r.req});
+ // Demandes
+ $("cReq").textContent=reqs.length;
+ $("reqList").innerHTML=reqs.length?reqs.map(function(r){return '<div class="req"><div class="who"'+(r.name?'':' data-uid="'+esc(r.id)+'"')+'>'+esc(nameOf(r))+'</div><div class="muted" style="margin-top:-6px">'+esc(reqText(r.belt,r.req))+'</div>'+ficheBlock(r)+'<div class="chg">'+beltSvg(r.belt.rank,r.belt.stripes,36)+' '+esc(beltShort(r.belt))+' <span aria-hidden="true">→</span> '+beltSvg(r.req.rank,r.req.stripes,36)+' <b style="color:var(--fg)">'+esc(beltShort(r.req))+'</b></div><div class="acts"><button class="btn small" type="button" data-approve="'+esc(r.id)+'">Valider</button><button class="btn small quiet" type="button" data-refuse="'+esc(r.id)+'">Refuser</button></div></div>'}).join(""):'<p class="empty" style="margin:0">Aucune demande en attente.</p>';
+ // Liste des élèves (recherche, filtre, tri)
+ lastProfRows=rows;renderProfList();
+ // Attribuer
+ var sel=$("aWho").value;
+ $("aWho").innerHTML=rows.map(function(r){return '<option value="'+esc(r.id)+'"'+(r.id===sel?" selected":"")+'>'+esc(nameOf(r))+'</option>'}).join("");
+ syncGrantForm(rows);
+ // Compétitions du groupe
+ var cl=[];if(live){rows.forEach(function(r){(r.comps||[]).forEach(function(c){cl.push({id:r.id,who:null,event:c.event,date:c.date,result:c.result})})})}else cl=CLUB_COMPS.map(function(c){return {who:c.who,event:c.event,date:c.date,result:c.result}});
+ cl.sort(function(a,b){return a.date<b.date?1:-1});
+ $("profComps").innerHTML=cl.slice(0,8).map(function(c){return '<li><div style="min-width:0"><div'+(c.who?'':' data-uid="'+esc(c.id)+'"')+' style="font-weight:600">'+esc(c.who||names[c.id]||"Élève")+'</div><div class="meta">'+esc(c.event||"Compétition")+' · '+frShort(c.date)+'</div></div><span class="pill '+(c.result==="aucun"?"todo":c.result)+'">'+RESULT[c.result]+'</span></li>'}).join("")||'<li class="empty">Aucune compétition saisie par le groupe.</li>';
+ // Noms
+ if(live){var ids=rows.map(function(r){return r.id});userNs.profiles(ids).then(function(ps){ids.forEach(function(id){var p=ps[id];names[id]=((p&&p.name)||"Élève")+(p&&p.isMe?" (toi)":"")});
+  Array.prototype.forEach.call(document.querySelectorAll("#v-prof [data-uid]"),function(el){el.textContent=names[el.dataset.uid]||"Élève"});
+  Array.prototype.forEach.call($("aWho").options,function(o){o.textContent=names[o.value]||"Élève"})})}}
+function syncGrantForm(rows){rows=rows||profData()||[];var r=rows.filter(function(x){return x.id===$("aWho").value})[0];if(!r)return;
+ var b=r.req?{rank:r.req.rank,stripes:r.req.stripes,since:r.req.since||ymd(TODAY)}:r.belt;
+ $("aRank").innerHTML=rankOptions(b.rank);aForm.stripes=b.stripes;$("aStripes").innerHTML=stripesBtns(aForm.stripes,"data-astripes");$("aSince").value=b.since||ymd(TODAY)}
+function decide(id,belt,status,comment){comment=String(comment||"").trim().slice(0,300);delete commentDraft[id];delete ficheOpen[id];
+ if(mode==="cloud"&&isProf){if(status==="refusé"){var g=grades[id];belt=g?normBelt(g):{rank:"blanche",stripes:0,since:""}}writeGrade(id,belt,status,comment);return}
+ var r=CLUB.filter(function(x){return x.id===id})[0];if(!r)return;if(status==="validé")r.belt=belt;r.req=null;renderProf();toast((status==="validé"?"Grade validé (démo)":"Demande refusée (démo)")+(comment?" · commentaire transmis":""))}
+
+var views={today:renderToday,log:renderLogForm,path:renderPath,prog:renderProg,prof:renderProf};
+var justSignedUp=false;
+function applySignup(){var su=null;try{su=JSON.parse(localStorage.getItem("uzu-signup"))}catch(e){}if(!su||!su.name)return false;
+ try{localStorage.removeItem("uzu-signup")}catch(e){}
+ if(su.fresh&&!myUid)state=emptyState(); // démo : un nouveau compte démarre sans données d'exemple
+ justSignedUp=true;state.name=String(su.name).slice(0,40);state.consent={at:String(su.at||new Date().toISOString())};save();return true}
+window.UZU_SIGNED_UP=function(){if(applySignup())go("today")};
+function needsWelcome(){if(isProf||!role)return false;if(!state.consent)applySignup();return !state.consent}
+function showWelcome(){Object.keys(views).forEach(function(k){$("v-"+k).hidden=true});$("v-welcome").hidden=false;$("navTabs").hidden=true}
+function go(v){if(isProf&&!trainMode)v="prof";else if(v==="prof")v="today";current=v;applyClub();clubForm.accent=club.accent;if(v!=="log"&&editing){editing=null;resetForms()}
+ if(needsWelcome()){renderHeader();showWelcome();window.scrollTo(0,0);return}
+ $("v-welcome").hidden=true;$("navTabs").hidden=isProf&&!trainMode;
+ Object.keys(views).forEach(function(k){$("v-"+k).hidden=k!==v});
+ Array.prototype.forEach.call(document.querySelectorAll("nav.tabs button"),function(b){if(b.dataset.go===v)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
+ renderHeader();views[v]();window.scrollTo(0,0);}
+var tt;function toast(m){var t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(function(){t.hidden=true},2600)}
+
+// ---------- Interactions ----------
+var form={type:"Gi",dur:90,rounds:0,placed:0,takenW:0,takenG:0,forme:"",stars:0},cform={type:"Gi",result:"aucun",wins:0,losses:0,subs:0};
+document.addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
+ if(b.id==="wStart"){var wn=$("wName").value.trim();if(!wn){toast("Indique ton prénom pour que ton prof te reconnaisse");$("wName").focus();return}if(!$("wAge").checked){$("wMinor").hidden=false;return}$("wMinor").hidden=true;
+  if(!$("wData").checked){toast("Coche l'accord sur tes données pour continuer");return}
+  state.consent={at:new Date().toISOString()};state.name=wn.slice(0,40);save();toast("Bienvenue sur UZU");go("today");return}
+ if(b.id==="modalClose"){hideModal();return}
+ if(b.dataset.student){openStudent(b.dataset.student);return}
+ if(b.dataset.tmode){setTrain(b.dataset.tmode==="train");return}
+ if(b.dataset.savenote){saveNote(b.dataset.savenote);return}
+ if(b.dataset.demorole){try{localStorage.setItem("uzu-demo-role",b.dataset.demorole);localStorage.removeItem(KEY)}catch(x){}location.reload();return}
+ if(b.id==="pCsv"){exportCsv();return}
+ if(b.dataset.grantfor){var gid=b.dataset.grantfor;hideModal();$("aWho").value=gid;syncGrantForm();$("aWho").closest(".card").scrollIntoView({behavior:"smooth",block:"start"});return}
+ if(b.dataset.pf){profFilter=b.dataset.pf;renderProfList();return}
+ if(b.dataset.legal){showModal("Mentions légales & Confidentialité",legalHtml());return}
+ if(b.id==="installBtn"){installApp();return}
+ if(b.dataset.star){var sv=+b.dataset.star;form.stars=form.stars===sv?0:sv;setStars(form.stars);return}
+ if(b.dataset.complete){editing=null;resetForms();logPrefill={date:b.dataset.complete};logMode="session";go("log");return}
+ if(b.id==="endLater"){var dk2=endDismissed();dk2[b.dataset.key]=1;try{localStorage.setItem("uzu-endbar",JSON.stringify(dk2))}catch(e){}$("endBar").hidden=true;return}
+ if(b.id==="rollAll"){var Ls=rollStudents(),allOn=Ls.every(function(st){return rollChecked[st.id]});Ls.forEach(function(st){rollChecked[st.id]=!allOn});renderRoll();return}
+ if(b.id==="rollSave"){saveRoll();return}
+ if(b.dataset.fiche){var fid=b.dataset.fiche;ficheOpen[fid]=!ficheOpen[fid];renderProf();return}
+ if(b.id==="meNameSave"){var nn=$("meName").value.trim();if(!nn){toast("Indique ton prénom");return}state.name=nn.slice(0,40);save();toast("Prénom enregistré");return}
+ if(b.id==="logout"){if(window.UZU_LOGOUT)window.UZU_LOGOUT();return}
+ if(b.id==="pwSave"){if(window.UZU_SETPW)changePw(b);return}
+ if(b.id==="calPrev"){calOffset=Math.max(-8,calOffset-1);renderCal();return}
+ if(b.id==="calNext"){calOffset=Math.min(4,calOffset+1);renderCal();return}
+ if(b.dataset.att){var ak=b.dataset.att;if(state.att[ak]===b.dataset.v)delete state.att[ak];else state.att[ak]=b.dataset.v;save();renderCal();return}
+ if(b.dataset.logfrom){var lk=b.dataset.logfrom.split("|"),sl=schedule().filter(function(x){return x.id===lk[1]})[0];editing=null;resetForms();logPrefill={date:lk[0]};
+  if(sl){var mn=slotMin(sl);form.dur=mn<=75?60:mn<=105?90:120;if(/no.?gi/i.test(sl.t))form.type="No-gi"}logMode="session";go("log");return}
+ if(b.id==="slAdd"){addSlot();return}
+ if(b.dataset.sldel){var sid=b.dataset.sldel;confirmTap(b,"Confirmer",function(){saveSchedule((club.schedule||[]).filter(function(x){return x.id!==sid}),"Cours retiré du planning")});return}
+ if(b.dataset.editS){editing={kind:"s",id:b.dataset.editS};logMode="session";go("log");return}
+ if(b.dataset.editC){editing={kind:"c",id:b.dataset.editC};logMode="comp";go("log");return}
+ if(b.dataset.delS){var ds=b.dataset.delS;confirmTap(b,"Confirmer",function(){state.sessions=state.sessions.filter(function(s){return s.id!==ds});save();renderProg();toast("Séance supprimée")});return}
+ if(b.dataset.delC){var dc=b.dataset.delC;confirmTap(b,"Confirmer",function(){state.comps=state.comps.filter(function(c){return c.id!==dc});save();renderProg();toast("Compétition supprimée")});return}
+ if(b.id==="fCancel"||b.id==="cCancel"){editing=null;resetForms();go("prog");return}
+ if(b.id==="delAll"){confirmTap(b,"Confirmer : tout supprimer",deleteAll);return}
+ if(b.id==="vUpload"){uploadVideo(b);return}
+ if(b.dataset.vdel){var vk=b.dataset.vdel;confirmTap(b,"Confirmer",function(){removeVideo(vk)});return}
+ if(b.dataset.modeGo){logMode=b.dataset.modeGo}
+ if(b.dataset.go){if(b.dataset.go==="log"&&!b.dataset.modeGo&&!b.closest("nav"))logMode="session";go(b.dataset.go);return}
+ if(b.dataset.mode){logMode=b.dataset.mode;renderLogForm();return}
+ if(b.dataset.lang){setLang(b.dataset.lang);try{localStorage.setItem("uzu-lang",lang)}catch(e){}renderPath();toast(lang==="fr"?"Noms des spécialisations en français":"Noms des spécialisations en anglais");return}
+ if(b.dataset.school){state.school=b.dataset.school;state.schoolChosen=true;save();renderPath();toast("Spécialisation : "+SCHOOL_NAME[state.school]);return}
+ if(b.dataset.stripes!==undefined){bForm.stripes=+b.dataset.stripes;$("bStripes").innerHTML=stripesBtns(bForm.stripes,"data-stripes");return}
+ if(b.dataset.astripes!==undefined){aForm.stripes=+b.dataset.astripes;$("aStripes").innerHTML=stripesBtns(aForm.stripes,"data-astripes");return}
+ if(b.dataset.step){var k=b.dataset.step,max=k==="rounds"?20:15;form[k]=Math.max(0,Math.min(max,form[k]+(+b.dataset.d)));$("o-"+k).textContent=form[k];return}
+ if(b.dataset.cstep){var c=b.dataset.cstep;cform[c]=Math.max(0,Math.min(20,cform[c]+(+b.dataset.d)));$("c-"+c).textContent=cform[c];return}
+ if(b.parentElement&&b.parentElement.id==="fForme"){form.forme=form.forme===b.dataset.v?"":b.dataset.v;setSeg("fForme",form.forme);return}
+ var seg=b.parentElement;if(seg&&["fType","fDur","cType","cResult"].indexOf(seg.id)>-1){Array.prototype.forEach.call(seg.children,function(x){x.setAttribute("aria-pressed",x===b)});
+  if(seg.id==="fType")form.type=b.dataset.v;else if(seg.id==="fDur")form.dur=+b.dataset.v;else if(seg.id==="cType")cform.type=b.dataset.v;else cform.result=b.dataset.v;return}
+ if(b.dataset.approve){var row=(profData()||[]).filter(function(x){return x.id===b.dataset.approve})[0];if(row&&row.req)decide(row.id,{rank:row.req.rank,stripes:row.req.stripes,since:row.req.since||ymd(TODAY)},"validé",commentDraft[row.id]);return}
+ if(b.dataset.refuse){decide(b.dataset.refuse,null,"refusé",commentDraft[b.dataset.refuse]);return}
+ if(b.dataset.swatch){clubForm.accent=b.dataset.swatch;applyAccent(clubForm.accent);renderClubCard();return}
+ if(b.id==="clubSave"){if(!requireProf("La configuration du club"))return;var nc={name:$("clubName").value.trim().slice(0,40),accent:clubForm.accent,weekTheme:$("clubTheme").value.trim().slice(0,100),schedule:club.schedule||[],news:$("clubNews").value.trim().slice(0,280)};
+  if(mode==="cloud"&&isProf){dbNs.doc("club/settings").set(nc).then(function(){toast("Identité du club appliquée à tous les élèves")}).catch(function(){toast("Enregistrement impossible : il faut être prof")});club=nc;cacheClub();renderProf();return}
+  club=nc;cacheClub();applyClub();renderProf();toast("Réglages du club appliqués (démo, sur cet appareil)");return}
+ if(b.id==="aSave"){var id=$("aWho").value;if(!id)return;decide(id,{rank:$("aRank").value,stripes:aForm.stripes,since:$("aSince").value||ymd(TODAY)},"validé");return}
+ if(b.id==="editBelt"){if($("beltForm").hidden)openBeltForm();else $("beltForm").hidden=true;return}
+ if(b.id==="bSave"){var nb={rank:$("bRank").value,stripes:bForm.stripes,since:$("bSince").value||""};$("beltForm").hidden=true;
+  if(mode!=="cloud"||role==="teacher"){state.belt=nb;save();renderHeader();renderPath();toast("Ceinture mise à jour");return}
+  if(isProf){writeGrade(myUid,nb,"validé");return}
+  state.request={rank:nb.rank,stripes:nb.stripes,since:nb.since,at:new Date().toISOString()};save();renderPath();toast("Demande envoyée à ton prof");return}
+ if(b.id==="clearSample"){state.sessions=state.sessions.filter(function(s){return !s.sample});state.comps=state.comps.filter(function(c){return !c.sample});save();renderToday();toast("Exemples effacés");return}
+ if(b.id==="nextWeek"){state.week=curWeek()+1;state.weekRank=state.belt.rank;save();renderToday();toast("Semaine "+state.week+" débloquée");}
+});
+document.addEventListener("input",function(e){if(e.target.id==="pSearch"){renderProfList();return}var c=e.target.dataset&&e.target.dataset.cm;if(c!==undefined)commentDraft[c]=e.target.value});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("modal").hidden)hideModal()});
+$("modal").addEventListener("click",function(e){if(e.target===$("modal"))hideModal()});
+document.addEventListener("change",function(e){
+ if(e.target.id==="rollSlot"){renderRoll();return}
+ if(e.target.id==="pSort"){renderProfList();return}
+ var rk=e.target.dataset&&e.target.dataset.roll;if(rk!==undefined){rollChecked[rk]=e.target.checked;updateRollCount();return}
+ if(e.target.id==="aWho"){syncGrantForm();return}
+ var pg=e.target.dataset&&e.target.dataset.pgoal;
+ if(pg){var pp=pg.split("-"),key=dk(+pp[0]),dd=state.done[key]||(state.done[key]=[false,false,false]);dd[+pp[1]]=e.target.checked;save();
+  var det=e.target.closest("details");if(det){var g=0,t=0;Array.prototype.forEach.call(det.querySelectorAll("input[data-pgoal]"),function(x){t++;if(x.checked)g++});det.querySelector(".mc").textContent=g+" / "+t}return}
+ var g=e.target.dataset&&e.target.dataset.goal;if(g===undefined)return;
+ var P=program(state),w=curWeek(),key=dk(w),d=state.done[key]||(state.done[key]=[false,false,false]);d[+g]=e.target.checked;state.week=w;state.weekRank=state.belt.rank;save();renderToday();if(d.every(Boolean))toast(P.length>1?"Semaine validée, bravo":"Objectifs de la ceinture validés");});
+$("logForm").addEventListener("submit",function(e){e.preventDefault();
+ var item={date:$("fDate").value||ymd(TODAY),type:form.type,dur:form.dur,theme:($("fTheme").value.trim()||"Séance libre").slice(0,80),rounds:form.rounds,placed:form.placed,takenW:form.takenW,takenG:form.takenG,taken:form.takenW+form.takenG,note:$("fNote").value.trim(),forme:form.forme,stars:form.stars};
+ var hurt=form.forme==="douleur";
+ if(editing&&editing.kind==="s"){var id=editing.id;state.sessions=state.sessions.map(function(s){return s.id===id?Object.assign({},s,item):s});editing=null;save();resetForms();toast("Séance modifiée");go("prog");return}
+ item.id="u"+Date.now();item.sample=false;state.sessions.push(item);save();resetForms();toast(hurt?"Séance enregistrée. Préviens ton prof si la douleur persiste.":"Séance enregistrée");go("today");});
+$("compForm").addEventListener("submit",function(e){e.preventDefault();var ev=$("cEvent").value.trim();if(!ev){toast("Indique le nom de la compétition");$("cEvent").focus();return}
+ var item={date:$("cDate").value||ymd(TODAY),event:ev,type:cform.type,result:cform.result,wins:cform.wins,losses:cform.losses,subs:cform.subs};
+ if(editing&&editing.kind==="c"){var id=editing.id;state.comps=state.comps.map(function(c){return c.id===id?Object.assign({},c,item):c});editing=null;save();resetForms();toast("Compétition modifiée");go("prog");return}
+ item.id="k"+Date.now();item.sample=false;state.comps.push(item);save();resetForms();toast("Compétition enregistrée");go("prog");});
+go("today");
+
+// ---------- Synchronisation club ----------
+// members/<id> : fiche de l'élève (lui seul l'écrit, les profs la lisent)
+// grades/<id> : grade validé (seuls les profs l'écrivent, l'élève le lit)
+function rerender(){renderHeader();if(needsWelcome()){showWelcome();return}if(!$("v-welcome").hidden){go(current);return}if(current!=="log")views[current]()}
+function demoStart(msg){$("syncNote").textContent=msg;setRole(demoRole())}
+if(window.claude&&window.claude.use)document.body.classList.add("role-pending");else setRole(demoRole());
+(async function(){
+ if(!window.claude||!window.claude.use){$("syncNote").textContent="Mode démo : données d'exemple sur cet appareil. Renseigne la configuration Supabase pour relier l'app à ton club.";return}
+ var res=await Promise.all([window.claude.use("db"),window.claude.use("user")]),db=res[0],user=res[1];
+ if(!db||!user){demoStart("Mode démo : données d'exemple sur cet appareil. Renseigne la configuration Supabase pour relier l'app à ton club.");return}
+ var uid=await user.id();if(!uid){demoStart("Mode démo : données d'exemple sur cet appareil. Renseigne la configuration Supabase pour relier l'app à ton club.");return}
+ userNs=user;dbNs=db;myUid=uid;
+ // Changement de compte sur ce téléphone : on vide les données de l'ancien compte (aucun mélange)
+ var owner=null;try{owner=localStorage.getItem("uzu-owner")}catch(e){}
+ if(owner!==uid){var keep=justSignedUp?{name:state.name,consent:state.consent}:{};state=Object.assign(emptyState(),keep);
+  try{localStorage.removeItem(KEY);localStorage.setItem("uzu-owner",uid)}catch(e){}}
+ // Rôle unique décidé par le serveur AVANT de créer ou d'afficher quoi que ce soit
+ var r=user.role?await user.role():((await user.canEdit())?"teacher":"student");
+ var note=$("syncNote");
+ db.collection("videos").onSnapshot(function(snap){videos={};snap.docs.forEach(function(d){if(d.exists)videos[d.id]=d.data()});rerender()},function(){});
+ db.doc("club/settings").onSnapshot(function(snap){if(!snap.exists)return;club=normClub(snap.data());cacheClub();
+  if(!(current==="prof"&&clubForm.accent!==club.accent&&document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".swatches"))){applyClub();clubForm.accent=club.accent}
+  if(mode==="cloud"&&!isProf)note.textContent=syncText();rerender()},function(){});
+ if(r==="teacher"){
+  // ===== PROF : aucune fiche élève, aucun abonnement à des données élève à son nom =====
+  mode="cloud";setRole("teacher");
+  coachRef=db.doc("data/users/"+uid+"/training");var coachSeen=false;
+  coachRef.onSnapshot(function(snap){if(snap.exists)state=normalize(snap.data());else if(!coachSeen)state=emptyState();coachSeen=true;
+   note.textContent="Ton entraînement perso : visible par toi seul, hors liste des élèves.";note.classList.add("on");rerender()},function(){});
+  window.claude.use("assets").then(function(a){assetsNs=a;if(current==="prof")renderProf()});
+  db.collection("members").onSnapshot(function(snap){members=snap.docs.filter(function(d){return d.exists&&d.id!==uid}).map(function(d){return {id:d.id,data:d.data()}});if(current==="prof")renderProf()},function(){members=[];if(current==="prof")renderProf()});
+  db.collection("notes").onSnapshot(function(snap){notesDocs={};snap.docs.forEach(function(d){if(d.exists)notesDocs[d.id]=d.data()})},function(){});
+  db.collection("roll").onSnapshot(function(snap){rollDocs={};snap.docs.forEach(function(d){if(d.exists)rollDocs[d.id]=d.data()});if(current==="prof")renderProf()},function(){});
+  db.collection("grades").onSnapshot(function(snap){grades={};snap.docs.forEach(function(d){if(d.exists)grades[d.id]=d.data()});if(current==="prof")renderProf()},function(){});
+  rerender();return}
+ // ===== ÉLÈVE : sa fiche, ses données privées, son grade et son appel =====
+ setRole("student");
+ myRef=db.doc("members/"+uid);
+ privRef=db.doc("data/users/"+uid+"/private");
+ privRef.onSnapshot(function(snap){var d=snap.exists?snap.data():null;priv=d&&d.s?JSON.parse(JSON.stringify(d.s)):{};lastPriv=JSON.stringify(priv);mergePriv();rerender()},function(){});
+ var settled=false;note.textContent="Connexion à ton club…";
+ var timer=setTimeout(function(){if(!settled)note.textContent="Club injoignable pour l'instant : tes saisies restent sur ce téléphone et seront envoyées à la prochaine connexion."},10000);
+ myRef.onSnapshot(function(snap){
+  if(!snap.exists&&snap.metadata.fromCache)return;
+  var first=!settled;settled=true;clearTimeout(timer);
+  if(snap.exists){state=normalize(snap.data());mode="cloud";mergePriv()}
+  else if(first){var mine=state.sessions.filter(function(s){return !s.sample}),myComps=state.comps.filter(function(c){return !c.sample}),had=mine.length>0||myComps.length>0;
+   state={belt:{rank:"blanche",stripes:0,since:""},request:null,school:state.school,week:had?state.week:1,weekRank:had?state.weekRank:"blanche",done:had?state.done:{},sessions:mine,comps:myComps,schoolChosen:state.schoolChosen,consent:state.consent,att:{},name:state.name||""};mode="cloud";if(had||state.consent)save()}
+  else{state=emptyState()}
+  applyGrade();note.textContent=syncText();note.classList.add("on");rerender();
+ },function(){clearTimeout(timer);settled=true;note.textContent="Synchronisation interrompue : recharge la page plus tard."});
+ db.doc("roll/"+uid).onSnapshot(function(snap){myRoll=snap.exists?((snap.data()||{}).s||[]):[];rerender()},function(){});
+ db.doc("grades/"+uid).onSnapshot(function(snap){myGrade=snap.exists?snap.data():null;applyGrade();rerender()},function(){});
+ rerender();
+})();
+})();
+</script>
+
+</body>
+</html>
