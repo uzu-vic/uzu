@@ -4,14 +4,19 @@
   1. Crée un projet Supabase et exécute le fichier supabase.sql dans SQL Editor.
   2. Colle l'URL du projet et la clé "Publishable" (sb_publishable_...) dans UZU_CONFIG ci-dessous.
   3. Mets ce fichier en ligne (Netlify, Vercel, GitHub Pages…) sous le nom index.html.
-  Sans configuration, l'app tourne en mode démo, avec des données d'exemple sur l'appareil.
+  Sans configuration, l'app tourne en mode démo : comptes simulés et données d'exemple sur l'appareil
+  (code club de démo : VIC2026).
 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#111113">
+<meta name="description" content="UZU Progression : suivi des séances, du parcours et des grades du club.">
+<meta name="application-name" content="UZU">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="UZU">
 <script>
 /* ============================ CONFIGURATION SUPABASE ============================
@@ -277,6 +282,37 @@ select#fTheme{min-height:50px;font-size:15px}
 .brand .mark b{font-family:var(--body);font-size:10px;font-weight:800;letter-spacing:.32em;margin-right:-.32em;line-height:1;color:var(--on-band-muted)}
 .brand .club{font-family:var(--display);font-size:22px;font-weight:700;line-height:1.1;color:var(--on-band);text-wrap:balance;min-width:0;padding-left:12px;border-left:1px solid rgba(255,255,255,.2)}
 @media (max-width:430px){#hBeltLabel{display:none}.brand .club{font-size:19px}}
+/* Étoiles de maîtrise */
+.stars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.star{font:inherit;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;min-height:68px}
+.star svg{width:16px;height:16px}
+.star b{font-size:12.5px;font-weight:700}
+.star[aria-pressed=true]{border-color:var(--fg);color:var(--fg);background:var(--steel-soft);box-shadow:inset 0 0 0 1px var(--fg)}
+.star[aria-pressed=true] svg{color:var(--accent)}
+.star-desc{font-size:12.5px;color:var(--muted);margin:0;min-height:18px}
+.stars-inline{color:var(--accent);font-size:12px;margin-left:6px;letter-spacing:1px}
+.rolltag{font-size:11px;font-weight:700;color:var(--accent);margin-left:6px}
+/* Modale */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(10,10,12,.55);display:flex;align-items:flex-end;justify-content:center;padding-top:16px;padding-bottom:max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.modal-box{background:var(--surface);color:var(--fg);border-radius:16px;max-width:480px;width:100%;max-height:85vh;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal-box h2{font-family:var(--display);font-size:22px}
+.modal-box p,.modal-box li{font-size:14px;line-height:1.55;margin:0}
+.modal-box ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+@media (min-width:600px){.modal{align-items:center}}
+.linkish{font:inherit;font-size:12.5px;color:var(--muted);background:none;border:0;text-decoration:underline;cursor:pointer;padding:4px 0;align-self:flex-start}
+/* Bandeau fin de cours */
+.endbar{display:flex;flex-direction:column;gap:10px;background:var(--warn-soft);border:1.5px solid var(--warn);border-radius:12px;padding:12px 14px;font-size:14.5px;font-weight:600}
+.endbar .acts{display:flex;gap:8px;flex-wrap:wrap}
+/* Appel du prof */
+.roll{list-style:none;margin:0;padding:0}
+.roll li{border-top:1px solid var(--line)}.roll li:first-child{border-top:0}
+.roll label{display:flex;align-items:center;gap:14px;padding:12px 2px;cursor:pointer;font-size:15px;font-weight:600}
+.roll label small{font-weight:500;color:var(--muted);font-size:12px;margin-left:auto}
+.roll input{appearance:none;flex:none;width:28px;height:28px;border:2px solid var(--muted);border-radius:8px;display:grid;place-items:center;cursor:pointer;margin:0}
+.roll input:checked{background:var(--accent);border-color:var(--accent)}
+.roll input:checked::after{content:"";width:7px;height:13px;border:solid var(--on-accent);border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.fiche-wrap{display:flex;flex-direction:column;gap:10px}
+.fiche-wrap textarea{min-height:60px}
 .login{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;padding-top:max(24px,env(safe-area-inset-top,0px));padding-bottom:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .login-box{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-top:16px}
 .login-brand{display:flex;align-items:center;gap:12px}
@@ -289,17 +325,20 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
 
 </head>
 <body>
-<!-- Écran de connexion (affiché seulement quand Supabase est configuré et que personne n'est connecté) -->
+<!-- Écran de connexion : comptes Supabase en production, comptes simulés en mode démo -->
 <div class="login" id="loginOv" hidden>
   <div class="login-box">
     <div class="login-brand"><div class="lmark"><svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><path id="spiralLogin" fill="none" stroke="var(--accent)" stroke-width="3.2" stroke-linecap="round"/></svg><b>UZU</b></div><span class="lclub" id="loginClub">Grigny Vic Fight</span></div>
     <h1 class="week-title">Connecte-toi à ton club</h1>
     <div class="field"><label for="lgEmail">E-mail</label><input type="email" id="lgEmail" autocomplete="email" placeholder="prenom@exemple.fr"></div>
     <div class="field"><label for="lgPass">Mot de passe (8 caractères minimum)</label><input type="password" id="lgPass" autocomplete="current-password"></div>
+    <div class="field"><label for="lgCode">Code invitation club (pour créer un compte)</label><input type="text" id="lgCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Demande-le à ton prof"></div>
+    <p class="muted" id="lgDemo" hidden style="margin:0;font-size:12.5px">Mode démo : les comptes sont simulés sur cet appareil.</p>
     <p class="note wait" id="lgErr" hidden></p>
     <button class="btn" type="button" id="lgIn">Se connecter</button>
     <button class="btn ghost" type="button" id="lgUp">Créer mon compte</button>
     <button class="icon-btn" type="button" id="lgForgot" style="align-self:flex-start">Mot de passe oublié</button>
+    <button type="button" class="linkish" data-legal="1">Mentions légales &amp; Confidentialité</button>
   </div>
 </div>
 <header class="top wrap">
@@ -337,6 +376,10 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
 
   <!-- SEMAINE -->
   <section id="v-today" aria-label="Ta semaine">
+    <div class="endbar" id="endBar" role="status" hidden>
+      <span>🥋 Fin du cours ! As-tu pensé à saisir ta séance pour ne rien oublier ? (10 secondes chrono)</span>
+      <div class="acts"><button class="btn small" type="button" id="endLog">Saisir ma séance</button><button class="btn quiet small" type="button" id="endLater">Plus tard</button></div>
+    </div>
     <div class="banner" id="sampleBanner" hidden>
       <span>Données d'exemple pour la démo. Tes séances s'ajoutent à la suite.</span>
       <button class="btn ghost small" type="button" id="clearSample">Effacer</button>
@@ -393,8 +436,15 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
         <div class="field"><span class="lbl">Durée</span>
           <div class="seg" id="fDur"><button type="button" data-v="60" aria-pressed="false">1 h</button><button type="button" data-v="90" aria-pressed="true">1 h 30</button><button type="button" data-v="120" aria-pressed="false">2 h</button></div></div>
         <div class="field"><label for="fTheme">Thème travaillé</label><select id="fTheme"></select></div>
+        <div class="field"><span class="lbl">Niveau de confort sur ce mouvement aujourd'hui</span>
+          <div class="stars" id="fStars">
+            <button type="button" class="star" data-star="1" aria-pressed="false" aria-label="1 étoile : découverte"><span style="display:flex;gap:1px"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg></span><b>Découverte</b></button>
+            <button type="button" class="star" data-star="2" aria-pressed="false" aria-label="2 étoiles : intermédiaire"><span style="display:flex;gap:1px"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg></span><b>Intermédiaire</b></button>
+            <button type="button" class="star" data-star="3" aria-pressed="false" aria-label="3 étoiles : maîtrisé"><span style="display:flex;gap:1px"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" fill="currentColor"/></svg></span><b>Maîtrisé</b></button>
+          </div>
+          <p class="star-desc" id="starDesc">Touche une case pour noter ton niveau (facultatif).</p></div>
         <div class="steppers">
-          <div class="stepper"><span class="lbl">Rounds</span><div class="row"><button type="button" data-step="rounds" data-d="-1" aria-label="Moins de rounds">−</button><output id="o-rounds">5</output><button type="button" data-step="rounds" data-d="1" aria-label="Plus de rounds">+</button></div></div>
+          <div class="stepper"><span class="lbl">Rounds</span><div class="row"><button type="button" data-step="rounds" data-d="-1" aria-label="Moins de rounds">−</button><output id="o-rounds">0</output><button type="button" data-step="rounds" data-d="1" aria-label="Plus de rounds">+</button></div></div>
           <div class="stepper"><span class="lbl">Soumissions placées</span><div class="row"><button type="button" data-step="placed" data-d="-1" aria-label="Moins">−</button><output id="o-placed">0</output><button type="button" data-step="placed" data-d="1" aria-label="Plus">+</button></div></div>
           <div class="stepper"><span class="lbl">Subies contre une ceinture blanche</span><div class="row"><button type="button" data-step="takenW" data-d="-1" aria-label="Moins de soumissions subies contre une blanche">−</button><output id="o-takenW">0</output><button type="button" data-step="takenW" data-d="1" aria-label="Plus de soumissions subies contre une blanche">+</button></div></div>
           <div class="stepper"><span class="lbl">Subies contre un gradé (bleue et +)</span><div class="row"><button type="button" data-step="takenG" data-d="-1" aria-label="Moins de soumissions subies contre un gradé">−</button><output id="o-takenG">0</output><button type="button" data-step="takenG" data-d="1" aria-label="Plus de soumissions subies contre un gradé">+</button></div></div>
@@ -492,6 +542,11 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
       <div class="grad"><strong id="gradN">0</strong><span id="gradNote"></span></div>
     </div>
     <div class="card">
+      <span class="eyebrow">Mes techniques</span>
+      <p class="muted" id="techSum" style="margin:0"></p>
+      <ul class="log" id="techList"></ul>
+    </div>
+    <div class="card">
       <span class="eyebrow">État physique, 30 derniers jours</span>
       <div class="medals">
         <div class="medal"><i style="background:var(--good)"></i><div><strong id="fOk">0</strong><small>en forme</small></div></div>
@@ -532,6 +587,11 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
       </div>
       <button class="btn quiet small" type="button" id="logout" style="width:max-content" hidden>Se déconnecter</button>
     </div>
+    <div class="card">
+      <span class="eyebrow">L'application</span>
+      <button class="btn ghost small" type="button" id="installBtn" style="width:max-content" hidden>Installer l'application sur mon écran d'accueil</button>
+      <button type="button" class="linkish" data-legal="1">Mentions légales &amp; Confidentialité</button>
+    </div>
   </section>
 
   <!-- PROF -->
@@ -542,6 +602,14 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
       <div class="stat"><strong id="cActive">0</strong><small>élèves actifs</small></div>
       <div class="stat"><strong id="cWarn">0</strong><small>à relancer</small></div>
       <div class="stat"><strong id="cReq">0</strong><small>demandes de grade</small></div>
+    </div>
+    <div class="card" id="rollCard">
+      <span class="eyebrow">Faire l'appel du jour</span>
+      <div class="field"><label for="rollSlot">Cours</label><select id="rollSlot"></select></div>
+      <div class="lang-row"><span class="muted" id="rollCount">0 présent</span><button type="button" class="icon-btn" id="rollAll">Tout cocher</button></div>
+      <ul class="roll" id="rollList"></ul>
+      <button class="btn" type="button" id="rollSave">Valider l'appel</button>
+      <p class="muted" style="margin:0;font-size:12.5px">Chaque élève coché reçoit une séance pré-remplie avec le thème de la semaine. Il pourra la compléter.</p>
     </div>
     <div class="card"><span class="eyebrow">Présences cette semaine</span><ul class="log" id="profAtt"></ul></div>
     <div class="card">
@@ -605,26 +673,52 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
     <button type="button" data-go="prof" id="tabProf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5M15 19c0-2 1.5-3.5 4-3.5"/></svg>Prof</button>
   </div>
 </nav>
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-box"><h2 id="modalTitle"></h2><div id="modalBody" style="display:flex;flex-direction:column;gap:10px"></div><button class="btn" type="button" id="modalClose">J'ai compris</button></div>
+</div>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <script>
 /* =====================================================================================
-   Connecteur Supabase : fournit à l'application la même interface que la plateforme
-   Claude (window.claude.use("db" | "user" | "assets")), branchée sur :
-   - la table public.docs (un document JSON par chemin : members/<id>, grades/<id>,
-     club/settings, videos/<semaine>, data/users/<id>/private) ;
-   - la table public.club_roles (élève ou prof) ;
-   - le stockage "videos" pour les vidéos du prof.
-   Les règles d'accès sont appliquées côté serveur par supabase.sql (RLS).
+   Connexion et serveur
+   - PRODUCTION (UZU_CONFIG rempli) : connecteur Supabase. Il fournit à l'application la
+     même interface que la plateforme Claude (window.claude.use("db" | "user" | "assets")),
+     branchée sur la table public.docs, la table public.club_roles et le stockage "videos".
+     Les règles d'accès et le code club sont vérifiés côté serveur (supabase.sql).
+   - DÉMO (UZU_CONFIG vide) : comptes simulés dans le localStorage de l'appareil.
    ===================================================================================== */
 (function(){
-  var C=window.UZU_CONFIG||{};
-  if(!window.supabase||!C.url||!C.anonKey||/VOTRE/.test(C.url+C.anonKey))return; // mode démo
-  var SB=window.supabase.createClient(C.url,C.anonKey);
-  var $=function(id){return document.getElementById(id)};
-  var cache={},listeners=[],uid=null,chan=null,profP=null;
+  var C=window.UZU_CONFIG||{},$=function(id){return document.getElementById(id)};
+  var LIVE=!!(window.supabase&&C.url&&C.anonKey&&!/VOTRE/.test(C.url+C.anonKey));
+  var DEMO_CODE="VIC2026"; // code club utilisé uniquement en mode démo (en production, il est stocké côté serveur)
+  var INVALID="Code club invalide. Demande le code à ton prof sur le tatami.";
 
+  // ---------- Icône d'écran d'accueil et manifeste, générés à la volée ----------
+  (function(){try{var cv=document.createElement("canvas");cv.width=cv.height=192;var x=cv.getContext("2d");
+    x.fillStyle="#111113";x.fillRect(0,0,192,192);x.strokeStyle="#22D3EE";x.lineWidth=13;x.lineCap="round";x.beginPath();
+    for(var i=0;i<=160;i++){var t=i/160*Math.PI*5.2,rr=5+t*4.9,px=96+rr*Math.cos(t-Math.PI/2),py=96+rr*Math.sin(t-Math.PI/2);if(i)x.lineTo(px,py);else x.moveTo(px,py)}x.stroke();
+    var url=cv.toDataURL("image/png"),l=document.createElement("link");l.rel="apple-touch-icon";l.href=url;document.head.appendChild(l);
+    var m=document.createElement("link");m.rel="manifest";m.href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify({name:"UZU Grigny Vic Fight",short_name:"UZU",display:"standalone",start_url:".",background_color:"#111113",theme_color:"#111113",icons:[{src:url,sizes:"192x192",type:"image/png"}]}));document.head.appendChild(m)}catch(e){}})();
+
+  // ---------- Formulaire de connexion (commun) ----------
+  (function(){var d="",i,t,rr;for(i=0;i<=120;i++){t=i/120*Math.PI*5.2;rr=1.2+t*1.05;d+=(i?"L":"M")+(20+rr*Math.cos(t-Math.PI/2)).toFixed(2)+" "+(20+rr*Math.sin(t-Math.PI/2)).toFixed(2)}$("spiralLogin").setAttribute("d",d)})();
+  function say(m){$("lgErr").textContent=m;$("lgErr").hidden=!m}
+  function info(title,msg){if(window.UZU_MODAL){say("");window.UZU_MODAL(title,"<p>"+msg+"</p>")}else say(msg)}
+  function emailOk(e){return /^\S+@\S+\.\S+$/.test(e)}
+  function creds(withCode){var e=$("lgEmail").value.trim(),p=$("lgPass").value,o={email:e,password:p};
+    if(!emailOk(e)){say("Indique une adresse e-mail valide.");return null}
+    if(p.length<8){say("Mot de passe : 8 caractères minimum.");return null}
+    if(withCode){o.code=$("lgCode").value.trim().toUpperCase();if(!o.code){say("Indique le code invitation club. Demande-le à ton prof sur le tatami.");return null}}
+    say("");return o}
+  function busy(b,on,label){b.disabled=on;b.textContent=label}
+  $("lgPass").addEventListener("keydown",function(e){if(e.key==="Enter")$("lgIn").click()});
+
+  if(!LIVE){demo();return}
+
+  // =================================== PRODUCTION ===================================
+  var SB=window.supabase.createClient(C.url,C.anonKey);
+  var cache={},listeners=[],uid=null,chan=null,profP=null;
   function err(e){var m=(e&&e.message)||"Erreur",x=new Error(m);
     x.code=(e&&(e.code==="42501"||/row-level security|permission denied/i.test(m)))?"not_granted":"upstream_error";return x}
   function snapDoc(p){var r=cache[p];return {exists:!!r,id:p.split("/").pop(),data:function(){return r?r.data:undefined},metadata:{fromCache:false}}}
@@ -638,7 +732,6 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
     }).subscribe()}
   function listen(l,load,ecb){listeners.push(l);realtime();load.then(function(r){if(r.error){if(ecb)ecb(err(r.error));return}l.loaded(r.data)});
     return function(){var i=listeners.indexOf(l);if(i>-1)listeners.splice(i,1)}}
-
   var db={
     doc:function(path){return {
       onSnapshot:function(cb,ecb){var l={doc:true,path:path,cb:cb,loaded:function(row){if(row)cache[path]={data:row.data};else delete cache[path];cb(snapDoc(path))}};
@@ -668,7 +761,6 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
   };
   window.UZU_BLOB=function(id){return SB.storage.from("videos").getPublicUrl(id).data.publicUrl};
   window.UZU_LOGOUT=function(){SB.auth.signOut().then(function(){location.reload()})};
-  // Changement de mot de passe : vérifie d'abord le mot de passe actuel
   window.UZU_SETPW=function(oldPw,newPw){return SB.auth.getUser().then(function(r){
     var em=r.data&&r.data.user&&r.data.user.email;if(!em)return "Session expirée : reconnecte-toi.";
     return SB.auth.signInWithPassword({email:em,password:oldPw}).then(function(a){if(a.error)return "Mot de passe actuel incorrect.";
@@ -677,8 +769,6 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
         if(/same|different from the old/i.test(m))return "Choisis un mot de passe différent de l'actuel.";
         if(/reauthenticat|nonce/i.test(m))return "Supabase demande une vérification par e-mail : désactive « Secure password change » dans Authentication > Sign In / Providers > Email.";
         return "Modification impossible : "+m})})})};
-
-  // Session : l'app attend la connexion avant de se synchroniser
   var ready=new Promise(function(res){
     function start(s){if(uid)return;uid=s.user.id;$("loginOv").hidden=true;res(s)}
     SB.auth.getSession().then(function(r){var s=r.data&&r.data.session;if(s)start(s);else $("loginOv").hidden=false});
@@ -691,30 +781,48 @@ input[type=email],input[type=password]{font:inherit;color:var(--fg);background:v
     if(name==="db")return db;if(name==="user")return user;
     if(name==="assets")return user.canEdit().then(function(p){return p?assets:null});
     return null})}};
-
-  // Formulaire de connexion
-  (function(){var d="",i,t,r;for(i=0;i<=120;i++){t=i/120*Math.PI*5.2;r=1.2+t*1.05;d+=(i?"L":"M")+(20+r*Math.cos(t-Math.PI/2)).toFixed(2)+" "+(20+r*Math.sin(t-Math.PI/2)).toFixed(2)}$("spiralLogin").setAttribute("d",d)})();
-  function say(m){$("lgErr").textContent=m;$("lgErr").hidden=!m}
   function fr(e){var m=(e&&e.message)||"";
     if(/Invalid login/i.test(m))return "E-mail ou mot de passe incorrect.";
+    if(/Database error saving new user|Code club invalide/i.test(m))return INVALID;
     if(/already registered|already exists/i.test(m))return "Un compte existe déjà avec cet e-mail : connecte-toi.";
     if(/Password should be|weak/i.test(m))return "Mot de passe trop faible : 8 caractères minimum.";
     if(/not confirmed/i.test(m))return "Confirme d'abord ton e-mail avec le lien reçu.";
     if(/not authorized|Signups not allowed/i.test(m))return "Les inscriptions sont fermées : demande à ton prof de t'ajouter.";
     if(/rate limit/i.test(m))return "Trop de tentatives, réessaie dans quelques minutes.";
     return "Connexion impossible : "+m}
-  function creds(){var e=$("lgEmail").value.trim(),p=$("lgPass").value;
-    if(!/^\S+@\S+\.\S+$/.test(e)){say("Indique une adresse e-mail valide.");return null}
-    if(p.length<8){say("Mot de passe : 8 caractères minimum.");return null}say("");return {email:e,password:p}}
-  function busy(b,on,label){b.disabled=on;b.textContent=label}
-  $("lgIn").addEventListener("click",function(){var c=creds(),b=this;if(!c)return;busy(b,true,"Connexion…");
-    SB.auth.signInWithPassword(c).then(function(r){busy(b,false,"Se connecter");if(r.error)say(fr(r.error))})});
-  $("lgUp").addEventListener("click",function(){var c=creds(),b=this;if(!c)return;busy(b,true,"Création…");
-    SB.auth.signUp(c).then(function(r){busy(b,false,"Créer mon compte");if(r.error){say(fr(r.error));return}
+  $("lgIn").addEventListener("click",function(){var c=creds(false),b=this;if(!c)return;busy(b,true,"Connexion…");
+    SB.auth.signInWithPassword({email:c.email,password:c.password}).then(function(r){busy(b,false,"Se connecter");if(r.error)say(fr(r.error))})});
+  $("lgUp").addEventListener("click",function(){var c=creds(true),b=this;if(!c)return;busy(b,true,"Création…");
+    SB.auth.signUp({email:c.email,password:c.password,options:{data:{club_code:c.code}}}).then(function(r){busy(b,false,"Créer mon compte");if(r.error){say(fr(r.error));return}
       if(!r.data.session)say("Compte créé. Ouvre le lien de confirmation reçu par e-mail, puis connecte-toi.")})});
-  $("lgForgot").addEventListener("click",function(){var e=$("lgEmail").value.trim();if(!/^\S+@\S+\.\S+$/.test(e)){say("Indique d'abord ton e-mail.");return}
-    SB.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname}).then(function(r){say(r.error?fr(r.error):"Si un compte existe, un e-mail de réinitialisation vient d'être envoyé.")})});
-  $("lgPass").addEventListener("keydown",function(e){if(e.key==="Enter")$("lgIn").click()});
+  $("lgForgot").addEventListener("click",function(){var e=$("lgEmail").value.trim();if(!emailOk(e)){say("Indique d'abord ton e-mail.");return}
+    SB.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname}).then(function(r){
+      if(r.error){say(fr(r.error));return}
+      info("Mot de passe oublié","Si un compte existe pour cette adresse, un e-mail de réinitialisation vient de t'être envoyé. Pense à vérifier tes spams.")})});
+
+  // ====================================== DÉMO ======================================
+  function demo(){
+    var ACC="uzu-demo-accounts",SES="uzu-demo-session";
+    function load(){try{return JSON.parse(localStorage.getItem(ACC))||{}}catch(e){return {}}}
+    function store(a){try{localStorage.setItem(ACC,JSON.stringify(a))}catch(e){}}
+    function h(x){var v=5381;for(var i=0;i<x.length;i++)v=((v<<5)+v+x.charCodeAt(i))|0;return "h"+(v>>>0)} // empreinte simple (démo uniquement)
+    var sess=null;try{sess=localStorage.getItem(SES)}catch(e){}
+    $("lgDemo").hidden=false;
+    if(!sess||!load()[sess])$("loginOv").hidden=false;
+    function open(email){sess=email;try{localStorage.setItem(SES,email)}catch(e){}$("loginOv").hidden=true}
+    $("lgIn").addEventListener("click",function(){var c=creds(false);if(!c)return;var a=load()[c.email.toLowerCase()];
+      if(!a){say("Aucun compte avec cet e-mail : crée ton compte avec le code club.");return}
+      if(a.h!==h(c.password)){say("E-mail ou mot de passe incorrect.");return}open(c.email.toLowerCase())});
+    $("lgUp").addEventListener("click",function(){var c=creds(true);if(!c)return;
+      if(c.code!==DEMO_CODE){say(INVALID);return}
+      var all=load(),k=c.email.toLowerCase();if(all[k]){say("Un compte existe déjà avec cet e-mail : connecte-toi.");return}
+      all[k]={h:h(c.password),at:new Date().toISOString()};store(all);open(k)});
+    $("lgForgot").addEventListener("click",function(){var e=$("lgEmail").value.trim();if(!emailOk(e)){say("Indique d'abord ton e-mail.");return}
+      info("Mot de passe oublié","Un e-mail de réinitialisation vous a été envoyé via notre service d'authentification (Simulation).")});
+    window.UZU_LOGOUT=function(){try{localStorage.removeItem(SES)}catch(e){}location.reload()};
+    window.UZU_SETPW=function(o,n){var all=load();if(!sess||!all[sess]||all[sess].h!==h(o))return Promise.resolve("Mot de passe actuel incorrect.");
+      all[sess].h=h(n);store(all);return Promise.resolve("Mot de passe modifié.")};
+  }
 })();
 </script>
 <script>
@@ -853,6 +961,7 @@ function normalize(d){d=d||{};var r=d.request&&d.request.rank?d.request:null;
   done:(d.done&&typeof d.done==="object")?JSON.parse(JSON.stringify(d.done)):{},
   sessions:Array.isArray(d.sessions)?JSON.parse(JSON.stringify(d.sessions)):[],
   comps:Array.isArray(d.comps)?JSON.parse(JSON.stringify(d.comps)):[],
+  rollLocal:Array.isArray(d.rollLocal)?JSON.parse(JSON.stringify(d.rollLocal)):[],
   schoolChosen:!!d.schoolChosen,
   name:String(d.name||"").slice(0,40),
   att:(d.att&&typeof d.att==="object"&&!Array.isArray(d.att))?JSON.parse(JSON.stringify(d.att)):{},
@@ -882,7 +991,7 @@ function save(){
   else if(e&&e.code==="quota_exceeded"){toast("Espace de stockage du club plein, préviens ton prof")}
   else{toast("Connexion perdue, ta dernière saisie n'est pas synchronisée")}});}
 var gradeWrites=Promise.resolve();
-function writeGrade(uid,belt,status){var body={rank:belt.rank,stripes:belt.stripes,since:belt.since||"",status:status,decidedAt:new Date().toISOString(),by:myUid||""};
+function writeGrade(uid,belt,status,comment){var body={rank:belt.rank,stripes:belt.stripes,since:belt.since||"",status:status,comment:String(comment||"").slice(0,300),decidedAt:new Date().toISOString(),by:myUid||""};
  gradeWrites=gradeWrites.then(function(){return dbNs.doc("grades/"+uid).set(body)}).then(function(){toast(status==="validé"?"Grade validé":"Demande refusée")}).catch(function(){toast("Validation impossible : il faut être prof")});}
 
 var $=function(id){return document.getElementById(id)};
@@ -925,12 +1034,58 @@ function confirmTap(btn,label,fn){if(btn.dataset.armed){delete btn.dataset.armed
 function acts(k,id){return '<div class="row-acts"><button type="button" class="icon-btn" data-edit-'+k+'="'+esc(id)+'">Modifier</button><button type="button" class="icon-btn" data-del-'+k+'="'+esc(id)+'">Supprimer</button></div>'}
 function deleteAll(){
  if(mode==="cloud"){if(readOnly){toast("Suppression impossible : reconnecte-toi puis réessaie");return}
-  writing=writing.then(function(){return myRef.delete()}).then(function(){return privRef?privRef.delete().catch(function(){}):null}).then(function(){priv={};lastPriv="{}";state=emptyState();applyGrade();toast("Toutes tes données ont été supprimées");go("today")}).catch(function(){toast("Suppression impossible pour l'instant, réessaie plus tard")});return}
+  writing=writing.then(function(){return myRef.delete()}).then(function(){return dbNs.doc("roll/"+myUid).delete().catch(function(){})}).then(function(){return privRef?privRef.delete().catch(function(){}):null}).then(function(){priv={};lastPriv="{}";state=emptyState();applyGrade();toast("Toutes tes données ont été supprimées");go("today")}).catch(function(){toast("Suppression impossible pour l'instant, réessaie plus tard")});return}
  try{localStorage.removeItem(KEY)}catch(e){}state=emptyState();toast("Toutes tes données ont été supprimées");go("today")}
 
 // ---------- Rendus ----------
 function renderHeader(){$("hClub").textContent=club.name||"The mat doesn't lie";$("hBeltLabel").textContent=beltLabel(state.belt)+(state.belt.stripes?" · "+state.belt.stripes+" b.":"");$("hBeltIcon").innerHTML=beltSvg(state.belt.rank,state.belt.stripes,40)}
 
+// ---------- Étoiles de maîtrise ----------
+var STAR_DESC={1:"Découverte : compris la théorie, mais dur en sparring.",2:"Intermédiaire : placé parfois en sparring.",3:"Maîtrisé : automatisme acquis."};
+function setStars(n){Array.prototype.forEach.call(document.querySelectorAll("#fStars .star"),function(b){b.setAttribute("aria-pressed",+b.dataset.star===n)});$("starDesc").textContent=n?STAR_DESC[n]:"Touche une case pour noter ton niveau (facultatif)."}
+function bestStars(S){var m={};S.forEach(function(s){if(s.stars)m[s.theme]=Math.max(m[s.theme]||0,+s.stars)});return m}
+function count3(S){var m=bestStars(S);return Object.keys(m).filter(function(k){return m[k]===3}).length}
+function medalsOf(C){var m={or:0,argent:0,bronze:0};(C||[]).forEach(function(c){if(m[c.result]!==undefined)m[c.result]++});return m}
+// ---------- Séances créées par l'appel du prof (roll/<id>) ----------
+var myRoll=[],rollDocs={},rollChecked={},rollKey="",commentDraft={};
+function rollToSession(r){return {id:"r-"+r.k,date:r.date,type:/no.?gi/i.test(r.title||"")?"No-gi":"Gi",dur:+r.dur||90,theme:r.theme||r.title||"Cours du club",rounds:0,placed:0,takenW:0,takenG:0,roll:true,slot:r.title||""}}
+function mergeRoll(own,rolls){return (rolls||[]).filter(function(r){return r&&r.date&&!own.some(function(s){return s.date===r.date})}).map(rollToSession).concat(own)}
+function allSessions(){return mergeRoll(state.sessions,mode==="cloud"?myRoll:(state.rollLocal||[]))}
+// ---------- Modale (mentions légales, installation, messages) ----------
+function showModal(title,html){$("modalTitle").textContent=title;$("modalBody").innerHTML=html;$("modal").hidden=false;$("modalClose").focus()}
+function hideModal(){$("modal").hidden=true}
+window.UZU_MODAL=showModal;
+function legalHtml(){var host=window.UZU_CONFIG?"Vercel (page de l'application) et Supabase (données, hébergées dans l'Union européenne)":"plateforme Claude (Anthropic)";
+ return '<p><b>Conformément au RGPD, UZU collecte vos données d\'entraînement pour votre suivi pédagogique. Vos données de santé (état physique, fatigue) restent strictement privées et invisibles par les professeurs.</b></p><ul>'+
+ '<li><b>Responsable du traitement</b> : '+esc(club.name||"le club")+'. '+esc(LEGAL.editeur)+'</li>'+
+ '<li><b>Données collectées</b> : prénom, e-mail de connexion, séances, présences, compétitions, ceinture et barrettes, niveau de confort sur les techniques.</li>'+
+ '<li><b>Données de santé</b> : état physique et notes privées, enregistrés dans un espace que seul l\'élève peut lire.</li>'+
+ '<li><b>Finalité</b> : suivi pédagogique et organisation des cours du club. Aucune revente, aucune publicité.</li>'+
+ '<li><b>Base légale</b> : ton consentement, donné à la première ouverture et retirable à tout moment.</li>'+
+ '<li><b>Destinataires</b> : toi et les professeurs du club (sans les données de santé).</li>'+
+ '<li><b>Conservation</b> : tant que ton compte existe. Tu peux tout supprimer depuis Progrès, bloc Mes données.</li>'+
+ '<li><b>Tes droits</b> : accès, rectification, effacement, opposition. Contact : '+esc(LEGAL.contact)+'. Tu peux aussi saisir la CNIL (cnil.fr).</li>'+
+ '<li><b>Hébergement</b> : '+esc(host)+'.</li>'+
+ '<li><b>Âge</b> : application réservée aux 16 ans et plus.</li></ul>'+
+ '<p class="muted" style="font-size:12.5px">Mentions légales. Éditeur : '+esc(LEGAL.editeur)+' Directeur de la publication : '+esc(LEGAL.directeur)+'</p>'}
+// Coordonnées légales du club : à compléter avant l'ouverture aux élèves
+var LEGAL={editeur:"[Nom de l'association, adresse du siège et n° RNA : à compléter]",contact:"[e-mail de contact du club : à compléter]",directeur:"[nom : à compléter]"};
+// ---------- Installation sur l'écran d'accueil ----------
+var deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferredPrompt=e;renderInstall()});
+function isStandalone(){return (window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||window.navigator.standalone===true}
+function renderInstall(){var b=$("installBtn");if(b)b.hidden=!window.UZU_CONFIG||isStandalone()}
+function installApp(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(function(){deferredPrompt=null;renderInstall()});return}
+ var ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+ showModal("Installer UZU",ios?'<p>Sur iPhone, dans <b>Safari</b> :</p><ul><li>touche le bouton <b>Partager</b> (le carré avec une flèche) ;</li><li>choisis <b>Sur l\'écran d\'accueil</b> ;</li><li>touche <b>Ajouter</b>.</li></ul><p>UZU s\'ouvrira ensuite en plein écran, comme une application.</p>'
+  :'<p>Sur Android, dans <b>Chrome</b> :</p><ul><li>touche le menu <b>⋮</b> en haut à droite ;</li><li>choisis <b>Installer l\'application</b> ou <b>Ajouter à l\'écran d\'accueil</b> ;</li><li>confirme.</li></ul><p>UZU s\'ouvrira ensuite depuis son icône, en plein écran.</p>')}
+// ---------- Rappel de fin de cours ----------
+function endDismissed(){try{return JSON.parse(localStorage.getItem("uzu-endbar"))||{}}catch(e){return {}}}
+function renderEndBar(){var now=new Date(),today=ymd(now),dn=isoDay(now),mins=now.getHours()*60+now.getMinutes(),best=null,dis=endDismissed();
+ schedule().forEach(function(x){if(x.d!==dn)return;var e=x.e.split(":"),em=+e[0]*60+ +e[1];if(mins>=em&&mins-em<=180&&(!best||em>best.em))best={x:x,em:em}});
+ var key=best?today+"|"+best.x.id:"",show=!!best&&!state.sessions.some(function(s){return s.date===today})&&state.att[key]!=="non"&&!dis[key]&&!needsWelcome();
+ $("endBar").hidden=!show;if(show)$("endLog").dataset.logfrom=key;$("endLater").dataset.key=key}
+setInterval(function(){if(current==="today"&&!needsWelcome())renderEndBar()},60000);
 function renderToday(){var P=program(state),N=P.length,w=curWeek(),W=P[w-1],d=state.done[dk(w)]||[false,false,false],n=d.filter(Boolean).length;
  $("tWeekLabel").textContent=N>1?beltLabel(state.belt)+" · semaine "+w+" sur "+N:beltLabel(state.belt);
  $("tWeekTitle").textContent=W.t;$("tBlock").textContent=W.b;
@@ -940,11 +1095,11 @@ function renderToday(){var P=program(state),N=P.length,w=curWeek(),W=P[w-1],d=st
  $("nextWeek").hidden=!(n===3&&w<N);
  $("cycleNote").hidden=!(n===3&&w===N);
  $("sampleBanner").hidden=!(state.sessions.some(function(s){return s.sample})||state.comps.some(function(c){return c.sample}));
- var weeks={};state.sessions.forEach(function(s){weeks[ymd(weekStart(parse(s.date)))]=1});
+ var AS=allSessions(),weeks={};AS.forEach(function(s){weeks[ymd(weekStart(parse(s.date)))]=1});
  var k=weekStart(TODAY);if(!weeks[ymd(k)])k=addDays(k,-7);var streak=0;while(weeks[ymd(k)]){streak++;k=addDays(k,-7)}
  $("sStreak").textContent=streak;
- var lim=ymd(addDays(TODAY,-30));$("sMonth").textContent=state.sessions.filter(function(s){return s.date>lim}).length;
- $("sHours").textContent=Math.round(state.sessions.reduce(function(a,s){return a+s.dur},0)/60);
+ var lim=ymd(addDays(TODAY,-30));$("sMonth").textContent=AS.filter(function(s){return s.date>lim}).length;
+ $("sHours").textContent=Math.round(AS.reduce(function(a,s){return a+(+s.dur||0)},0)/60);renderEndBar();
  var nw=clubNews();$("newsCard").hidden=!nw;$("newsTitle").textContent="Actualités du "+(club.name||"club");$("newsText").textContent=nw;
  var cv=vidId("club-semaine");$("clubWeek").hidden=!(club.weekTheme||cv);$("cwTheme").textContent=club.weekTheme||"Vidéo de la semaine";mountVideo($("cwVideo"),cv,"");
  var needChoice=state.belt.rank==="bleue"&&!state.schoolChosen;
@@ -968,7 +1123,7 @@ function schedule(){return club.schedule&&club.schedule.length?club.schedule:(mo
 function sortedSched(){return schedule().slice().sort(function(a,b){return a.d-b.d||(a.s<b.s?-1:1)})}
 function isoDay(d){return (d.getDay()+6)%7+1}
 function slotMin(x){var a=x.s.split(":"),b=x.e.split(":");return (+b[0]*60+ +b[1])-(+a[0]*60+ +a[1])}
-function sessionOn(date){return state.sessions.filter(function(s){return s.date===date})[0]}
+function sessionOn(date){return allSessions().filter(function(s){return s.date===date})[0]}
 function renderCal(){var S=sortedSched(),ws=addDays(weekStart(TODAY),7*calOffset),we=addDays(ws,6),t=ymd(TODAY);
  $("calRange").textContent=calOffset===0?"Cette semaine":ws.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" – "+we.toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
  $("calPrev").disabled=calOffset<=-8;$("calNext").disabled=calOffset>=4;
@@ -988,6 +1143,30 @@ function addSlot(){var t=$("slTitle").value.trim(),st=$("slStart").value,en=$("s
  saveSchedule((club.schedule||[]).concat([{id:"c"+Date.now().toString(36),d:d,s:st,e:en,t:t}]),"Cours ajouté au planning");$("slTitle").value=""}
 function renderSlots(){var L=(club.schedule||[]).slice().sort(function(a,b){return a.d-b.d||(a.s<b.s?-1:1)});
  $("slotList").innerHTML=L.map(function(x){return '<li><div style="min-width:0"><div>'+esc(x.t)+'</div><div class="meta">'+DAYS[x.d-1]+' · '+x.s+' – '+x.e+'</div></div><button type="button" class="icon-btn" data-sldel="'+esc(x.id)+'">Retirer</button></li>'}).join("")||'<li class="empty">Aucun cours au planning'+(mode==="cloud"?"":" : la démo affiche un planning d\'exemple")+'.</li>'}
+function rollOptions(){var out=[],t=ymd(TODAY),S=schedule();
+ for(var k=0;k<8;k++){var dd=addDays(TODAY,-k),ds=ymd(dd),dn=isoDay(dd);S.filter(function(x){return x.d===dn}).sort(function(a,b){return a.s<b.s?1:-1}).forEach(function(x){out.push({key:ds+"|"+x.id,date:ds,title:x.t,dur:Math.max(30,slotMin(x)),label:(k===0?"Aujourd'hui":DSHORT[dn-1]+" "+dd.getDate())+" · "+x.s+" · "+x.t})})}
+ if(!out.length||out[0].date!==t)out.unshift({key:t+"|libre",date:t,title:"Cours du jour",dur:90,label:"Aujourd'hui · cours hors planning"});return out}
+function rollStudents(){if(mode==="cloud"&&isProf)return (members||[]).filter(function(m){return m.id!==myUid}).map(function(m){return {id:m.id,name:(m.data&&m.data.name)||"Élève"}}).sort(function(a,b){return a.name.localeCompare(b.name)});
+ return [{id:"me",name:"Toi (démo)"}].concat(CLUB.map(function(r){return {id:r.id,name:r.name}}))}
+function hasRoll(uid,key){if(uid==="me")return (state.rollLocal||[]).some(function(r){return r.k===key});var d=rollDocs[uid];return !!(d&&(d.s||[]).some(function(r){return r.k===key}))}
+function renderRoll(){var opts=rollOptions(),sel=$("rollSlot").value;if(!opts.some(function(o){return o.key===sel}))sel=opts[0].key;
+ $("rollSlot").innerHTML=opts.map(function(o){return '<option value="'+esc(o.key)+'"'+(o.key===sel?" selected":"")+'>'+esc(o.label)+'</option>'}).join("");
+ if(rollKey!==sel){rollKey=sel;rollChecked={};rollStudents().forEach(function(st){if(hasRoll(st.id,sel))rollChecked[st.id]=true})}
+ var L=rollStudents();
+ $("rollList").innerHTML=L.length?L.map(function(st){return '<li><label><input type="checkbox" data-roll="'+esc(st.id)+'"'+(rollChecked[st.id]?" checked":"")+'><span>'+esc(st.name)+'</span>'+(hasRoll(st.id,sel)?'<small>déjà noté</small>':'')+'</label></li>'}).join(""):'<li class="empty" style="padding:12px 0">Aucun élève inscrit pour l\'instant.</li>';
+ updateRollCount()}
+function updateRollCount(){var n=Object.keys(rollChecked).filter(function(k){return rollChecked[k]}).length;$("rollCount").textContent=n+" présent"+(n>1?"s":"");$("rollSave").textContent=n?"Valider l'appel ("+n+" présent"+(n>1?"s":"")+")":"Valider l'appel"}
+function saveRoll(){var o=rollOptions().filter(function(x){return x.key===rollKey})[0];if(!o)return;
+ var entry={k:o.key,date:o.date,title:o.title,theme:club.weekTheme||o.title,dur:o.dur},L=rollStudents(),n=0;
+ if(mode==="cloud"&&isProf){var jobs=[];
+  L.forEach(function(st){var cur=((rollDocs[st.id]&&rollDocs[st.id].s)||[]).slice(),had=cur.some(function(r){return r.k===o.key}),want=!!rollChecked[st.id];if(want)n++;
+   if(want&&!had)cur.push(entry);else if(!want&&had)cur=cur.filter(function(r){return r.k!==o.key});else return;
+   jobs.push(dbNs.doc("roll/"+st.id).set({s:cur.slice(-200)}))});
+  Promise.all(jobs).then(function(){toast("Appel enregistré : "+n+" présent"+(n>1?"s":""))},function(){toast("Appel impossible : il faut être prof")});return}
+ L.forEach(function(st){var want=!!rollChecked[st.id];if(want)n++;
+  if(st.id==="me"){var rl=(state.rollLocal||[]).filter(function(r){return r.k!==o.key});if(want)rl.push(entry);state.rollLocal=rl;return}
+  var r=CLUB.filter(function(x){return x.id===st.id})[0];if(r&&want&&!r._r){r._r={};}if(r&&want&&!r._r[o.key]){r._r[o.key]=1;r.n30++;r.hours+=Math.round(o.dur/60);r.days=0}});
+ save();renderProf();toast("Appel enregistré : "+n+" présent"+(n>1?"s":"")+" (démo)")}
 function renderProfAtt(){var S=sortedSched(),ws=weekStart(TODAY),t=ymd(TODAY),live=mode==="cloud"&&isProf;
  if(!S.length){$("profAtt").innerHTML='<li class="empty">Ajoute le planning des cours dans Gestion du club.</li>';return}
  var A=live&&members?members.map(function(m){return normalize(m.data).att}):[];
@@ -995,7 +1174,7 @@ function renderProfAtt(){var S=sortedSched(),ws=weekStart(TODAY),t=ymd(TODAY),li
   if(live)A.forEach(function(a){if(a[key]==="oui")oui++;else if(a[key]==="non")non++});else{oui=6+2*i;non=1+i%2}
   return '<li><div style="min-width:0"><div style="font-weight:600">'+esc(x.t)+'</div><div class="meta">'+DSHORT[x.d-1]+' '+dt.getDate()+' · '+x.s+' – '+x.e+'</div></div><div class="r"><b>'+oui+'</b> '+(past?"présent":"prévu")+(oui>1?"s":"")+'<div class="meta">'+non+' absent'+(non>1?"s":"")+'</div></div></li>'}).join("")+(live?"":'<li class="empty">Chiffres d\'exemple pour la démo.</li>')}
 function setSeg(id,val){Array.prototype.forEach.call($(id).children,function(c){c.setAttribute("aria-pressed",c.dataset.v===String(val))})}
-function resetForms(){form={type:"Gi",dur:90,rounds:5,placed:0,takenW:0,takenG:0,forme:""};cform={type:"Gi",result:"aucun",wins:0,losses:0,subs:0};$("fNote").value="";$("cEvent").value=""}
+function resetForms(){form={type:"Gi",dur:90,rounds:0,placed:0,takenW:0,takenG:0,forme:"",stars:0};cform={type:"Gi",result:"aucun",wins:0,losses:0,subs:0};$("fNote").value="";$("cEvent").value=""}
 function renderLogForm(){var P=program(state),
   es=editing&&editing.kind==="s"?state.sessions.filter(function(x){return x.id===editing.id})[0]:null,
   ec=editing&&editing.kind==="c"?state.comps.filter(function(x){return x.id===editing.id})[0]:null;
@@ -1007,9 +1186,9 @@ function renderLogForm(){var P=program(state),
  if(es&&es.theme&&all.indexOf(es.theme)<0&&other.indexOf(es.theme)<0)other.unshift(es.theme);groups.push(["Autre",other]);
  var selT=es?es.theme:(club.weekTheme||(P[curWeek()-1]||{}).t||TECH[0][1][0]),done1=false;
  $("fTheme").innerHTML=groups.map(function(g){return '<optgroup label="'+esc(g[0])+'">'+g[1].map(function(t){var sel=!done1&&t===selT;if(sel)done1=true;return '<option'+(sel?' selected':'')+'>'+esc(t)+'</option>'}).join("")+'</optgroup>'}).join("");
- if(es){form={type:es.type,dur:es.dur,rounds:es.rounds||0,placed:es.placed||0,takenW:tw(es),takenG:tg(es),forme:es.forme||""};$("fNote").value=es.note||""}
+ if(es){form={type:es.type,dur:es.dur,rounds:es.rounds||0,placed:es.placed||0,takenW:tw(es),takenG:tg(es),forme:es.forme||"",stars:+es.stars||0};$("fNote").value=es.note||""}
  if(ec){cform={type:ec.type,result:ec.result,wins:ec.wins||0,losses:ec.losses||0,subs:ec.subs||0};$("cEvent").value=ec.event||""}
- setSeg("fType",form.type);setSeg("fForme",form.forme);setSeg("fDur",form.dur);setSeg("cType",cform.type);setSeg("cResult",cform.result);
+ setSeg("fType",form.type);setSeg("fForme",form.forme);setStars(form.stars);setSeg("fDur",form.dur);setSeg("cType",cform.type);setSeg("cResult",cform.result);
  ["rounds","placed","takenW","takenG"].forEach(function(k){$("o-"+k).textContent=form[k]});["wins","losses","subs"].forEach(function(k){$("c-"+k).textContent=cform[k]});
  $("sTitle").textContent=es?"Modifier la séance":"Ta séance en 10 secondes";$("fSubmit").textContent=es?"Enregistrer les modifications":"Enregistrer la séance";$("fCancel").hidden=!es;
  $("cTitle").textContent=ec?"Modifier la compétition":"Ton résultat";$("cSubmit").textContent=ec?"Enregistrer les modifications":"Enregistrer la compétition";$("cCancel").hidden=!ec;
@@ -1022,8 +1201,8 @@ function beltStatusNote(){var el=$("beltStatus"),r=state.request;
  if(mode!=="cloud"){el.hidden=false;el.className="note";el.textContent="Mode démo : ta ceinture s'enregistre directement. Dans le club, c'est ton prof qui la valide.";return}
  if(isProf){el.hidden=false;el.className="note ok";el.textContent="Tu es prof : tes changements de grade sont validés directement.";return}
  if(isPending(r,myGrade)){el.hidden=false;el.className="note wait";el.textContent="Demande envoyée : "+beltLabel(r)+", "+stripesTxt(r.stripes)+". En attente de validation par ton prof.";return}
- if(myGrade&&myGrade.status==="refusé"&&r&&myGrade.decidedAt>=r.at){el.hidden=false;el.className="note";el.textContent="Ton prof n'a pas validé ta dernière demande. Parles-en avec lui au prochain cours.";return}
- if(myGrade){el.hidden=false;el.className="note ok";el.textContent="Grade validé par ton prof le "+frDate(String(myGrade.decidedAt).slice(0,10))+".";return}
+ if(myGrade&&myGrade.status==="refusé"&&r&&myGrade.decidedAt>=r.at){el.hidden=false;el.className="note";el.textContent="Ton prof n'a pas validé ta dernière demande."+(myGrade.comment?" Axe de travail : "+myGrade.comment:" Parles-en avec lui au prochain cours.");return}
+ if(myGrade){el.hidden=false;el.className="note ok";el.textContent="Grade validé par ton prof le "+frDate(String(myGrade.decidedAt).slice(0,10))+"."+(myGrade.comment?" Message du prof : "+myGrade.comment:"");return}
  el.hidden=false;el.className="note wait";el.textContent="Déclare ta ceinture actuelle : ton prof la validera.";}
 function renderPath(){var b=state.belt,ci=beltIdx(b.rank);
  $("pBeltIcon").innerHTML=beltSvg(b.rank,b.stripes,96);
@@ -1064,7 +1243,7 @@ function changePw(btn){var o=$("pwOld").value,n=$("pwNew").value,n2=$("pwNew2").
  if(n===o){toast("Choisis un mot de passe différent de l'actuel");return}
  btn.disabled=true;btn.textContent="Modification…";
  window.UZU_SETPW(o,n).then(function(m){toast(m);if(m==="Mot de passe modifié."){$("pwOld").value="";$("pwNew").value="";$("pwNew2").value=""}},function(){toast("Modification impossible pour l'instant, réessaie plus tard")}).then(function(){btn.disabled=false;btn.textContent="Changer mon mot de passe"})}
-function renderProg(){var S=state.sessions,b=state.belt;if(document.activeElement!==$("meName"))$("meName").value=state.name||"";$("logout").hidden=!window.UZU_LOGOUT;$("pwBox").hidden=!window.UZU_SETPW;$("pTotal").textContent=S.length;
+function renderProg(){var S=state.sessions,b=state.belt;if(document.activeElement!==$("meName"))$("meName").value=state.name||"";$("logout").hidden=!window.UZU_LOGOUT;$("pwBox").hidden=!window.UZU_SETPW;S=allSessions();$("pTotal").textContent=S.length;renderInstall();
  $("gBeltIcon").innerHTML=beltSvg(b.rank,b.stripes,64);$("gBeltName").textContent=beltLabel(b)+", "+stripesTxt(b.stripes);
  var since=b.since,nb=since?S.filter(function(s){return s.date>=since}).length:null;
  $("gBeltTime").textContent=since?"Depuis "+duration(since)+" · "+nb+" séance"+(nb>1?"s":"")+" depuis ton passage":"Date de passage à renseigner dans Parcours";
@@ -1072,6 +1251,9 @@ function renderProg(){var S=state.sessions,b=state.belt;if(document.activeElemen
  var pl=S.reduce(function(a,s){return a+(s.placed||0)},0),tk=S.reduce(function(a,s){return a+tw(s)},0),tkG=S.reduce(function(a,s){return a+tg(s)},0);$("pRatio").textContent=pl+"/"+tk;var tt=pl+tk;$("rPl").style.width=(tt?pl/tt*100:0)+"%";$("rTk").style.width=(tt?tk/tt*100:0)+"%";$("rPlN").textContent=pl;$("rTkN").textContent=tk;$("gradN").textContent=tkG;
  $("gradNote").textContent=tkG?"soumission"+(tkG>1?"s":"")+" subie"+(tkG>1?"s":"")+" contre des gradés. Elles ne comptent pas dans ton ratio : chaque tap contre plus fort que toi est une leçon.":"Aucune pour l'instant. Roule avec les gradés : c'est en tapant contre plus fort que toi qu'on progresse le plus vite.";
  var lim30=ymd(addDays(TODAY,-30)),fc={ok:0,fatigue:0,douleur:0};S.forEach(function(s){if(s.date>lim30&&fc[s.forme]!==undefined)fc[s.forme]++});
+ var bs=bestStars(S),tk3=Object.keys(bs).sort(function(a,b){return bs[b]-bs[a]||a.localeCompare(b)}),n3=count3(S);
+ $("techSum").textContent=tk3.length?n3+" technique"+(n3>1?"s":"")+" maîtrisée"+(n3>1?"s":"")+" (3 étoiles) sur "+tk3.length+" notée"+(tk3.length>1?"s":"")+".":"Note ton niveau de confort (1 à 3 étoiles) quand tu saisis une séance : tes techniques s'afficheront ici.";
+ $("techList").innerHTML=tk3.slice(0,12).map(function(t){return '<li><div style="min-width:0">'+esc(t)+'</div><div class="r"><span class="stars-inline" style="margin:0">'+"★".repeat(bs[t])+'<span style="opacity:.25">'+"★".repeat(3-bs[t])+'</span></span></div></li>'}).join("");
  $("fOk").textContent=fc.ok;$("fFat").textContent=fc.fatigue;$("fPain").textContent=fc.douleur;
  var lastPain=S.filter(function(s){return s.forme==="douleur"}).sort(function(a,b){return a.date<b.date?1:-1})[0];
  $("formeNote").textContent=lastPain?"Dernière douleur signalée le "+frDate(lastPain.date)+". Parles-en à ton prof si elle persiste.":(fc.ok+fc.fatigue?"Aucune douleur signalée sur la période.":"Indique ton état physique quand tu saisis tes séances.");
@@ -1094,7 +1276,7 @@ function renderProg(){var S=state.sessions,b=state.belt;if(document.activeElemen
   svg+='<text x="'+(x+(bw-8)/2)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9.5" fill="var(--muted)">'+(cur?"Cette sem.":pad(ws.getDate())+"/"+pad(ws.getMonth()+1))+'</text>'});
  $("chart").innerHTML=svg+"</svg>";
  var rec=S.slice().sort(function(a,b){return a.date<b.date?1:-1}).slice(0,15);
- $("logList").innerHTML=rec.map(function(s){var d=parse(s.date);return '<li><div style="min-width:0"><div>'+esc(s.theme)+'</div><div class="meta">'+(s.forme?'<i class="fdot f-'+esc(s.forme)+'"></i>':'')+d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})+' · '+esc(s.type)+(s.sample?" · exemple":"")+'</div>'+acts("s",s.id)+'</div><div class="r">'+(s.dur/60).toString().replace(".",",")+' h<div class="meta">'+s.rounds+' rounds</div></div></li>'}).join("")||'<li class="muted">Aucune séance pour l\'instant. Saisis ta première après le cours.</li>';}
+ $("logList").innerHTML=rec.map(function(s){var d=parse(s.date);return '<li><div style="min-width:0"><div>'+esc(s.theme)+(s.stars?'<span class="stars-inline" aria-label="'+s.stars+' étoiles">'+"★".repeat(+s.stars)+'</span>':'')+(s.roll?'<span class="rolltag">Appel du prof</span>':'')+'</div><div class="meta">'+(s.forme?'<i class="fdot f-'+esc(s.forme)+'"></i>':'')+d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})+' · '+esc(s.type)+(s.sample?" · exemple":"")+'</div>'+(s.roll?'<div class="row-acts"><button type="button" class="icon-btn" data-complete="'+esc(s.date)+'">Compléter ma séance</button></div>':acts("s",s.id))+'</div><div class="r">'+(s.dur/60).toString().replace(".",",")+' h<div class="meta">'+s.rounds+' rounds</div></div></li>'}).join("")||'<li class="muted">Aucune séance pour l\'instant. Saisis ta première après le cours.</li>';}
 
 // ---------- Vue prof ----------
 var CLUB=[
@@ -1106,19 +1288,26 @@ var CLUB=[
  {id:"d6",name:"Moussa K.",belt:{rank:"violette",stripes:0,since:"2026-01-10"},req:null,school:"pologne",n30:10,days:2},
  {id:"d7",name:"Hugo R.",belt:{rank:"blanche",stripes:2,since:"2026-03-22"},req:null,school:"lutte",n30:1,days:23},
  {id:"d8",name:"Nadia L.",belt:{rank:"bleue",stripes:0,since:"2026-06-30"},req:null,school:"meta",n30:7,days:5}];
-CLUB.forEach(function(r,i){if(r.hours==null)r.hours=[62,48,95,30,14,120,22,55][i]||20;if(r.goals==null)r.goals=[33,41,52,18,9,60,15,38][i]||10});
+CLUB.forEach(function(r,i){if(r.stars3==null)r.stars3=[6,9,14,3,1,18,2,8][i]||2;if(!r.medals)r.medals=[{or:0,argent:1,bronze:2},{or:1,argent:0,bronze:1},{or:2,argent:1,bronze:0},{or:0,argent:0,bronze:1},{or:0,argent:0,bronze:0},{or:3,argent:2,bronze:1},{or:0,argent:0,bronze:0},{or:0,argent:1,bronze:0}][i]||{or:0,argent:0,bronze:0};if(r.hours==null)r.hours=[62,48,95,30,14,120,22,55][i]||20;if(r.goals==null)r.goals=[33,41,52,18,9,60,15,38][i]||10});
 var CLUB_COMPS=[{who:"Karim D.",event:"Open régional",date:ymd(addDays(TODAY,-6)),result:"or"},{who:"Sarah M.",event:"Coupe no-gi",date:ymd(addDays(TODAY,-13)),result:"bronze"},{who:"Moussa K.",event:"Championnat de France",date:ymd(addDays(TODAY,-40)),result:"argent"}];
 function ordFr(n){return n===1?"1re":n+"e"}
 var ficheOpen={};
 function countGoals(done){var g=0;Object.keys(done||{}).forEach(function(k){g+=(done[k]||[]).filter(Boolean).length});return g}
-function ficheBlock(r){var o=!!ficheOpen[r.id];
+function ficheBlock(r){var o=!!ficheOpen[r.id],m=r.medals||{or:0,argent:0,bronze:0},pl=function(n,w){return n+" "+w+(n>1?"s":"")};
  return '<button type="button" class="icon-btn" data-fiche="'+esc(r.id)+'" aria-expanded="'+o+'" style="align-self:flex-start">'+(o?"Masquer la fiche":"Voir la fiche")+'</button>'+
-  '<div class="fiche"'+(o?'':' hidden')+'><span><b>'+(r.hours||0)+' h</b> de tapis</span><span><b>'+(r.n30||0)+'</b> séance'+((r.n30||0)>1?"s":"")+' sur 30 jours</span><span><b>'+(r.goals||0)+'</b> objectif'+((r.goals||0)>1?"s":"")+' validé'+((r.goals||0)>1?"s":"")+'</span>'+(r.belt&&r.belt.since?'<span>À ce grade depuis <b>'+esc(duration(r.belt.since))+'</b></span>':'')+'</div>'}
+  '<div class="fiche-wrap"'+(o?'':' hidden')+'><div class="fiche">'+
+   '<span><b>'+(r.hours||0)+' h</b> de tapis au total</span>'+
+   '<span><b>'+(r.stars3||0)+'</b> '+((r.stars3||0)>1?"techniques maîtrisées":"technique maîtrisée")+' (3 étoiles)</span>'+
+   '<span>Médailles : <b>'+m.or+' or · '+m.argent+' argent · '+m.bronze+' bronze</b></span>'+
+   '<span><b>'+pl(r.n30||0,"séance")+'</b> sur 30 jours</span>'+
+   '<span><b>'+pl(r.goals||0,"objectif")+'</b> validé'+((r.goals||0)>1?"s":"")+'</span>'+
+   (r.belt&&r.belt.since?'<span>À ce grade depuis <b>'+esc(duration(r.belt.since))+'</b></span>':'')+'</div>'+
+   '<div class="field"><label for="cm-'+esc(r.id)+'">Commentaire / axe de travail du prof (facultatif)</label><textarea id="cm-'+esc(r.id)+'" data-cm="'+esc(r.id)+'" maxlength="300" placeholder="Ex. : travaille la sortie de monte avant la prochaine barrette">'+esc(commentDraft[r.id]||"")+'</textarea></div></div>'}
 function reqText(a,b){var bn=BELTS[beltIdx(b.rank)].n;if(a.rank===b.rank&&b.stripes>a.stripes)return "Demande de "+ordFr(b.stripes)+" barrette "+bn;if(a.rank!==b.rank)return "Demande de ceinture "+bn+(b.stripes?", "+stripesTxt(b.stripes):"");return "Correction de grade"}
 function profData(){
  if(mode==="cloud"&&isProf){if(!members)return null;var lim=ymd(addDays(TODAY,-30));
-  return members.map(function(m){var x=normalize(m.data),g=grades[m.id],S=x.sessions,last=S.reduce(function(a,s){return s.date>a?s.date:a},""),days=last?Math.round((TODAY-parse(last))/864e5):999;
-   return {id:m.id,name:null,belt:g?normBelt(g):{rank:"blanche",stripes:0,since:""},req:isPending(x.request,g)?x.request:null,school:x.school,n30:S.filter(function(s){return s.date>lim}).length,days:days,comps:x.comps,hours:Math.round(S.reduce(function(a,s){return a+(+s.dur||0)},0)/60),goals:countGoals(x.done)}})}
+  return members.map(function(m){var x=normalize(m.data),g=grades[m.id],S=mergeRoll(x.sessions,(rollDocs[m.id]&&rollDocs[m.id].s)||[]),last=S.reduce(function(a,s){return s.date>a?s.date:a},""),days=last?Math.round((TODAY-parse(last))/864e5):999;
+   return {id:m.id,name:null,belt:g?normBelt(g):{rank:"blanche",stripes:0,since:""},req:isPending(x.request,g)?x.request:null,school:x.school,n30:S.filter(function(s){return s.date>lim}).length,days:days,comps:x.comps,hours:Math.round(S.reduce(function(a,s){return a+(+s.dur||0)},0)/60),goals:countGoals(x.done),stars3:count3(x.sessions),medals:medalsOf(x.comps)}})}
  return CLUB}
 function nameOf(r){return r.name||names[r.id]||"Élève"}
 function nameCell(r){return r.name?'<td>'+esc(r.name)+'</td>':'<td data-uid="'+esc(r.id)+'">'+esc(names[r.id]||"…")+'</td>'}
@@ -1127,7 +1316,7 @@ function renderClubCard(){if(document.activeElement!==$("clubName"))$("clubName"
 function syncText(){return "Synchronisé avec "+(club.name||"ton club")}
 function renderProf(){var live=mode==="cloud"&&isProf,rows=profData();
  $("profTitle").textContent=club.name||"Ton groupe";
- renderClubCard();renderVideos();renderSlots();renderProfAtt();
+ renderClubCard();renderVideos();renderSlots();renderRoll();renderProfAtt();
  $("profEyebrow").textContent=live?"Vue prof · en direct":"Vue prof · démo";
  $("profSub").textContent=live?"Élèves qui saisissent leurs séances dans UZU. Mise à jour en temps réel.":"Démo avec des élèves fictifs. Connecte-toi avec un compte prof pour voir ton vrai groupe.";
  if(!rows){$("profRows").innerHTML='<tr><td colspan="5" class="empty">Chargement du groupe…</td></tr>';$("reqList").innerHTML="";return}
@@ -1156,9 +1345,9 @@ function renderProf(){var live=mode==="cloud"&&isProf,rows=profData();
 function syncGrantForm(rows){rows=rows||profData()||[];var r=rows.filter(function(x){return x.id===$("aWho").value})[0];if(!r)return;
  var b=r.req?{rank:r.req.rank,stripes:r.req.stripes,since:r.req.since||ymd(TODAY)}:r.belt;
  $("aRank").innerHTML=rankOptions(b.rank);aForm.stripes=b.stripes;$("aStripes").innerHTML=stripesBtns(aForm.stripes,"data-astripes");$("aSince").value=b.since||ymd(TODAY)}
-function decide(id,belt,status){
- if(mode==="cloud"&&isProf){if(status==="refusé"){var g=grades[id];belt=g?normBelt(g):{rank:"blanche",stripes:0,since:""}}writeGrade(id,belt,status);return}
- var r=CLUB.filter(function(x){return x.id===id})[0];if(!r)return;if(status==="validé")r.belt=belt;r.req=null;renderProf();toast(status==="validé"?"Grade validé (démo)":"Demande refusée (démo)")}
+function decide(id,belt,status,comment){comment=String(comment||"").trim().slice(0,300);delete commentDraft[id];delete ficheOpen[id];
+ if(mode==="cloud"&&isProf){if(status==="refusé"){var g=grades[id];belt=g?normBelt(g):{rank:"blanche",stripes:0,since:""}}writeGrade(id,belt,status,comment);return}
+ var r=CLUB.filter(function(x){return x.id===id})[0];if(!r)return;if(status==="validé")r.belt=belt;r.req=null;renderProf();toast((status==="validé"?"Grade validé (démo)":"Demande refusée (démo)")+(comment?" · commentaire transmis":""))}
 
 var views={today:renderToday,log:renderLogForm,path:renderPath,prog:renderProg,prof:renderProf};
 function needsWelcome(){return !state.consent}
@@ -1172,11 +1361,19 @@ function go(v){current=v;applyClub();clubForm.accent=club.accent;if(v!=="log"&&e
 var tt;function toast(m){var t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(function(){t.hidden=true},2600)}
 
 // ---------- Interactions ----------
-var form={type:"Gi",dur:90,rounds:5,placed:0,takenW:0,takenG:0,forme:""},cform={type:"Gi",result:"aucun",wins:0,losses:0,subs:0};
+var form={type:"Gi",dur:90,rounds:0,placed:0,takenW:0,takenG:0,forme:"",stars:0},cform={type:"Gi",result:"aucun",wins:0,losses:0,subs:0};
 document.addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
  if(b.id==="wStart"){var wn=$("wName").value.trim();if(!wn){toast("Indique ton prénom pour que ton prof te reconnaisse");$("wName").focus();return}if(!$("wAge").checked){$("wMinor").hidden=false;return}$("wMinor").hidden=true;
   if(!$("wData").checked){toast("Coche l'accord sur tes données pour continuer");return}
   state.consent={at:new Date().toISOString()};state.name=wn.slice(0,40);save();toast("Bienvenue sur UZU");go("today");return}
+ if(b.id==="modalClose"){hideModal();return}
+ if(b.dataset.legal){showModal("Mentions légales & Confidentialité",legalHtml());return}
+ if(b.id==="installBtn"){installApp();return}
+ if(b.dataset.star){var sv=+b.dataset.star;form.stars=form.stars===sv?0:sv;setStars(form.stars);return}
+ if(b.dataset.complete){editing=null;resetForms();logPrefill={date:b.dataset.complete};logMode="session";go("log");return}
+ if(b.id==="endLater"){var dk2=endDismissed();dk2[b.dataset.key]=1;try{localStorage.setItem("uzu-endbar",JSON.stringify(dk2))}catch(e){}$("endBar").hidden=true;return}
+ if(b.id==="rollAll"){var Ls=rollStudents(),allOn=Ls.every(function(st){return rollChecked[st.id]});Ls.forEach(function(st){rollChecked[st.id]=!allOn});renderRoll();return}
+ if(b.id==="rollSave"){saveRoll();return}
  if(b.dataset.fiche){var fid=b.dataset.fiche;ficheOpen[fid]=!ficheOpen[fid];renderProf();return}
  if(b.id==="meNameSave"){var nn=$("meName").value.trim();if(!nn){toast("Indique ton prénom");return}state.name=nn.slice(0,40);save();toast("Prénom enregistré");return}
  if(b.id==="logout"){if(window.UZU_LOGOUT)window.UZU_LOGOUT();return}
@@ -1208,8 +1405,8 @@ document.addEventListener("click",function(e){var b=e.target.closest("button");i
  if(b.parentElement&&b.parentElement.id==="fForme"){form.forme=form.forme===b.dataset.v?"":b.dataset.v;setSeg("fForme",form.forme);return}
  var seg=b.parentElement;if(seg&&["fType","fDur","cType","cResult"].indexOf(seg.id)>-1){Array.prototype.forEach.call(seg.children,function(x){x.setAttribute("aria-pressed",x===b)});
   if(seg.id==="fType")form.type=b.dataset.v;else if(seg.id==="fDur")form.dur=+b.dataset.v;else if(seg.id==="cType")cform.type=b.dataset.v;else cform.result=b.dataset.v;return}
- if(b.dataset.approve){var row=(profData()||[]).filter(function(x){return x.id===b.dataset.approve})[0];if(row&&row.req)decide(row.id,{rank:row.req.rank,stripes:row.req.stripes,since:row.req.since||ymd(TODAY)},"validé");return}
- if(b.dataset.refuse){decide(b.dataset.refuse,null,"refusé");return}
+ if(b.dataset.approve){var row=(profData()||[]).filter(function(x){return x.id===b.dataset.approve})[0];if(row&&row.req)decide(row.id,{rank:row.req.rank,stripes:row.req.stripes,since:row.req.since||ymd(TODAY)},"validé",commentDraft[row.id]);return}
+ if(b.dataset.refuse){decide(b.dataset.refuse,null,"refusé",commentDraft[b.dataset.refuse]);return}
  if(b.dataset.swatch){clubForm.accent=b.dataset.swatch;applyAccent(clubForm.accent);renderClubCard();return}
  if(b.id==="clubSave"){var nc={name:$("clubName").value.trim().slice(0,40),accent:clubForm.accent,weekTheme:$("clubTheme").value.trim().slice(0,100),schedule:club.schedule||[],news:$("clubNews").value.trim().slice(0,280)};
   if(mode==="cloud"&&isProf){dbNs.doc("club/settings").set(nc).then(function(){toast("Identité du club appliquée à tous les élèves")}).catch(function(){toast("Enregistrement impossible : il faut être prof")});club=nc;cacheClub();renderProf();return}
@@ -1223,7 +1420,12 @@ document.addEventListener("click",function(e){var b=e.target.closest("button");i
  if(b.id==="clearSample"){state.sessions=state.sessions.filter(function(s){return !s.sample});state.comps=state.comps.filter(function(c){return !c.sample});save();renderToday();toast("Exemples effacés");return}
  if(b.id==="nextWeek"){state.week=curWeek()+1;state.weekRank=state.belt.rank;save();renderToday();toast("Semaine "+state.week+" débloquée");}
 });
+document.addEventListener("input",function(e){var c=e.target.dataset&&e.target.dataset.cm;if(c!==undefined)commentDraft[c]=e.target.value});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("modal").hidden)hideModal()});
+$("modal").addEventListener("click",function(e){if(e.target===$("modal"))hideModal()});
 document.addEventListener("change",function(e){
+ if(e.target.id==="rollSlot"){renderRoll();return}
+ var rk=e.target.dataset&&e.target.dataset.roll;if(rk!==undefined){rollChecked[rk]=e.target.checked;updateRollCount();return}
  if(e.target.id==="aWho"){syncGrantForm();return}
  var pg=e.target.dataset&&e.target.dataset.pgoal;
  if(pg){var pp=pg.split("-"),key=dk(+pp[0]),dd=state.done[key]||(state.done[key]=[false,false,false]);dd[+pp[1]]=e.target.checked;save();
@@ -1231,7 +1433,7 @@ document.addEventListener("change",function(e){
  var g=e.target.dataset&&e.target.dataset.goal;if(g===undefined)return;
  var P=program(state),w=curWeek(),key=dk(w),d=state.done[key]||(state.done[key]=[false,false,false]);d[+g]=e.target.checked;state.week=w;state.weekRank=state.belt.rank;save();renderToday();if(d.every(Boolean))toast(P.length>1?"Semaine validée, bravo":"Objectifs de la ceinture validés");});
 $("logForm").addEventListener("submit",function(e){e.preventDefault();
- var item={date:$("fDate").value||ymd(TODAY),type:form.type,dur:form.dur,theme:($("fTheme").value.trim()||"Séance libre").slice(0,80),rounds:form.rounds,placed:form.placed,takenW:form.takenW,takenG:form.takenG,taken:form.takenW+form.takenG,note:$("fNote").value.trim(),forme:form.forme};
+ var item={date:$("fDate").value||ymd(TODAY),type:form.type,dur:form.dur,theme:($("fTheme").value.trim()||"Séance libre").slice(0,80),rounds:form.rounds,placed:form.placed,takenW:form.takenW,takenG:form.takenG,taken:form.takenW+form.takenG,note:$("fNote").value.trim(),forme:form.forme,stars:form.stars};
  var hurt=form.forme==="douleur";
  if(editing&&editing.kind==="s"){var id=editing.id;state.sessions=state.sessions.map(function(s){return s.id===id?Object.assign({},s,item):s});editing=null;save();resetForms();toast("Séance modifiée");go("prog");return}
  item.id="u"+Date.now();item.sample=false;state.sessions.push(item);save();resetForms();toast(hurt?"Séance enregistrée. Préviens ton prof si la douleur persiste.":"Séance enregistrée");go("today");});
@@ -1268,12 +1470,14 @@ function rerender(){renderHeader();if(needsWelcome()){showWelcome();return}if(!$
  db.doc("club/settings").onSnapshot(function(snap){if(!snap.exists)return;club=normClub(snap.data());cacheClub();
   if(!(current==="prof"&&clubForm.accent!==club.accent&&document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".swatches"))){applyClub();clubForm.accent=club.accent}
   if(mode==="cloud")note.textContent=syncText();rerender()},function(){});
+ db.doc("roll/"+uid).onSnapshot(function(snap){myRoll=snap.exists?((snap.data()||{}).s||[]):[];rerender()},function(){});
  db.doc("grades/"+uid).onSnapshot(function(snap){myGrade=snap.exists?snap.data():null;applyGrade();rerender()},function(){});
  isProf=await user.canEdit();
  $("tabProf").hidden=!isProf;if(!isProf&&current==="prof")go("today");
  if(isProf){
   window.claude.use("assets").then(function(a){assetsNs=a;if(current==="prof")renderProf()});
   db.collection("members").onSnapshot(function(snap){members=snap.docs.filter(function(d){return d.exists}).map(function(d){return {id:d.id,data:d.data()}});if(current==="prof")renderProf()},function(){members=[];if(current==="prof")renderProf()});
+  db.collection("roll").onSnapshot(function(snap){rollDocs={};snap.docs.forEach(function(d){if(d.exists)rollDocs[d.id]=d.data()});if(current==="prof")renderProf()},function(){});
   db.collection("grades").onSnapshot(function(snap){grades={};snap.docs.forEach(function(d){if(d.exists)grades[d.id]=d.data()});if(current==="prof")renderProf()},function(){});
  }
  rerender();
