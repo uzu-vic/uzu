@@ -1,44 +1,33 @@
-self.addEventListener('push', function(event) {
-  let data = {};
-  if (event.data) {
-    try {
-      data = event.data.json();
-    } catch (e) {
-      data = { body: event.data.text() };
-    }
-  }
+/* UZU — service worker : reçoit les notifications push et ouvre la bonne vue de l'appli.
+   À déposer à côté d'index.html (même dossier sur Vercel). Aucun cache : l'appli reste toujours à jour. */
+self.addEventListener("install", function () { self.skipWaiting(); });
+self.addEventListener("activate", function (e) { e.waitUntil(self.clients.claim()); });
 
-  const title = data.title || '🥋 UZU — Prépare ton entraînement';
-  const options = {
-    body: data.body || 'Ton cours commence bientôt. Consulte ton objectif tactique !',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate:,
-    data: {
-      url: data.url || '/'
-    }
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
+self.addEventListener("push", function (e) {
+  var d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: "UZU", body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "UZU", {
+    body: d.body || "",
+    tag: d.tag || undefined,
+    renotify: !!d.tag,
+    icon: "icon-192.png",
+    badge: "icon-192.png",
+    data: { url: d.url || "", id: d.id || null }
+  }));
 });
 
-self.addEventListener('notificationclick', function(event) {
-  event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-      for (let i = 0; i < clientList.length; i++) {
-        const client = clientList[i];
-        if (client.url.includes(targetUrl) && 'focus' in client) {
-          return client.focus();
-        }
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  var go = (e.notification.data && e.notification.data.url) || "";
+  var target = self.registration.scope + (go ? "?go=" + encodeURIComponent(go) : "");
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (c.url.indexOf(self.registration.scope) === 0 && "focus" in c) {
+        c.postMessage({ type: "uzu-go", go: go });
+        return c.focus();
       }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
-    })
-  );
+    }
+    return self.clients.openWindow(target);
+  }));
 });
