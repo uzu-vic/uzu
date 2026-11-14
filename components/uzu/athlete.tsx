@@ -100,7 +100,7 @@ export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: st
           <h2>La progression<br />se joue <em>sur le tatami.</em></h2>
           <div className="hero-session-info"><span><Dumbbell size={15} />{data ? `${data.sessions.length} séance${data.sessions.length > 1 ? "s" : ""} dans votre carnet` : "Votre carnet"}</span></div>
         </>}
-        <button className="button button--light" onClick={() => onNavigate("log")}><span>Ouvrir mon carnet</span><ArrowRight size={16} /></button>
+        <button className="button button--light" onClick={() => onNavigate("log")}><span>Mes entraînements</span><ArrowRight size={16} /></button>
       </div>
     </section>
 
@@ -118,7 +118,7 @@ export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: st
       </div>
 
       <section className="recent-section">
-        <div className="section-title"><h2>Activité récente</h2><button className="text-link" onClick={() => onNavigate("log")}>Tout le carnet<ArrowRight size={14} /></button></div>
+        <div className="section-title"><h2>Activité récente</h2><button className="text-link" onClick={() => onNavigate("log")}>Tout le journal<ArrowRight size={14} /></button></div>
         {data.sessions.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Aucune séance pour l'instant. Saisissez votre premier entraînement pour lancer votre compteur.</p><button className="button button--dark" onClick={onCompose}><Plus size={15} />Saisir ma première séance</button></div>
           : <div className="recent-list">{data.sessions.slice(0, 5).map(s => <SessionRow key={s.id} s={s} />)}</div>}
       </section>
@@ -184,58 +184,4 @@ function SessionRow({ s }: { s: Session }) {
     <span className="recent-date">{frDate(s.date)}</span>
     <span className="recent-duration">{Number(s.dur) ? durTxt(Number(s.dur)) : "—"}</span>
   </div>
-}
-
-export function AthleteLog({ uid, ctx, onCompose, onEdit, onToast }: { uid: string; ctx: UzuContext | null; onCompose: () => void; onEdit: (kind: "s" | "c", id: string) => void; onToast: (m: string) => void }) {
-  const { data, error, reload } = useTraining(uid, ctx)
-  const [confirm, setConfirm] = useState("")
-  const del = async (kind: "s" | "c", id: string) => {
-    if (confirm !== kind + id) { setConfirm(kind + id); window.setTimeout(() => setConfirm(c => (c === kind + id ? "" : c)), 3500); return }
-    setConfirm("")
-    const r = await deleteEntry(uid, ctx, kind, id)
-    if (!r.ok) { onToast(r.msg); return }
-    onToast(kind === "s" ? (r.synced ? "Séance supprimée" : "Séance supprimée sur ce téléphone : synchronisation au retour du réseau") : (r.synced ? "Compétition supprimée" : "Compétition supprimée sur ce téléphone : synchronisation au retour du réseau"))
-    reload()
-  }
-  const Acts = ({ kind, id }: { kind: "s" | "c"; id: string }) => <div className="uzu-acts">
-    <button type="button" onClick={() => onEdit(kind, id)} aria-label="Modifier"><Pencil size={14} /><span>Modifier</span></button>
-    <button type="button" className={confirm === kind + id ? "danger" : ""} onClick={() => del(kind, id)} aria-label="Supprimer"><Trash2 size={14} /><span>{confirm === kind + id ? "Confirmer" : "Supprimer"}</span></button>
-  </div>
-  const [tab, setTab] = useState<"sessions" | "comps">("sessions")
-  const months = useMemo(() => {
-    const m = new Map<string, Session[]>()
-    for (const s of data?.sessions ?? []) { const k = monthKey(s.date); m.set(k, [...(m.get(k) ?? []), s]) }
-    return [...m.entries()]
-  }, [data])
-
-  return <>
-    <div className="page-heading"><div><Eyebrow>VOTRE PRATIQUE{data ? <><span className="eyebrow-dot" />{data.sessions.length} SÉANCE{data.sessions.length > 1 ? "S" : ""}</> : null}</Eyebrow><h1>Carnet<span className="heading-period">.</span></h1><p>Le journal de vos efforts et des moments qui comptent.</p></div>
-      <button className="button button--dark" onClick={onCompose}><Plus size={16} />Saisir une séance</button></div>
-    <div className="subnav"><div className="subnav-tabs">
-      <button className={tab === "sessions" ? "active" : ""} onClick={() => setTab("sessions")}>Séances</button>
-      <button className={tab === "comps" ? "active" : ""} onClick={() => setTab("comps")}>Compétitions{data?.comps.length ? ` (${data.comps.length})` : ""}</button>
-    </div></div>
-    {!data ? <Loading error={error} onRetry={reload} /> : <>
-      <PendingNote data={data} />
-      {tab === "sessions" ? (months.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Votre carnet est vide pour l'instant.</p><button className="button button--dark" onClick={onCompose}><Plus size={15} />Saisir ma première séance</button></div>
-        : months.map(([k, list]) => <section key={k} className="uzu-month">
-          <div className="timeline-title"><h2>{parseYmd(k + "-01").toLocaleDateString("fr-FR", { month: "long", year: "numeric" }).replace(/^./, c => c.toUpperCase())}</h2><span>{list.length} séance{list.length > 1 ? "s" : ""} · {durTxt(list.reduce((a, s) => a + (Number(s.dur) || 0), 0))}</span></div>
-          <div className="session-list">{list.map(s => <article className="session-card" key={s.id}>
-            <div className="session-date"><span>{parseYmd(s.date).toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase()}</span><strong>{parseYmd(s.date).getDate()}</strong></div>
-            <span className={`session-marker session-marker--${s.cat === "prepa" ? "sand" : s.roll ? "dark" : "wine"}`} />
-            <div className="session-main"><div className="session-card-top"><h3>{sessionTitle(s)}</h3><span className={`session-label session-label--${s.roll ? "plain" : "soon"}`}>{sessionKind(s)}</span></div>
-              <div className="session-meta"><span><Clock3 size={14} />{Number(s.dur) ? durTxt(Number(s.dur)) : "Durée non précisée"}</span>{sessionMeta(s) && <span>{sessionMeta(s)}</span>}</div>
-              {!s.roll && <Acts kind="s" id={s.id} />}</div>
-          </article>)}</div>
-        </section>))
-        : (data.comps.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Aucune compétition enregistrée.</p></div>
-          : <div className="session-list">{data.comps.map(c => <article className="session-card" key={c.id}>
-            <div className="session-date"><span>{parseYmd(c.date).toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase()}</span><strong>{parseYmd(c.date).getDate()}</strong></div>
-            <span className="session-marker session-marker--wine" />
-            <div className="session-main"><div className="session-card-top"><h3>{c.event || "Compétition"}</h3>{compResult(c) && <span className="session-label session-label--soon"><Trophy size={11} /> {compResult(c)}</span>}</div>
-              <div className="session-meta">{c.type && <span>{c.type}</span>}<span>{Number(c.wins) || 0} victoire{(Number(c.wins) || 0) > 1 ? "s" : ""} · {Number(c.losses) || 0} défaite{(Number(c.losses) || 0) > 1 ? "s" : ""}</span><span>{frDate(c.date, { day: "numeric", month: "long", year: "numeric" })}</span></div>
-              <Acts kind="c" id={c.id} /></div>
-          </article>)}</div>)}
-    </>}
-  </>
 }

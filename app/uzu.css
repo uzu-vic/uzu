@@ -387,3 +387,12 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-splash-in { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .uzu-brand-compact { gap: 1px; } .uzu-brand-compact .uzu-slogan { padding-left: 36px; font-size: 10.5px; line-height: 1.1; }
 .uzu-brand-block .uzu-login-brand { margin-bottom: 0; }
+/* Entraînements et statistiques */
+.dot-3 { background: #b9b2ab; }
+.uzu-period { position: relative; gap: 6px; }
+.uzu-period select { border: 0; background: transparent; color: inherit; font: inherit; font-size: 12px; appearance: none; padding-right: 4px; cursor: pointer; }
+.uzu-cal-legend { flex-wrap: wrap; gap: 12px; margin-top: 12px; justify-content: flex-start; }
+.uzu-cal-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: -1px; }
+.uzu-cal-legend .lg-wine { background: #941b2b; } .uzu-cal-legend .lg-sand { background: #c7a77f; } .uzu-cal-legend .lg-dark { background: #2b2724; }
+.calendar-event strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upcoming-copy p i { display: inline-block; width: 3px; height: 3px; margin: 0 6px; border-radius: 50%; background: currentColor; vertical-align: middle; }

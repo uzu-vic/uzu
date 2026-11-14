@@ -7,13 +7,14 @@ import { useCallback, useEffect, useState } from "react"
 import type { Session } from "@supabase/supabase-js"
 import {
   ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Dumbbell, GraduationCap, LayoutDashboard,
-  LogOut, Menu, MoreHorizontal, Newspaper, ShieldCheck, Target, TrendingUp, UserRound, Users,
+  Activity, LogOut, Menu, MoreHorizontal, Newspaper, ShieldCheck, Target, TrendingUp, UserRound, Users,
 } from "lucide-react"
 import { CONFIG_OK } from "@/lib/uzu/env"
 import { uzu } from "@/lib/uzu/client"
 import { fetchContext, switchAcademy, teamOn, type UzuContext } from "@/lib/uzu/context"
 import { can, isStaff, isSuspended } from "@/lib/uzu/permissions"
-import { AthleteHome, AthleteLog } from "@/components/uzu/athlete"
+import { AthleteHome } from "@/components/uzu/athlete"
+import { AthleteSessions, AthleteStats } from "@/components/uzu/athlete-sessions"
 import { JournalForm } from "@/components/uzu/journal-form"
 import { AthleteProgress, AthleteTechniques } from "@/components/uzu/progress"
 import { AthleteFeed, AthleteProfile } from "@/components/uzu/social"
@@ -29,15 +30,16 @@ import { Check, X } from "lucide-react"
 
 type Space = "athlete" | "club"
 type IconType = typeof Dumbbell
-type NavItem = { id: string; label: string; icon: IconType; legacy: string }
+type NavItem = { id: string; label: string; icon: IconType; legacy: string; short?: string }
 
 const LEGACY = "/legacy/"
 
 const athleteNav: NavItem[] = [
   { id: "home", label: "Accueil", icon: LayoutDashboard, legacy: "today" },
-  { id: "log", label: "Carnet", icon: Dumbbell, legacy: "log" },
+  { id: "log", label: "Entraînements", short: "Séances", icon: Dumbbell, legacy: "log" },
   { id: "path", label: "Techniques", icon: Target, legacy: "path" },
   { id: "progress", label: "Progression", icon: TrendingUp, legacy: "prog" },
+  { id: "stats", label: "Statistiques", icon: Activity, legacy: "prog" },
   { id: "feed", label: "Fil du club", icon: Users, legacy: "feed" },
   { id: "profile", label: "Mon profil", icon: UserRound, legacy: "profile" },
 ]
@@ -236,11 +238,12 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
         {flash && <div className="uzu-banner uzu-flash" role="status"><span>{flash}</span><button className="icon-button" aria-label="Fermer le message" onClick={onFlashClose}><X size={15} /></button></div>}
         {ctx && !teamOn(ctx) && <div className="uzu-banner">La base de cet environnement n'a pas la migration « équipe » : affichage en mode simplifié.</div>}
         {space === "club" && isSuspended(ctx) ? <Suspended />
-          : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={m => { setComposing(false); setEditing(null); setActive("log"); showToast(m); window.scrollTo(0, 0) }} />
+          : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={m => { setComposing(false); setEditing(null); setActive("log"); setNavArg("journal"); showToast(m); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={name} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick} uid={session.user.id} ctx={ctx} />
           : space === "athlete" && current?.id === "progress" ? <AthleteProgress key={"p" + syncTick} uid={session.user.id} ctx={ctx} />
-          : space === "athlete" && current?.id === "log" ? <AthleteLog key={"l" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} onEdit={(kind, id) => { setEditing({ kind, id }); setComposing(true); window.scrollTo(0, 0) }} onToast={showToast} />
+          : space === "athlete" && current?.id === "log" ? <AthleteSessions key={"l" + syncTick + navArg} initialTab={navArg} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} onEdit={(kind, id) => { setEditing({ kind, id }); setComposing(true); window.scrollTo(0, 0) }} onToast={showToast} />
+          : space === "athlete" && current?.id === "stats" ? <AthleteStats key={"st" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "feed" ? <AthleteFeed key={"f" + syncTick} uid={session.user.id} ctx={ctx} onToast={showToast} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "profile" ? <AthleteProfile key={"pr" + syncTick} session={session} ctx={ctx} onToast={showToast} />
           : space === "club" && teamOn(ctx) && current?.id === "home" ? <ClubHome key={"ch" + ctx?.club?.id} uid={session.user.id} ctx={ctx} name={name} onToast={showToast} onNavigate={go} />
@@ -257,7 +260,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
     {notifOpen && <NotifCenter uid={session.user.id} ctx={ctx} list={notifs.list} ready={notifs.ready} onClose={() => setNotifOpen(false)} onOpen={openGo} onToast={showToast} />}
     {toast && <div className="toast-message" role="status"><span><Check size={15} /></span>{toast}<button onClick={() => setToast("")} aria-label="Fermer le message"><X size={15} /></button></div>}
     <nav className="mobile-bottom-nav" aria-label="Navigation mobile">
-      {bottom.map(item => { const Icon = item.icon; return <button key={item.id} className={current?.id === item.id ? "active" : ""} onClick={() => go(item.id)} aria-current={current?.id === item.id ? "page" : undefined}><Icon size={18} /><span>{item.label}</span></button> })}
+      {bottom.map(item => { const Icon = item.icon; return <button key={item.id} className={current?.id === item.id ? "active" : ""} onClick={() => go(item.id)} aria-current={current?.id === item.id ? "page" : undefined}><Icon size={18} /><span>{item.short ?? item.label}</span></button> })}
       {items.length > 5 && <button className={bottom.some(b => b.id === current?.id) ? "" : "active"} onClick={() => setMenuOpen(true)}><MoreHorizontal size={18} /><span>Plus</span></button>}
     </nav>
   </main>
