@@ -1,0 +1,374 @@
+/* Compléments à la charte de la maquette (globals.css) pour les écrans réels.
+   Règle mobile : aucun texte sous 12 px sur téléphone (incompatibilité n° 10 de l'audit). */
+.uzu-splash { display: grid; min-height: 100vh; place-items: center; background: var(--ivory); }
+.uzu-splash .brand-glyph { width: 44px; height: 44px; border-color: var(--wine); color: var(--wine); font-size: 26px; }
+.uzu-center { display: grid; min-height: 100vh; place-items: center; padding: 24px 16px; background: var(--ivory); }
+.uzu-card { width: min(100%, 420px); padding: 32px 28px; border: 1px solid #e7dfd7; border-radius: 12px; background: #fff; box-shadow: 0 24px 90px #0000000f; }
+.uzu-login { background: #171717 url('/uzu-training.png') center / cover no-repeat; }
+.uzu-login::before { position: fixed; inset: 0; background: rgb(23 23 23 / 72%); content: ""; }
+.uzu-login .uzu-card { position: relative; }
+.uzu-login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+.uzu-login-brand .brand-glyph { border-color: var(--wine); color: var(--wine); }
+.uzu-login-word { font-size: 18px; font-weight: 750; letter-spacing: .2em; }
+.uzu-title { margin: 10px 0 18px; font-family: Georgia, 'Times New Roman', serif; font-size: 30px; font-weight: 400; letter-spacing: -.04em; line-height: 1.1; }
+.uzu-h2 { margin: 8px 0 8px; font-family: Georgia, 'Times New Roman', serif; font-size: 20px; font-weight: 400; }
+.uzu-text { margin: 0 0 16px; color: #5f5851; font-size: 13px; line-height: 1.6; }
+.uzu-small { margin: 18px 0 0; font-size: 12px; }
+.uzu-text a { color: var(--wine); font-weight: 600; }
+.uzu-form { display: flex; flex-direction: column; gap: 8px; }
+.uzu-form label { margin-top: 6px; color: #49433e; font-size: 12px; font-weight: 600; }
+.uzu-form input { height: 44px; padding: 0 12px; border: 1px solid #e5dfd8; border-radius: 7px; background: #fbfaf8; color: #292522; font-size: 16px; }
+.uzu-submit { width: 100%; min-height: 46px; margin-top: 12px; font-size: 14px; }
+.uzu-error { margin: 6px 0 0; color: #b42318; font-size: 13px; }
+.uzu-panel { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 22px; }
+.uzu-panel .button { margin-top: 4px; font-size: 13px; }
+.uzu-banner { margin-bottom: 16px; padding: 12px 14px; border: 1px solid #e7deda; border-radius: 8px; background: #fbf6f4; color: #5f5851; font-size: 13px; }
+.uzu-banner--error { border-color: #f0c9c5; background: #fdf3f2; color: #8a1c13; }
+.uzu-space-gap { height: 24px; }
+.academy-switcher { position: relative; }
+.uzu-academy-select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.uzu-logout { color: #aaa5a0; }
+.uzu-logout:hover { background: #292929; color: #fff; }
+.profile-switch { cursor: default; }
+.uzu-only-mobile { display: none; }
+@media (max-width: 680px) {
+  .uzu-only-mobile { display: inline-grid; }
+  .nav-item, .space-option { font-size: 14px; }
+  .academy-name strong { font-size: 13px; }
+  .academy-name small, .nav-label { font-size: 12px; }
+  .page-heading p, .eyebrow { font-size: 12px; }
+  .mobile-bottom-nav button span { font-size: 12px; }
+  .mobile-switcher button { font-size: 12px; }
+}
+
+/* Espace Athlete — compléments */
+.uzu-caption { white-space: normal; }
+.uzu-belt { display: inline-flex; width: 44px; height: 12px; flex: 0 0 auto; overflow: hidden; border: 1px solid #2a292a; border-radius: 2px; }
+.uzu-belt > span:first-child { flex: 1; }
+.uzu-belt-bar { display: flex; width: 34%; align-items: stretch; justify-content: space-evenly; padding: 1px 2px; }
+.uzu-belt-bar i { width: 2px; background: rgb(255 255 255 / 22%); }
+.uzu-belt-bar i.on { background: #fff; }
+.uzu-belt--large { width: 64px; height: 18px; }
+.rank-card .text-link { align-self: flex-start; margin-top: 4px; }
+.uzu-recent-row { grid-template-columns: 32px minmax(130px,1fr) 110px 60px; }
+.uzu-month { margin-bottom: 22px; }
+.recent-section .uzu-panel { margin-top: 8px; }
+a.button { text-decoration: none; }
+@media (max-width: 680px) {
+  .uzu-recent-row { grid-template-columns: 29px minmax(100px,1fr) 70px; }
+  .uzu-recent-row .recent-duration { display: none; }
+  .uzu-recent-row .recent-date { display: block; font-size: 12px; }
+  .recent-description strong, .session-card-top h3 { font-size: 13px; }
+  .recent-description small, .session-meta, .metric-top, .metric-footer { font-size: 12px; }
+  .session-label { font-size: 11px; }
+  .timeline-title h2 { font-size: 17px; }
+  .timeline-title > span { font-size: 12px; }
+}
+.athlete-hero + .uzu-banner, .athlete-hero + .uzu-banner + .metric-grid { margin-top: 16px; }
+@media (max-width: 680px) {
+  .subnav-tabs button { font-size: 13px; }
+  .page-heading > .button { font-size: 12px; }
+}
+
+/* Formulaire de saisie (mobile d'abord) */
+.uzu-journal { display: flex; flex-direction: column; gap: 14px; padding-bottom: 90px; }
+.uzu-fs { display: flex; flex-direction: column; gap: 16px; padding: 18px; }
+.uzu-h3 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 400; }
+.uzu-field { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
+.uzu-label { color: #49433e; font-size: 13px; font-weight: 650; }
+.uzu-sublabel { margin-top: 4px; color: #77716c; font-size: 12px; font-weight: 600; }
+.uzu-hint { color: #8a827b; font-size: 12px; line-height: 1.5; }
+.uzu-input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #e5dfd8; border-radius: 8px; background: #fbfaf8; color: #292522; font-size: 16px; font-family: inherit; }
+textarea.uzu-input { resize: vertical; line-height: 1.5; }
+.uzu-input:focus { border-color: #b96a73; outline: 0; box-shadow: 0 0 0 3px #941b2b14; }
+.uzu-row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.uzu-row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.uzu-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.uzu-seg button, .uzu-chips button, .uzu-rpe button { min-height: 40px; padding: 0 14px; border: 1px solid #e3ddd6; border-radius: 8px; background: #fff; color: #4b4540; font-size: 13px; font-weight: 550; transition: background .15s, border .15s, color .15s; }
+.uzu-seg button.on, .uzu-chips button.on, .uzu-rpe button.on { border-color: #941b2b; background: #941b2b; color: #fff; }
+.uzu-seg button:hover:not(.on), .uzu-chips button:hover:not(.on) { border-color: #c8b3ad; }
+.uzu-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.uzu-chips--small button { min-height: 36px; padding: 0 11px; font-size: 13px; }
+.uzu-chips--small button:active { background: #f6efec; }
+.uzu-rpe { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.uzu-rpe button { padding: 0; }
+.uzu-stepper { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid #ece6df; border-radius: 9px; background: #fbfaf8; }
+.uzu-stepper > span { color: #49433e; font-size: 13px; font-weight: 600; }
+.uzu-stepper > div { display: flex; align-items: center; gap: 6px; }
+.uzu-stepper button { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #e3ddd6; border-radius: 8px; background: #fff; color: #941b2b; }
+.uzu-stepper output { min-width: 28px; text-align: center; font-family: Georgia, serif; font-size: 20px; }
+.uzu-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid #efe9e3; border-radius: 8px; }
+.uzu-list li { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 6px 6px 12px; border-bottom: 1px solid #f2ede8; color: #3c3632; font-size: 13px; }
+.uzu-list li:last-child { border-bottom: 0; }
+.uzu-list li.current { background: #fbf6f4; }
+.uzu-list li small { color: #941b2b; font-size: 12px; }
+.uzu-list button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #8a827b; }
+.uzu-list button:hover { background: #f4f0ec; color: #941b2b; }
+.uzu-small-btn { align-self: flex-start; min-height: 38px; font-size: 13px; white-space: normal; text-align: left; }
+.uzu-prepa-toggle { margin-top: -2px; }
+.uzu-submit-bar { position: sticky; z-index: 5; bottom: 0; padding: 12px 0; background: linear-gradient(to top, var(--ivory) 70%, transparent); }
+.uzu-submit-main { width: 100%; min-height: 50px; font-size: 15px; }
+@media (max-width: 680px) {
+  .uzu-fs { padding: 16px 14px; }
+  .uzu-row3 { grid-template-columns: 1fr; }
+  .uzu-row2 { grid-template-columns: 1fr; }
+  .uzu-submit-bar { bottom: calc(62px + env(safe-area-inset-bottom)); }
+  .uzu-rpe { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .toast-message { font-size: 13px; }
+}
+
+/* Techniques et Progression */
+.uzu-muted { color: #8a827b; }
+.uzu-small { font-size: 12px; }
+.uzu-section { margin: 26px 0 10px; }
+.uzu-grid-gap { margin-top: 15px; }
+.uzu-panel-col { display: flex; flex-direction: column; gap: 10px; }
+.uzu-stars { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 1px; color: #ddd4cc; font-size: 15px; letter-spacing: 1px; }
+.uzu-stars i { font-style: normal; }
+.uzu-stars i.on { color: #941b2b; }
+.uzu-stars em { margin-left: 6px; padding: 2px 6px; border-radius: 5px; background: #fbefe3; color: #8a5a1f; font-size: 11px; font-style: normal; letter-spacing: 0; }
+.uzu-belt-card { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px; }
+.uzu-belt-head { display: flex; align-items: center; gap: 18px; }
+.uzu-belt-head .uzu-h2 { margin: 6px 0 4px; }
+.uzu-belt-head .uzu-text { margin: 0; }
+.uzu-note { margin: 0; padding: 10px 12px; border-radius: 8px; background: #f6f2ec; color: #5f5851; font-size: 13px; line-height: 1.5; }
+.uzu-note.wait { background: #fbf3e6; color: #7a5420; }
+.uzu-note.ok { background: #eef3ec; color: #45604b; }
+.uzu-ladder { display: flex; width: 100%; flex-direction: column; margin: 4px 0 0; padding: 0; list-style: none; border-top: 1px solid #f0ece7; }
+.uzu-ladder li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 58px; border-bottom: 1px solid #f0ece7; }
+.uzu-ladder li.future { opacity: .6; }
+.uzu-ladder b { display: block; font-size: 13px; }
+.uzu-ladder small { color: #8a827b; font-size: 12px; }
+.uzu-pill { padding: 4px 8px; border-radius: 6px; background: #f5f2ed; color: #837a72; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.uzu-pill.done { background: #eef3ec; color: #45604b; }
+.uzu-pill.now { background: #f5eae9; color: #941b2b; }
+.uzu-belt-form { display: flex; width: 100%; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid #efe9e3; border-radius: 10px; background: #fbfaf8; }
+.uzu-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.uzu-systems { display: flex; flex-direction: column; gap: 10px; }
+.uzu-sys { padding: 0; }
+.uzu-sys > summary { display: flex; min-height: 56px; align-items: center; gap: 10px; padding: 0 16px; cursor: pointer; list-style: none; }
+.uzu-sys > summary::-webkit-details-marker { display: none; }
+.uzu-sys > summary b { flex: 1; font-size: 14px; font-weight: 600; }
+.uzu-sys[open] > summary svg { transform: rotate(180deg); }
+.uzu-sys > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.uzu-sys > .uzu-skill-list { margin-bottom: 12px; }
+.uzu-sys .progress-track { margin-bottom: 10px; }
+.uzu-pct { color: #941b2b; font-family: Georgia, serif; font-size: 18px; }
+.uzu-dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: #941b2b; }
+.uzu-dot.sd-lutte { background: #941b2b; } .uzu-dot.sd-controle { background: #3d3835; } .uzu-dot.sd-jambes { background: #b79a73; } .uzu-dot.sd-fond { background: #8b9b83; }
+.uzu-skill-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.uzu-skill-list li { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f2ede8; font-size: 13px; }
+.uzu-skill-list li:last-child { border-bottom: 0; }
+.uzu-skill-list li > span:first-child { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.uzu-skill-list small { color: #8a827b; font-size: 12px; }
+.uzu-ency { margin-top: 10px; }
+.uzu-duo-track { display: flex; height: 8px; overflow: hidden; border-radius: 8px; background: #efe9e3; }
+.uzu-duo-track .a { background: #941b2b; } .uzu-duo-track .b { background: #c9b8b0; }
+.uzu-duo-legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; margin-top: 6px; color: #6f6861; font-size: 12px; }
+.uzu-duo-legend i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; }
+.uzu-duo-legend i.a { background: #941b2b; } .uzu-duo-legend i.b { background: #c9b8b0; }
+.uzu-top { display: flex; flex-direction: column; margin: 4px 0 0; padding: 0; list-style: none; }
+.uzu-top li { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid #f2ede8; font-size: 13px; }
+.uzu-top li span { display: flex; min-width: 0; flex-direction: column; }
+.uzu-top small { color: #8a827b; font-size: 12px; }
+.uzu-chart-panel { margin-top: 15px; }
+.uzu-chart-panel .bar-chart { margin-bottom: 20px; }
+.uzu-forme { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
+.uzu-forme i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; }
+.uzu-forme i.ok { background: #6c8d71; } .uzu-forme i.fat { background: #c5a77f; } .uzu-forme i.pain { background: #b42318; }
+.uzu-medals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.uzu-medals span { display: flex; flex-direction: column; align-items: center; padding: 10px 6px; border-radius: 8px; background: #f8f4f0; color: #6f6861; font-size: 12px; }
+.uzu-medals b { font-family: Georgia, serif; font-size: 24px; font-weight: 400; color: #171717; }
+.uzu-medals .or b { color: #a77d12; } .uzu-medals .argent b { color: #6f7378; } .uzu-medals .bronze b { color: #8a5a35; }
+.uzu-res { font-size: 12px; } .uzu-res.or { color: #a77d12; } .uzu-res.argent { color: #6f7378; } .uzu-res.bronze { color: #8a5a35; }
+@media (max-width: 680px) {
+  .uzu-belt-head { gap: 12px; }
+  .uzu-chart-panel .bar-group > span { font-size: 10px; }
+  .uzu-chart-panel .bar-group > small { font-size: 11px; }
+}
+.uzu-chart-panel .bar-chart { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.uzu-sublabel { display: flex; align-items: center; gap: 5px; }
+.uzu-acts { display: flex; gap: 6px; margin-top: 8px; }
+.uzu-acts button { display: inline-flex; min-height: 34px; align-items: center; gap: 5px; padding: 0 10px; border: 1px solid #e9e4dd; border-radius: 7px; background: #fff; color: #6f6861; font-size: 12px; }
+.uzu-acts button:hover { border-color: #c8b3ad; color: #941b2b; }
+.uzu-acts button.danger { border-color: #b42318; background: #b42318; color: #fff; }
+.session-card { align-items: flex-start; }
+
+/* Fil du club et profil */
+.uzu-big { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.uzu-big strong { font-family: Georgia, serif; font-size: 32px; font-weight: 400; letter-spacing: -.03em; }
+.uzu-big span { color: #77716c; font-size: 13px; }
+.uzu-pod { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px; }
+.uzu-pod em { font-style: normal; }
+.uzu-feed { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.uzu-fcard { display: flex; flex-direction: column; gap: 8px; }
+.uzu-fcard.mine { border-color: #e6d3cf; background: #fffaf8; }
+.uzu-fc-head { display: flex; align-items: center; gap: 10px; }
+.uzu-fc-head b { flex: 1; font-size: 14px; }
+.uzu-fc-body { margin: 0; color: #3c3632; font-size: 14px; line-height: 1.5; }
+.uzu-fc-body strong { font-family: Georgia, serif; font-size: 16px; font-weight: 400; }
+.uzu-fc-body .uzu-pill { margin-left: 8px; }
+.uzu-fc-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.uzu-check { min-height: 36px; margin-left: auto; padding: 0 12px; border: 1px solid #e3ddd6; border-radius: 18px; background: #fff; color: #4b4540; font-size: 13px; display: inline-flex; align-items: center; }
+.uzu-check.on { border-color: #941b2b; background: #f5eae9; color: #941b2b; }
+.uzu-profile-head { display: flex; align-items: center; gap: 16px; }
+.uzu-profile-head .uzu-h2 { margin: 0 0 4px; }
+.uzu-profile-head .uzu-text { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 4px; }
+.uzu-stack { display: flex; min-width: 0; flex-direction: column; gap: 15px; }
+.uzu-h3 { display: flex; align-items: center; gap: 7px; }
+.uzu-code { padding: 3px 8px; border-radius: 6px; background: #f5eae9; color: #941b2b; font-family: ui-monospace, monospace; font-weight: 700; letter-spacing: .08em; }
+.uzu-check-row { display: flex; align-items: flex-start; gap: 8px; color: #49433e; font-size: 13px; }
+.uzu-check-row input { width: 18px; height: 18px; margin-top: 1px; accent-color: #941b2b; }
+.uzu-setting { border: 0; min-height: auto; padding: 0; }
+.uzu-setting strong { font-size: 14px; }
+.uzu-setting small { font-size: 12px; line-height: 1.5; }
+@media (max-width: 680px) { .uzu-profile-head { align-items: flex-start; } .uzu-big strong { font-size: 28px; } }
+
+/* ---------- Espace Club (lot 3) ---------- */
+.uzu-metric-btn { width: 100%; border: 1px solid transparent; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.uzu-metric-btn:hover { border-color: #e3ddd6; }
+.uzu-metric-btn.is-hot strong { color: #941b2b; }
+.uzu-qa { display: flex; flex-wrap: wrap; gap: 8px; }
+.uzu-qa .button { margin: 0; }
+.uzu-invite { display: flex; flex-direction: column; gap: 8px; width: 100%; padding-top: 8px; }
+.uzu-wide { width: 100%; justify-content: center; }
+.uzu-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.uzu-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; margin: 6px 0; }
+.uzu-counts--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.uzu-counts > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; background: #f5f2ed; }
+.uzu-counts b { color: #171717; font-size: 20px; font-weight: 650; }
+.uzu-counts small { color: #777; font-size: 12px; }
+@media (max-width: 560px) { .uzu-counts--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.uzu-roll-tools { display: flex; width: 100%; align-items: center; gap: 8px; }
+.uzu-search { position: relative; display: flex; flex: 1; width: 100%; align-items: center; }
+.uzu-search svg { position: absolute; left: 12px; color: #8a827b; pointer-events: none; }
+.uzu-search .uzu-input { padding-left: 34px; }
+.uzu-roll { display: flex; flex-direction: column; width: 100%; margin: 4px 0; padding: 0; list-style: none; }
+.uzu-roll li { display: flex; min-height: 56px; align-items: center; gap: 10px; border-bottom: 1px solid #f2ede8; }
+.uzu-roll li:last-child { border-bottom: 0; }
+.uzu-av { display: grid; flex: none; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #f5f2ed; color: #5b534c; font-size: 12px; font-weight: 650; }
+.uzu-roll-n { display: flex; min-width: 0; flex: 1; flex-direction: column; font-size: 14px; }
+.uzu-roll-n small { color: #8a827b; font-size: 12px; }
+.uzu-roll-btns { display: flex; flex: none; gap: 6px; }
+.uzu-roll-btns button { min-width: 74px; min-height: 40px; border: 1px solid #e3ddd6; border-radius: 8px; background: #fff; color: #4b4540; font-size: 13px; font-weight: 550; }
+.uzu-roll-btns button.pres { border-color: #45604b; background: #45604b; color: #fff; }
+.uzu-roll-btns button.abs { border-color: #941b2b; background: #941b2b; color: #fff; }
+.uzu-roll-btns button:disabled { opacity: .55; }
+.uzu-req { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 12px 0; border-bottom: 1px solid #f2ede8; }
+.uzu-req:last-child { border-bottom: 0; }
+.uzu-req-head { display: flex; flex-direction: column; gap: 2px; }
+.uzu-req-head small { color: #777; font-size: 12.5px; }
+.uzu-req-chg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #6f6861; font-size: 13px; }
+.uzu-req-chg b { color: #171717; }
+.uzu-fiche { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: #fbfaf8; font-size: 13px; }
+.uzu-actions--start { justify-content: flex-start; }
+.uzu-inline-belt { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.uzu-hbars { display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 0; padding: 0; list-style: none; }
+.uzu-hbars li { display: grid; grid-template-columns: minmax(110px, 40%) 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
+.uzu-hbars b { text-align: right; }
+.uzu-hbar { height: 8px; overflow: hidden; border-radius: 4px; background: #f2ede8; }
+.uzu-hbar i { display: block; height: 100%; border-radius: 4px; background: #941b2b; }
+.uzu-plist { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.uzu-pcard { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #ece6df; border-radius: 10px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.uzu-pcard:hover { border-color: #c8b3ad; }
+.uzu-pc-main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.uzu-pc-main small { color: #8a827b; font-size: 12px; }
+.uzu-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; }
+.uzu-tabs { overflow-x: auto; flex-wrap: nowrap; margin-bottom: 12px; }
+.uzu-tabs button { flex: none; }
+.uzu-danger { color: #941b2b !important; }
+.uzu-chips--static { display: flex; flex-wrap: wrap; gap: 6px; }
+.uzu-rolltag { margin-left: 6px; padding: 1px 6px; border-radius: 5px; background: #f5eae9; color: #941b2b; font-size: 11px; font-style: normal; font-weight: 600; }
+.uzu-pre { white-space: pre-line; }
+.uzu-skill-acts { display: flex; flex: none; align-items: center; gap: 8px; }
+.uzu-notes { display: flex; flex-direction: column; gap: 10px; width: 100%; margin: 0; padding: 0; list-style: none; }
+.uzu-notes li { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; border: 1px solid #efe9e3; border-radius: 8px; }
+.uzu-note-h { display: flex; align-items: center; gap: 8px; }
+.uzu-note-h small { color: #8a827b; font-size: 12px; }
+.uzu-top li span.uzu-ev { display: block; min-width: 0; padding: 6px 0; }
+.uzu-top li > small { flex: none; color: #8a827b; font-size: 12px; }
+.uzu-input--auto { width: auto; min-width: 130px; max-width: 100%; }
+.uzu-field--end { display: flex; flex-direction: column; justify-content: flex-end; }
+.uzu-pcard--static { cursor: default; }
+.uzu-pcard--static:hover { border-color: #ece6df; }
+.uzu-link { overflow-wrap: anywhere; user-select: all; }
+.uzu-av--lg { width: 52px; height: 52px; font-size: 16px; }
+.uzu-swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 50%; vertical-align: -1px; }
+.is-armed { border-color: #941b2b !important; background: #941b2b !important; color: #fff !important; }
+.uzu-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; width: 100%; }
+.uzu-perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; width: 100%; }
+.uzu-perm-cat { display: flex; flex-direction: column; gap: 2px; padding: 12px; border: 1px solid #efe9e3; border-radius: 8px; }
+.uzu-perm-cat > b { margin-bottom: 4px; font-size: 13.5px; }
+.uzu-perm-row { display: flex; min-height: 42px; align-items: center; gap: 10px; font-size: 13px; }
+.uzu-perm-l { flex: 1; min-width: 0; }
+.uzu-sens { margin-left: 6px; padding: 1px 5px; border-radius: 4px; background: #fbf3e6; color: #7a5420; font-size: 10.5px; font-style: normal; font-weight: 600; }
+.uzu-perm-row .uzu-input { min-height: 36px; padding: 4px 8px; font-size: 13px; }
+.uzu-switch { position: relative; flex: none; width: 40px; height: 24px; padding: 0; border: 0; border-radius: 12px; background: #d9d2ca; transition: background .15s; }
+.uzu-switch i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: left .15s; }
+.uzu-switch.on { background: #941b2b; }
+.uzu-switch.on i { left: 19px; }
+.uzu-switch:disabled { opacity: .5; }
+.uzu-voice { gap: 8px; }
+.uzu-voice-live { margin: 0; font-style: italic; }
+.uzu-voice-live em { color: #8a827b; font-style: normal; }
+.uzu-rec { animation: uzu-pulse 1.4s ease-in-out infinite; }
+@keyframes uzu-pulse { 50% { box-shadow: 0 0 0 6px #941b2b33; } }
+.uzu-note ul { margin: 4px 0 6px; padding-left: 18px; }
+.uzu-bell { position: relative; }
+.uzu-bell-n { position: absolute; top: -4px; right: -4px; display: grid; min-width: 17px; height: 17px; place-items: center; padding: 0 4px; border-radius: 9px; background: #941b2b; color: #fff; font-size: 10px; font-weight: 700; }
+.uzu-mobile-bell { display: none; margin-left: auto; margin-right: 8px; }
+@media (max-width: 680px) { .uzu-mobile-bell { display: inline-flex; } .uzu-mobile-bell + .mobile-switcher { margin-left: 0; } }
+.uzu-notif { width: min(100%, 520px); max-height: 88vh; overflow-y: auto; }
+.uzu-nlist { display: flex; flex-direction: column; margin: 8px 0 14px; padding: 0; list-style: none; }
+.uzu-nlist li button { display: flex; width: 100%; gap: 10px; padding: 10px 6px; border: 0; border-bottom: 1px solid #f2ede8; background: transparent; color: inherit; font: inherit; text-align: left; }
+.uzu-nlist li.unread button { background: #fbf6f4; }
+.uzu-nlist li span:last-child { display: flex; min-width: 0; flex-direction: column; gap: 2px; font-size: 13px; }
+.uzu-nlist p { margin: 0; color: #5f5851; }
+.uzu-nlist small { color: #8a827b; font-size: 12px; }
+.uzu-nset { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px solid #efe9e3; }
+.uzu-legal summary { cursor: pointer; color: #941b2b; font-size: 13px; font-weight: 600; }
+.uzu-legal[open] summary { margin-bottom: 8px; }
+.uzu-legal ul { padding-left: 18px; }
+.uzu-danger-solid { border-color: #941b2b !important; background: #941b2b !important; }
+.uzu-video { width: 100%; max-height: 420px; margin-top: 8px; border-radius: 8px; background: #171717; }
+.uzu-endbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+/* Bilan d'activité */
+.uzu-bilan { display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 18px; border: 1px solid #ece6df; border-radius: 10px; background: #fff; }
+.uzu-bilan h4 { margin: 10px 0 2px; font-size: 14px; }
+.uzu-bl-head h3 { margin: 4px 0; font-family: Georgia, serif; font-size: 24px; font-weight: 400; }
+.uzu-bl-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.uzu-bl-kpis > div { display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: 8px; background: #f5f2ed; }
+.uzu-bl-kpis b { font-size: 22px; font-weight: 650; }
+.uzu-bl-kpis span { color: #6f6861; font-size: 12px; line-height: 1.4; }
+@media (max-width: 560px) { .uzu-bl-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.uzu-sexbar { display: flex; height: 14px; overflow: hidden; border-radius: 7px; background: #f2ede8; }
+.sx-h { background: #1e3a5f; } .sx-f { background: #941b2b; } .sx-a { background: #8a6a0e; } .sx-n { background: #c9c1b8; }
+.uzu-sexleg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; }
+.uzu-sexleg i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 2px; }
+.uzu-pyr { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.uzu-pyr-row { display: grid; grid-template-columns: 1fr 96px 1fr; align-items: center; gap: 6px; }
+.uzu-pyr-head { color: #8a827b; font-weight: 600; } .uzu-pyr-head span:first-child { text-align: right; } .uzu-pyr-head span:nth-child(2), .uzu-pyr-c { text-align: center; }
+.uzu-pyr-l, .uzu-pyr-r { display: flex; align-items: center; gap: 5px; } .uzu-pyr-l { flex-direction: row-reverse; }
+.uzu-pyr-l span, .uzu-pyr-r span { height: 12px; border-radius: 2px; }
+.uzu-bl-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.uzu-bl-table th, .uzu-bl-table td { padding: 6px 8px; border-bottom: 1px solid #efe9e3; text-align: left; }
+.uzu-bl-table td:not(:first-child), .uzu-bl-table th:not(:first-child) { text-align: right; }
+.uzu-bl-table tfoot td { font-weight: 650; }
+.uzu-bl-sign { display: flex; justify-content: space-between; gap: 20px; margin-top: 18px; font-size: 12.5px; }
+@media print {
+  body.uzu-print-bilan * { visibility: hidden; }
+  body.uzu-print-bilan .uzu-bilan, body.uzu-print-bilan .uzu-bilan * { visibility: visible; }
+  body.uzu-print-bilan .uzu-bilan { position: absolute; top: 0; left: 0; width: 100%; border: 0; }
+  .uzu-sexbar span, .uzu-pyr span, .uzu-sexleg i { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+/* Accès : inscription et bienvenue */
+.uzu-form select { height: 44px; padding: 0 10px; border: 1px solid #e5dfd8; border-radius: 7px; background: #fbfaf8; color: #292522; font-size: 16px; }
+.uzu-form .uzu-check-row input { width: 18px; height: 18px; padding: 0; }
+.uzu-form label.uzu-check-row { margin-top: 8px; font-weight: 500; }
+.uzu-form .uzu-seg button { min-height: 40px; }
+.uzu-paths { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.uzu-path { display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; border: 1px solid #e5dfd8; border-radius: 10px; background: #fbfaf8; color: #292522; font: inherit; text-align: left; cursor: pointer; }
+.uzu-path b { font-size: 15px; } .uzu-path small { color: #777; font-size: 12.5px; line-height: 1.4; }
+.uzu-path.primary { border-color: #941b2b; background: #941b2b; color: #fff; } .uzu-path.primary small { color: #f5e6e8; }
+.uzu-feat { display: flex; flex-direction: column; gap: 8px; padding-left: 18px; }
+.uzu-flash { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; border-color: #c9dccb; background: #eef3ec; color: #2f4a35; }

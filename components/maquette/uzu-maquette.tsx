@@ -1,0 +1,326 @@
+"use client"
+
+import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  Activity, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Bell, CalendarDays,
+  Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock3, Dumbbell,
+  Ellipsis, Eye, Filter, Flame, GraduationCap, LayoutDashboard, LogOut, Mail, MapPin, Menu, MoreHorizontal,
+  Pencil, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target, TrendingUp, Trash2, UserRound,
+  Users, X,
+} from "lucide-react"
+
+type Space = "athlete" | "club"
+type IconType = typeof Activity
+
+type NavItem = { id: string; label: string; icon: IconType }
+const athleteNav: NavItem[] = [
+  { id: "home", label: "Accueil", icon: LayoutDashboard },
+  { id: "sessions", label: "Entraînements", icon: Dumbbell },
+  { id: "progress", label: "Progression", icon: TrendingUp },
+  { id: "stats", label: "Statistiques", icon: Activity },
+  { id: "profile", label: "Mon profil", icon: UserRound },
+]
+const clubNav: NavItem[] = [
+  { id: "home", label: "Accueil", icon: LayoutDashboard },
+  { id: "attendance", label: "Présences", icon: CheckCircle2 },
+  { id: "students", label: "Élèves", icon: Users },
+  { id: "progress", label: "Progression", icon: TrendingUp },
+  { id: "courses", label: "Cours", icon: CalendarDays },
+  { id: "team", label: "Équipe", icon: GraduationCap },
+  { id: "academy", label: "Mon académie", icon: ShieldCheck },
+]
+
+const sessions = [
+  { day: "MAR", date: "12", title: "No-gi · Grappling", coach: "Coach Malik", time: "18:30", duration: "90 min", color: "wine" },
+  { day: "JEU", date: "14", title: "Jiu-jitsu · Technique", coach: "Coach Inès", time: "19:00", duration: "75 min", color: "sand" },
+  { day: "SAM", date: "16", title: "Open mat", coach: "Libre", time: "10:00", duration: "120 min", color: "dark" },
+]
+const students = [
+  { name: "Léo Moreau", initials: "LM", grade: "Bleue · 2e degré", attendance: "92%", sessions: "38 séances", tone: "peach" },
+  { name: "Inès Bernard", initials: "IB", grade: "Violette · 1er degré", attendance: "88%", sessions: "34 séances", tone: "lavender" },
+  { name: "Noah Petit", initials: "NP", grade: "Blanche · 3e degré", attendance: "84%", sessions: "29 séances", tone: "sage" },
+  { name: "Sarah Laurent", initials: "SL", grade: "Bleue · 1er degré", attendance: "81%", sessions: "27 séances", tone: "rose" },
+]
+
+function BrandMark({ compact = false }: { compact?: boolean }) {
+  return <div className={`brand-mark ${compact ? "brand-mark--compact" : ""}`} aria-label="UZU">
+    <span className="brand-glyph">U</span><span className="brand-word">UZU</span>
+  </div>
+}
+
+function Avatar({ initials, tone = "peach", size = "normal" }: { initials: string; tone?: string; size?: string }) {
+  return <span className={`avatar avatar--${tone} avatar--${size}`} aria-hidden="true">{initials}</span>
+}
+
+function Eyebrow({ children }: { children: React.ReactNode }) { return <div className="eyebrow">{children}</div> }
+function SectionTitle({ title, link, onClick }: { title: string; link?: string; onClick?: () => void }) {
+  return <div className="section-title"><h2>{title}</h2>{link && <button className="text-link" onClick={onClick}>{link}<ArrowRight size={14} /></button>}</div>
+}
+function MiniBars({ values, color = "wine" }: { values: number[]; color?: string }) {
+  return <div className={`mini-bars mini-bars--${color}`} aria-label="Activité sur les huit dernières semaines" role="img">{values.map((value, i) => <span key={i} style={{ height: `${value}%` }} />)}</div>
+}
+function TrendChart({ club = false }: { club?: boolean }) {
+  const line = club ? "18,76 68,64 118,67 168,43 218,50 268,28 318,35 368,16" : "18,68 68,55 118,61 168,38 218,47 268,26 318,33 368,14"
+  return <div className="trend-chart" role="img" aria-label={club ? "Courbe des présences en hausse sur les huit dernières semaines" : "Courbe de progression sur les huit dernières semaines"}>
+    <div className="chart-y"><span>100</span><span>75</span><span>50</span><span>25</span></div>
+    <svg viewBox="0 0 388 100" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id={club ? "club-fill" : "athlete-fill"} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#941B2B" stopOpacity=".17"/><stop offset="100%" stopColor="#941B2B" stopOpacity="0"/></linearGradient></defs>
+      <path className="chart-grid" d="M10 20H382M10 45H382M10 70H382M10 95H382" />
+      <polygon points={`10,100 ${line} 382,100`} fill={`url(#${club ? "club-fill" : "athlete-fill"})`} />
+      <polyline points={line} fill="none" stroke="#941B2B" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="368" cy={club ? "16" : "14"} r="4" fill="#941B2B" stroke="#fff" strokeWidth="2" />
+    </svg>
+    <div className="chart-x"><span>SEPT.</span><span>OCT.</span><span>NOV.</span><span>DÉC.</span></div>
+  </div>
+}
+
+function Sidebar({ space, active, onNavigate, onSpaceChange, onInvite }: { space: Space; active: string; onNavigate: (id: string) => void; onSpaceChange: (space: Space) => void; onInvite: () => void }) {
+  const items = space === "athlete" ? athleteNav : clubNav
+  return <aside className="sidebar">
+    <div className="sidebar-top"><BrandMark /><button className="icon-button sidebar-collapse" aria-label="Réduire le menu"><Menu size={17} /></button></div>
+    <div className="space-picker" aria-label="Choisir un espace">
+      <button className={`space-option ${space === "athlete" ? "is-selected" : ""}`} onClick={() => onSpaceChange("athlete")} aria-pressed={space === "athlete"}><span className="space-option-icon"><UserRound size={15} /></span><span>Athlete</span></button>
+      <button className={`space-option ${space === "club" ? "is-selected" : ""}`} onClick={() => onSpaceChange("club")} aria-pressed={space === "club"}><span className="space-option-icon"><ShieldCheck size={15} /></span><span>Club</span></button>
+    </div>
+    {space === "club" && <div className="academy-switcher"><span className="academy-avatar">M</span><span className="academy-name"><strong>Maison du Jiu</strong><small>Paris · 3 sections</small></span><ChevronDown size={15} /></div>}
+    <div className="nav-label">MENU PRINCIPAL</div>
+    <nav className="primary-nav" aria-label={`Navigation ${space === "athlete" ? "Athlete" : "Club"}`}>
+      {items.map(item => { const Icon = item.icon; return <button key={item.id} className={`nav-item ${active === item.id ? "is-active" : ""}`} onClick={() => onNavigate(item.id)} aria-current={active === item.id ? "page" : undefined}><Icon size={18} strokeWidth={1.8} /><span>{item.label}</span>{item.id === "attendance" && <span className="nav-count">4</span>}</button> })}
+    </nav>
+    <div className="sidebar-spacer" />
+    {space === "club" && <button className="invite-card" onClick={onInvite}><span className="invite-card-icon"><Plus size={16} /></span><span><strong>Inviter un membre</strong><small>Compléter votre équipe</small></span><ArrowRight size={15} /></button>}
+    <div className="sidebar-note"><span className="note-mark"><Sparkles size={14} /></span><div><strong>La constance fait le niveau.</strong><p>Un entraînement après l’autre.</p></div></div>
+    <div className="sidebar-bottom"><button className="profile-switch" onClick={() => onNavigate(space === "athlete" ? "profile" : "academy")}><Avatar initials={space === "athlete" ? "AM" : "MD"} tone="light" /><span><strong>{space === "athlete" ? "Alex Martin" : "Mehdi Diallo"}</strong><small>{space === "athlete" ? "Athlète · ceinture bleue" : "Responsable"}</small></span><MoreHorizontal size={18} /></button></div>
+  </aside>
+}
+
+function Topbar({ space, title, onNotify, search, onSearch }: { space: Space; title: string; onNotify: () => void; search: string; onSearch: (value: string) => void }) {
+  return <header className="topbar"><div className="topbar-crumb"><span>UZU</span><span className="crumb-slash">/</span><span>{space === "athlete" ? "ATHLETE" : "CLUB"}</span><span className="crumb-slash">/</span><strong>{title}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16} /><input value={search} onChange={e => onSearch(e.target.value)} placeholder="Rechercher" aria-label="Rechercher" /><kbd>⌘ K</kbd></label><button className="icon-button notification-button" aria-label="Notifications" onClick={onNotify}><Bell size={18} /><i /></button><span className="topbar-divider" /><button className="topbar-avatar" onClick={onNotify} aria-label="Ouvrir les notifications"><Avatar initials={space === "athlete" ? "AM" : "MD"} tone="light" size="small" /></button></div></header>
+}
+
+function MetricCard({ label, value, unit, delta, icon: Icon, bars }: { label: string; value: string; unit?: string; delta: string; icon: IconType; bars?: number[] }) {
+  return <article className="metric-card"><div className="metric-top"><span>{label}</span><span className="metric-icon"><Icon size={16} /></span></div><div className="metric-main"><strong>{value}</strong>{unit && <span>{unit}</span>}</div><div className="metric-footer"><span className="positive-change"><ArrowUpRight size={13} />{delta}</span><span className="metric-caption">vs. mois dernier</span>{bars && <MiniBars values={bars} />}</div></article>
+}
+
+function AthleteHome({ onNavigate, onConfirm }: { onNavigate: (id: string) => void; onConfirm: (message: string) => void }) {
+  return <>
+    <div className="page-heading"><div><Eyebrow>JEUDI 14 NOVEMBRE 2024 <span className="eyebrow-dot" /> SEMAINE 46</Eyebrow><h1>Bonjour Alex<span className="heading-period">.</span></h1><p>Chaque séance vous rapproche de votre prochain grade.</p></div><button className="button button--dark" onClick={() => onNavigate("sessions")}><CalendarDays size={16} />Voir mon planning</button></div>
+    <section className="athlete-hero"><div className="hero-copy"><Eyebrow>VOTRE PROCHAINE SÉANCE</Eyebrow><h2>La progression<br />se joue <em>aujourd’hui.</em></h2><div className="hero-session-info"><span><CalendarDays size={15} />Ce soir · 18:30</span><i /><span><MapPin size={15} />Maison du Jiu</span></div><button className="button button--light" onClick={() => onConfirm("Votre place est réservée pour le cours No-gi.")}><span>Réserver ma place</span><ArrowRight size={16} /></button></div><div className="hero-badge"><span className="badge-ring"><span>J-0</span></span><small>dans 2h 14</small></div><div className="hero-caption"><span>01 — 03</span><span>NO-GI · GRAPPLING</span></div></section>
+    <div className="metric-grid"><MetricCard label="Séances ce mois" value="12" unit="séances" delta="+3" icon={Dumbbell} bars={[30, 54, 38, 71, 48, 85, 57, 90]} /><MetricCard label="Temps sur le tatami" value="18" unit="h 30" delta="+12%" icon={Clock3} bars={[45, 36, 65, 52, 75, 60, 92, 80]} /><MetricCard label="Régularité" value="86" unit="%" delta="+8 pts" icon={Flame} bars={[28, 45, 40, 68, 56, 75, 70, 92]} /><article className="rank-card"><div className="rank-top"><span>PROCHAIN OBJECTIF</span><Award size={17} /></div><div className="rank-body"><div className="belt-mark"><span /></div><div><strong>Ceinture bleue</strong><small>2e degré · 4 mois</small></div></div><div className="rank-progress"><div><span>Progression</span><strong>68%</strong></div><div className="progress-track"><i style={{ width: "68%" }} /></div></div></article></div>
+    <div className="content-grid content-grid--athlete"><section className="panel activity-panel"><div className="panel-header"><SectionTitle title="Votre progression" link="Voir les statistiques" onClick={() => onNavigate("stats")} /><div className="panel-select">Cette année <ChevronDown size={13} /></div></div><div className="chart-summary"><strong>+24<span>%</span></strong><span>de régularité depuis septembre</span></div><TrendChart /><div className="chart-legend"><span><i />Présence aux entraînements</span><span>8 dernières semaines</span></div></section><section className="panel next-panel"><div className="panel-header"><SectionTitle title="Cette semaine" link="Tout voir" onClick={() => onNavigate("sessions")} /></div><div className="week-strip">{[ ["L", "11", false], ["M", "12", true], ["M", "13", false], ["J", "14", true], ["V", "15", false], ["S", "16", true], ["D", "17", false] ].map(([day, date, marked], i) => <div className={`week-day ${marked ? "has-session" : ""} ${i === 3 ? "is-today" : ""}`} key={`${day}-${date}`}><span>{day}</span><strong>{date}</strong><i /></div>)}</div><div className="week-summary"><span className="week-summary-mark"><CalendarDays size={16} /></span><div><strong>3 entraînements prévus</strong><small>Votre meilleure semaine depuis août</small></div></div><div className="session-inline"><span className="session-time">18:30</span><span className="session-bar" /><div><strong>No-gi · Grappling</strong><small>Coach Malik · 90 min</small></div><ArrowRight size={16} /></div></section></div>
+    <section className="recent-section"><SectionTitle title="Activité récente" link="Voir le journal" onClick={() => onNavigate("sessions")} /><div className="recent-list"><div className="recent-row"><span className="recent-icon recent-icon--wine"><Dumbbell size={16} /></span><div className="recent-description"><strong>Jiu-jitsu · Travail de garde</strong><small>Maison du Jiu · Coach Inès</small></div><span className="recent-date">Lundi, 11 nov.</span><span className="recent-duration">1h 15</span><span className="recent-score"><i />Complétée</span><ChevronRight size={16} /></div><div className="recent-row"><span className="recent-icon recent-icon--sand"><Target size={16} /></span><div className="recent-description"><strong>Open mat · Sparring léger</strong><small>Maison du Jiu · En autonomie</small></div><span className="recent-date">Samedi, 9 nov.</span><span className="recent-duration">1h 40</span><span className="recent-score"><i />Complétée</span><ChevronRight size={16} /></div></div></section>
+    <div className="demo-note"><span className="demo-note-dot" />Interface de démonstration <span>·</span> Les données affichées sont fictives et ne sont pas reliées à un compte réel.</div>
+  </>
+}
+
+function ClubHome({ onNavigate, onConfirm }: { onNavigate: (id: string) => void; onConfirm: (message: string) => void }) {
+  return <>
+    <div className="page-heading"><div><Eyebrow>JEUDI 14 NOVEMBRE 2024 <span className="eyebrow-dot" /> MAISON DU JIU</Eyebrow><h1>Le club en mouvement<span className="heading-period">.</span></h1><p>La vie de votre académie, en un coup d’œil.</p></div><button className="button button--dark" onClick={() => onNavigate("attendance")}><CheckCircle2 size={16} />Faire l’appel</button></div>
+    <div className="club-kpis"><MetricCard label="Élèves actifs" value="248" delta="+12 ce mois" icon={Users} /><MetricCard label="Présences cette semaine" value="186" delta="+8,4%" icon={CheckCircle2} /><MetricCard label="Cours cette semaine" value="24" delta="3 aujourd’hui" icon={CalendarDays} /><MetricCard label="Progressions à valider" value="08" delta="À examiner" icon={Award} /></div>
+    <div className="club-dashboard-grid"><section className="panel attendance-panel"><div className="panel-header"><SectionTitle title="Fréquentation" /><button className="panel-select">Cette semaine <ChevronDown size={13} /></button></div><div className="club-chart-total"><strong>186</strong><span>présences enregistrées</span><span className="positive-change"><ArrowUpRight size={13} />8,4%</span></div><div className="bar-chart" role="img" aria-label="Présences par jour : lundi 34, mardi 48, mercredi 27, jeudi 51, vendredi 34"><div className="bar-group"><i style={{ height: "51%" }} /><span>LUN</span><small>34</small></div><div className="bar-group"><i style={{ height: "72%" }} /><span>MAR</span><small>48</small></div><div className="bar-group"><i style={{ height: "41%" }} /><span>MER</span><small>27</small></div><div className="bar-group bar-group--today"><i style={{ height: "77%" }} /><span>JEU</span><small>51</small></div><div className="bar-group"><i style={{ height: "51%" }} /><span>VEN</span><small>34</small></div><div className="bar-group bar-group--muted"><i style={{ height: "24%" }} /><span>SAM</span><small>—</small></div><div className="bar-group bar-group--muted"><i style={{ height: "16%" }} /><span>DIM</span><small>—</small></div></div><div className="chart-legend"><span><i />Élèves présents</span><span>vs. 171 la semaine passée</span></div></section>
+      <section className="panel today-panel"><div className="panel-header"><SectionTitle title="Aujourd’hui" link="Voir le planning" onClick={() => onNavigate("courses")} /><span className="today-count">4 cours</span></div><div className="today-course"><span className="course-clock">17:00</span><span className="course-line course-line--sand"/><div><strong>Jiu-jitsu · Enfants</strong><small>Coach Inès · 12 inscrits</small></div><span className="course-status">Terminé</span></div><div className="today-course"><span className="course-clock">18:30</span><span className="course-line course-line--wine"/><div><strong>No-gi · Tous niveaux</strong><small>Coach Malik · 18 inscrits</small></div><span className="course-status course-status--live">En cours</span></div><div className="today-course"><span className="course-clock">20:00</span><span className="course-line course-line--dark"/><div><strong>Jiu-jitsu · Avancé</strong><small>Vous · 14 inscrits</small></div><span className="course-status course-status--upcoming">À venir</span></div><button className="today-footer" onClick={() => onNavigate("courses")}>Ouvrir le calendrier<ArrowRight size={15} /></button></section></div>
+    <section className="panel students-panel"><div className="panel-header"><SectionTitle title="Présences à suivre" link="Tous les élèves" onClick={() => onNavigate("students")} /><button className="panel-select"><Filter size={13} />Cette semaine</button></div><div className="student-table"><div className="student-table-head"><span>ÉLÈVE</span><span>GRADE ACTUEL</span><span>ASSIDUITÉ</span><span>ACTIVITÉ</span><span /></div>{students.slice(0, 3).map(student => <div className="student-table-row" key={student.name}><span className="student-cell"><Avatar initials={student.initials} tone={student.tone} size="small" /><strong>{student.name}</strong></span><span>{student.grade}</span><span className="attendance-cell"><span className="tiny-progress"><i style={{ width: student.attendance }} /></span>{student.attendance}</span><span className="activity-cell">{student.sessions}</span><button className="row-action" aria-label={`Voir ${student.name}`} onClick={() => onNavigate("students")}><ArrowRight size={16} /></button></div>)}</div></section>
+    <div className="demo-note"><span className="demo-note-dot" />Interface de démonstration <span>·</span> Les données affichées sont fictives et ne sont pas reliées à une académie réelle.</div>
+  </>
+}
+
+function SessionsView({ onConfirm }: { onConfirm: (message: string) => void }) {
+  const [filter, setFilter] = useState("À venir")
+  return <><div className="page-heading"><div><Eyebrow>VOTRE PRATIQUE <span className="eyebrow-dot" /> NOVEMBRE 2024</Eyebrow><h1>Entraînements<span className="heading-period">.</span></h1><p>Le journal de vos efforts et des moments qui comptent.</p></div><button className="button button--dark" onClick={() => onConfirm("Votre prochain cours est réservé.")}><Plus size={16} />Réserver un cours</button></div><div className="subnav"><div className="subnav-tabs">{["À venir", "Mon journal", "Calendrier"].map(tab => <button key={tab} className={filter === tab ? "active" : ""} onClick={() => setFilter(tab)}>{tab}</button>)}</div><button className="panel-select"><SlidersHorizontal size={14} />Tous les cours<ChevronDown size={13} /></button></div>{filter === "Calendrier" ? <CalendarView /> : <><div className="upcoming-banner"><div className="upcoming-date"><strong>14</strong><span>NOV</span></div><div className="upcoming-copy"><span className="class-tag">CE SOIR · PROCHAINE SÉANCE</span><h2>No-gi · Grappling</h2><p><Clock3 size={14} />18:30 – 20:00 <i /> <MapPin size={14} />Maison du Jiu · Salle 1</p></div><button className="button button--light" onClick={() => onConfirm("Votre place est réservée pour le cours No-gi.")}>Réserver ma place<ArrowRight size={15} /></button></div><div className="timeline-title"><h2>{filter === "À venir" ? "Vos prochains rendez-vous" : "Votre journal d’entraînement"}</h2><span>3 séances cette semaine</span></div><div className="session-list">{sessions.map((session, index) => <article className="session-card" key={session.title}><div className="session-date"><span>{session.day}</span><strong>{session.date}</strong></div><span className={`session-marker session-marker--${session.color}`} /><div className="session-main"><div className="session-card-top"><h3>{session.title}</h3><span className={`session-label session-label--${index === 0 ? "soon" : "plain"}`}>{index === 0 ? "Aujourd’hui" : index === 1 ? "Dans 2 jours" : "Dans 4 jours"}</span></div><div className="session-meta"><span><Clock3 size={14} />{session.time} · {session.duration}</span><span><UserRound size={14} />{session.coach}</span><span><MapPin size={14} />Maison du Jiu</span></div></div><button className="icon-button" aria-label={`Détails ${session.title}`} onClick={() => onConfirm(`Détails de la séance « ${session.title} »`)}><ChevronRight size={17} /></button></article>)}</div><div className="demo-note"><span className="demo-note-dot" />Planning de démonstration <span>·</span> Horaires et séances fictifs.</div></>}</>
+}
+
+function CalendarView() {
+  const [week, setWeek] = useState(0)
+  return <section className="panel calendar-panel"><div className="calendar-toolbar"><div><Eyebrow>VOTRE PLANNING</Eyebrow><h2>Novembre 2024</h2></div><div className="calendar-controls"><button className="icon-button" aria-label="Semaine précédente" onClick={() => setWeek(week - 1)}><ChevronLeft size={17} /></button><button className="panel-select" onClick={() => setWeek(0)}>Aujourd’hui</button><button className="icon-button" aria-label="Semaine suivante" onClick={() => setWeek(week + 1)}><ChevronRight size={17} /></button></div></div><div className="calendar-grid"><div className="calendar-day-head">LUN <strong>{week === 0 ? "11" : "04"}</strong></div><div className="calendar-day-head">MAR <strong>{week === 0 ? "12" : "05"}</strong></div><div className="calendar-day-head">MER <strong>{week === 0 ? "13" : "06"}</strong></div><div className="calendar-day-head is-today">JEU <strong>{week === 0 ? "14" : "07"}</strong></div><div className="calendar-day-head">VEN <strong>{week === 0 ? "15" : "08"}</strong></div><div className="calendar-day-head">SAM <strong>{week === 0 ? "16" : "09"}</strong></div><div className="calendar-day-head">DIM <strong>{week === 0 ? "17" : "10"}</strong></div>{[0,1,2,3,4,5,6].map(day => <div className="calendar-day" key={day}>{day === 1 && <div className="calendar-event calendar-event--wine"><strong>No-gi</strong><small>18:30 · Malik</small></div>}{day === 3 && <div className="calendar-event calendar-event--sand"><strong>Technique</strong><small>19:00 · Inès</small></div>}{day === 5 && <div className="calendar-event calendar-event--dark"><strong>Open mat</strong><small>10:00 · Libre</small></div>}</div>)}</div></section>
+}
+
+function ProgressView({ club = false }: { club?: boolean }) {
+  return <><div className="page-heading"><div><Eyebrow>{club ? "SUIVI DES GRADES" : "UN PARCOURS, PAS UNE COURSE"} <span className="eyebrow-dot" /> SAISON 2024–25</Eyebrow><h1>{club ? "Progression des élèves" : "Tout se construit."}<span className="heading-period">.</span></h1><p>{club ? "Accompagnez chaque pratiquant à son rythme." : "Votre prochaine ceinture est faite de petits progrès."}</p></div>{club && <button className="button button--dark"><Filter size={16} />Filtrer</button>}</div><div className="progress-overview"><div className="progress-intro"><div className="belt-large"><span /></div><div><Eyebrow>VOTRE GRADE ACTUEL</Eyebrow><h2>{club ? "28 progressions" : "Ceinture bleue"}</h2><p>{club ? "8 validations en attente de votre regard." : "2e degré · obtenu le 18 juillet 2024"}</p></div><span className="progress-ring"><strong>{club ? "08" : "68"}<small>{club ? "à voir" : "%"}</small></strong></span></div><div className="progress-bar-block"><div><span>{club ? "Dossiers prêts pour évaluation" : "Chemin vers le 3e degré"}</span><strong>{club ? "8 élèves" : "68%"}</strong></div><div className="progress-track"><i style={{ width: club ? "38%" : "68%" }} /></div><div className="progress-markers"><span>Fondamentaux</span><span>Technique</span><span>Régularité</span><span>Évaluation</span></div></div></div><div className="content-grid progress-lower"><section className="panel skill-panel"><div className="panel-header"><SectionTitle title={club ? "Compétences suivies" : "Vos compétences"} /><span className="panel-select">Tous les domaines <ChevronDown size={13} /></span></div>{[["Contrôle & positions", 78], ["Passages de garde", 64], ["Sorties de position", 58], ["Soumissions", 43]].map(([label, value]) => <div className="skill-row" key={label}><div><span>{label}</span><strong>{value}%</strong></div><div className="progress-track"><i style={{ width: `${value}%` }} /></div></div>)}</section><section className="panel milestone-panel"><div className="panel-header"><SectionTitle title="Prochain jalon" /></div><div className="milestone-card"><span className="milestone-icon"><Award size={20} /></span><div><strong>{club ? "Évaluations de décembre" : "3e degré · Ceinture bleue"}</strong><p>{club ? "8 élèves sont prêts pour une évaluation." : "Encore 6 séances avant votre prochain passage."}</p></div></div><div className="milestone-footer"><span><Check size={14} /> 2 objectifs validés</span><button className="text-link">Voir le parcours<ArrowRight size={14} /></button></div></section></div><div className="demo-note"><span className="demo-note-dot" />Suivi fictif <span>·</span> Les grades et progressions sont des données de démonstration.</div></>
+}
+
+function StatsView() {
+  return <><div className="page-heading"><div><Eyebrow>VOS REPÈRES <span className="eyebrow-dot" /> SAISON 2024–25</Eyebrow><h1>Les chiffres racontent<span className="heading-period">.</span></h1><p>Une pratique régulière, mesurée à votre façon.</p></div><button className="panel-select"><CalendarDays size={14} />Cette saison <ChevronDown size={13} /></button></div><div className="metric-grid stats-metrics"><MetricCard label="Séances suivies" value="84" unit="séances" delta="+18%" icon={Dumbbell} bars={[40,55,38,75,53,90,68,95]} /><MetricCard label="Temps de pratique" value="126" unit="h" delta="+16 h" icon={Clock3} bars={[28,54,48,78,58,85,67,92]} /><MetricCard label="Semaines actives" value="16" unit="/ 18" delta="89%" icon={Flame} bars={[70,65,85,85,68,85,90,95]} /><MetricCard label="Série en cours" value="4" unit="semaines" delta="Votre record : 9" icon={Award} bars={[25,25,25,90,20,20,20,20]} /></div><section className="panel stats-chart-panel"><div className="panel-header"><SectionTitle title="La régularité dans le temps" /><button className="panel-select">Par mois <ChevronDown size={13} /></button></div><div className="chart-summary"><strong>84<span> séances</span></strong><span>sur les 6 derniers mois</span></div><TrendChart /><div className="chart-legend"><span><i />Entraînements effectués</span><span>Objectif : 12 par mois</span></div></section><div className="content-grid stats-bottom"><section className="panel"><div className="panel-header"><SectionTitle title="Répartition des séances" /></div>{[["Jiu-jitsu", "48 séances", "57%"], ["No-gi", "24 séances", "29%"], ["Open mat", "12 séances", "14%"]].map((item, i) => <div className="distribution-row" key={item[0]}><span className={`distribution-dot dot-${i}`} /><span>{item[0]}</span><small>{item[1]}</small><strong>{item[2]}</strong></div>)}</section><section className="quote-card"><Eyebrow>UN JOUR À LA FOIS</Eyebrow><blockquote>« Le vrai progrès, c’est de revenir sur le tatami. »</blockquote><span>— Votre journal, saison 2024</span><div className="quote-lines"><i /><i /><i /></div></section></div></>
+}
+
+function ProfileView({ onConfirm }: { onConfirm: (message: string) => void }) {
+  const [settings, setSettings] = useState(false)
+  return <><div className="page-heading"><div><Eyebrow>VOTRE ESPACE PERSONNEL</Eyebrow><h1>{settings ? "Vos paramètres" : "Votre profil sportif"}<span className="heading-period">.</span></h1><p>{settings ? "Vos préférences et votre compte UZU." : "Votre histoire sur le tatami, à votre image."}</p></div><button className="button button--outline" onClick={() => setSettings(!settings)}><Settings size={16} />{settings ? "Mon profil" : "Paramètres"}</button></div>{settings ? <section className="panel settings-panel"><div className="settings-row"><div><strong>Rappels d’entraînement</strong><small>Recevoir un rappel avant vos séances</small></div><button className="toggle is-on" role="switch" aria-checked="true" aria-label="Rappels d’entraînement" onClick={e => e.currentTarget.classList.toggle("is-on")}><i /></button></div><div className="settings-row"><div><strong>Résumé hebdomadaire</strong><small>Un point sur votre pratique chaque dimanche</small></div><button className="toggle is-on" role="switch" aria-checked="true" aria-label="Résumé hebdomadaire" onClick={e => e.currentTarget.classList.toggle("is-on")}><i /></button></div><div className="settings-row"><div><strong>Visibilité du profil</strong><small>Votre profil est visible par les membres du club</small></div><button className="toggle" role="switch" aria-checked="false" aria-label="Visibilité du profil" onClick={e => e.currentTarget.classList.toggle("is-on")}><i /></button></div><button className="button button--dark settings-save" onClick={() => onConfirm("Vos préférences ont bien été enregistrées.")}><Check size={15} />Enregistrer les préférences</button></section> : <><section className="profile-cover"><img src="/uzu-training.png" alt="Deux pratiquants s'entraînent sur le tatami" /><div className="profile-cover-shade"/><div className="profile-cover-info"><Avatar initials="AM" tone="light" size="large" /><div><Eyebrow>MEMBRE DEPUIS MARS 2022</Eyebrow><h2>Alex Martin</h2><span><MapPin size={14} />Paris, France <i /> <Mail size={14} />alex.martin@exemple.fr</span></div><button className="button button--light" onClick={() => onConfirm("La modification du profil sera disponible prochainement.")}>Modifier le profil</button></div></section><div className="profile-detail-grid"><section className="panel"><div className="panel-header"><SectionTitle title="Mon parcours" /></div><div className="detail-list"><div><span>Discipline</span><strong>Jiu-jitsu brésilien</strong></div><div><span>Académie</span><strong>Maison du Jiu · Paris</strong></div><div><span>Grade actuel</span><strong><i className="belt-dot" />Ceinture bleue · 2e degré</strong></div><div><span>Ancienneté</span><strong>2 ans et 8 mois</strong></div><div><span>Professeur référent</span><strong>Coach Malik</strong></div></div></section><section className="profile-stats-card"><Eyebrow>DEPUIS VOS DÉBUTS</Eyebrow><div className="lifetime-stat"><strong>184</strong><span>séances partagées<br />sur le tatami</span></div><div className="lifetime-stat"><strong>276<span>h</span></strong><span>de pratique<br />et de progression</span></div><button className="text-link" onClick={() => onConfirm("Votre parcours complet s’affichera ici.")}>Voir tout mon parcours<ArrowRight size={14} /></button></section></div></>}</>
+}
+
+function AttendanceView({ onConfirm }: { onConfirm: (message: string) => void }) {
+  const [checked, setChecked] = useState<string[]>(["LM", "NP"])
+  const toggle = (id: string) => setChecked(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  return <><div className="page-heading"><div><Eyebrow>JEUDI 14 NOVEMBRE 2024 <span className="eyebrow-dot" /> COURS EN COURS</Eyebrow><h1>Faire l’appel<span className="heading-period">.</span></h1><p>No-gi · Tous niveaux · 18:30 — Coach Malik.</p></div><button className="button button--dark" onClick={() => onConfirm(`Présences enregistrées pour ${checked.length} élèves.`)}><Check size={16} />Valider les présences</button></div><div className="attendance-session-banner"><span className="live-indicator"><i />EN COURS</span><div><strong>No-gi · Tous niveaux</strong><span>18 élèves inscrits · 12 présents</span></div><span className="attendance-progress"><strong>{checked.length}</strong><small>/ {students.length} affichés</small></span></div><div className="subnav"><label className="search-box search-box--wide"><Search size={16} /><input placeholder="Rechercher un élève…" aria-label="Rechercher un élève" /></label><button className="panel-select"><Filter size={14} />Tous les niveaux <ChevronDown size={13} /></button></div><div className="attendance-list">{students.map(student => <button className={`attendance-person ${checked.includes(student.initials) ? "is-checked" : ""}`} key={student.initials} onClick={() => toggle(student.initials)}><Avatar initials={student.initials} tone={student.tone} /><span><strong>{student.name}</strong><small>{student.grade}</small></span><span className={`attendance-check ${checked.includes(student.initials) ? "checked" : ""}`}>{checked.includes(student.initials) && <Check size={14} />}</span></button>)}</div><div className="demo-note"><span className="demo-note-dot" />Appel de démonstration <span>·</span> Cocher un élève met à jour le récapitulatif, sans sauvegarder de données.</div></>
+}
+
+function StudentsView({ onConfirm, onStudent }: { onConfirm: (message: string) => void; onStudent: (name: string) => void }) {
+  const [query, setQuery] = useState("")
+  const [grade, setGrade] = useState("Tous les grades")
+  const filtered = useMemo(() => students.filter(s => s.name.toLowerCase().includes(query.toLowerCase()) && (grade === "Tous les grades" || s.grade.startsWith(grade))), [query, grade])
+  return <><div className="page-heading"><div><Eyebrow>MAISON DU JIU <span className="eyebrow-dot" /> 248 MEMBRES</Eyebrow><h1>Les élèves<span className="heading-period">.</span></h1><p>Les parcours de celles et ceux qui font vivre l’académie.</p></div><button className="button button--dark" onClick={() => onConfirm("Lien d’invitation prêt à être partagé.")}><Plus size={16} />Inviter un élève</button></div><div className="student-toolbar"><label className="search-box search-box--wide"><Search size={16} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher un élève…" aria-label="Rechercher un élève" /></label><select className="select-control" value={grade} onChange={e => setGrade(e.target.value)} aria-label="Filtrer par grade"><option>Tous les grades</option><option>Bleue</option><option>Violette</option><option>Blanche</option></select><button className="panel-select"><SlidersHorizontal size={14} />Filtres</button><span className="result-count">{filtered.length} affichés</span></div><section className="panel student-directory"><div className="student-table"><div className="student-table-head"><span>ÉLÈVE</span><span>GRADE ACTUEL</span><span>ASSIDUITÉ</span><span>ACTIVITÉ</span><span /></div>{filtered.map(student => <button className="student-table-row student-table-row--button" key={student.name} onClick={() => onStudent(student.name)}><span className="student-cell"><Avatar initials={student.initials} tone={student.tone} size="small" /><strong>{student.name}</strong></span><span>{student.grade}</span><span className="attendance-cell"><span className="tiny-progress"><i style={{ width: student.attendance }} /></span>{student.attendance}</span><span className="activity-cell">{student.sessions}</span><span className="row-action"><ArrowRight size={16} /></span></button>)}</div>{filtered.length === 0 && <div className="empty-state"><span><Search size={19} /></span><strong>Aucun élève trouvé</strong><p>Essayez un autre nom ou changez le filtre de grade.</p><button className="text-link" onClick={() => { setQuery(""); setGrade("Tous les grades") }}>Effacer les filtres<X size={13} /></button></div>}</section><div className="demo-note"><span className="demo-note-dot" />Annuaire fictif <span>·</span> Seuls quelques profils de démonstration sont visibles.</div></>
+}
+
+function StudentDetail({ name, onBack }: { name: string; onBack: () => void }) {
+  const student = students.find(s => s.name === name) ?? students[0]
+  return <><button className="back-link" onClick={onBack}><ArrowLeft size={15} />Retour aux élèves</button><div className="student-profile-head"><Avatar initials={student.initials} tone={student.tone} size="large" /><div><Eyebrow>MEMBRE DEPUIS JANVIER 2023</Eyebrow><h1>{student.name}<span className="heading-period">.</span></h1><p>{student.grade} <i /> Maison du Jiu · Paris</p></div><button className="button button--outline"><Ellipsis size={16} />Actions</button></div><div className="metric-grid student-metrics"><MetricCard label="Assiduité" value={student.attendance.replace("%", "")} unit="%" delta="+6 pts" icon={CheckCircle2} /><MetricCard label="Séances cette saison" value="38" unit="séances" delta="+4 ce mois" icon={Dumbbell} /><MetricCard label="Prochaine évaluation" value="18" unit="déc." delta="Dans 34 jours" icon={Award} /><MetricCard label="Ancienneté" value="1" unit="an 10 mois" delta="Membre actif" icon={Clock3} /></div><div className="content-grid"><section className="panel"><div className="panel-header"><SectionTitle title="Progression des compétences" /></div>{[["Contrôle & positions", 78], ["Passages de garde", 64], ["Sorties de position", 58]].map(item => <div className="skill-row" key={item[0]}><div><span>{item[0]}</span><strong>{item[1]}%</strong></div><div className="progress-track"><i style={{ width: `${item[1]}%` }} /></div></div>)}</section><section className="panel"><div className="panel-header"><SectionTitle title="Dernières séances" /></div><div className="detail-list"><div><span>11 nov.</span><strong>Travail de garde <small>· Présent</small></strong></div><div><span>9 nov.</span><strong>Open mat <small>· Présent</small></strong></div><div><span>7 nov.</span><strong>No-gi · Grappling <small>· Présent</small></strong></div></div></section></div><div className="demo-note"><span className="demo-note-dot" />Profil élève fictif <span>·</span> Ce profil est présenté à titre de démonstration.</div></>
+}
+
+function CoursesView({ onConfirm }: { onConfirm: (message: string) => void }) {
+  return <><div className="page-heading"><div><Eyebrow>MAISON DU JIU <span className="eyebrow-dot" /> SAISON 2024–25</Eyebrow><h1>Les cours, en rythme<span className="heading-period">.</span></h1><p>Votre calendrier pédagogique et les rendez-vous de l’académie.</p></div><button className="button button--dark" onClick={() => onConfirm("Un nouveau cours peut être planifié ici.")}><Plus size={16} />Créer un cours</button></div><CalendarView /><section className="panel course-list-panel"><div className="panel-header"><SectionTitle title="Les cours cette semaine" /><button className="panel-select">Tous les cours <ChevronDown size={13} /></button></div>{[{time:"17:00",day:"LUN 11",title:"Jiu-jitsu · Enfants",coach:"Inès Bernard",members:"12 élèves",tone:"sand"},{time:"18:30",day:"MAR 12",title:"No-gi · Tous niveaux",coach:"Malik Diallo",members:"18 élèves",tone:"wine"},{time:"19:00",day:"JEU 14",title:"Jiu-jitsu · Technique",coach:"Inès Bernard",members:"16 élèves",tone:"dark"}].map(c => <div className="course-list-row" key={c.title}><strong>{c.time}</strong><span>{c.day}</span><i className={`course-line course-line--${c.tone}`} /><div><b>{c.title}</b><small>{c.coach}</small></div><span>{c.members}</span><button className="row-action" aria-label={`Gérer ${c.title}`}><ChevronRight size={16} /></button></div>)}</section><div className="demo-note"><span className="demo-note-dot" />Calendrier fictif <span>·</span> Les cours ne sont pas reliés au planning de l’académie.</div></>
+}
+
+type TeamRole = "Administrateur" | "Professeure" | "Assistant" | "Personnalisé"
+type TeamPermission = "consulter" | "créer" | "modifier" | "supprimer" | "valider"
+type TeamScope = "academy" | "assigned-courses" | "own-courses" | "assigned-students"
+type TeamMember = {
+  name: string
+  role: string
+  initials: string
+  tone: string
+  status: TeamRole
+  permissions: Record<TeamPermission, boolean>
+  scope: TeamScope
+}
+type RoleDraft = Pick<TeamMember, "status" | "permissions" | "scope">
+
+const permissionOptions: { key: TeamPermission; label: string; icon: IconType }[] = [
+  { key: "consulter", label: "Consulter", icon: Eye },
+  { key: "créer", label: "Créer", icon: Plus },
+  { key: "modifier", label: "Modifier", icon: Pencil },
+  { key: "supprimer", label: "Supprimer", icon: Trash2 },
+  { key: "valider", label: "Valider", icon: CheckCircle2 },
+]
+const scopeOptions: { key: TeamScope; label: string; detail: string }[] = [
+  { key: "academy", label: "Toute l’académie", detail: "Tous les cours et les élèves" },
+  { key: "assigned-courses", label: "Cours affectés", detail: "Les cours attribués au membre" },
+  { key: "own-courses", label: "Ses propres cours", detail: "Uniquement ses cours créés" },
+  { key: "assigned-students", label: "Élèves confiés", detail: "Les élèves dont il a la charge" },
+]
+const initialTeam: TeamMember[] = [
+  { name: "Malik Diallo", role: "Responsable · Jiu-jitsu", initials: "MD", tone: "peach", status: "Administrateur", permissions: { consulter: true, créer: true, modifier: true, supprimer: true, valider: true }, scope: "academy" },
+  { name: "Inès Bernard", role: "Professeure · Enfants", initials: "IB", tone: "lavender", status: "Professeure", permissions: { consulter: true, créer: true, modifier: true, supprimer: false, valider: true }, scope: "assigned-courses" },
+  { name: "Hugo Garnier", role: "Assistant · No-gi", initials: "HG", tone: "sage", status: "Assistant", permissions: { consulter: true, créer: false, modifier: false, supprimer: false, valider: false }, scope: "assigned-students" },
+]
+
+function TeamView({ team, setTeam, onInvite, onConfirm }: { team: TeamMember[]; setTeam: (update: (current: TeamMember[]) => TeamMember[]) => void; onInvite: () => void; onConfirm: (message: string) => void }) {
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
+
+  const saveRole = (draft: RoleDraft) => {
+    if (!editingMember) return
+    setTeam(current => current.map(member => member.name === editingMember.name
+      ? { ...member, status: draft.status, permissions: { ...draft.permissions }, scope: draft.scope }
+      : member))
+    setEditingMember(null)
+    onConfirm(`Les options de rôle de ${editingMember.name} ont été enregistrées.`)
+  }
+
+  return <><div className="page-heading"><div><Eyebrow>MAISON DU JIU <span className="eyebrow-dot" /> 3 MEMBRES</Eyebrow><h1>Une équipe, un tatami<span className="heading-period">.</span></h1><p>Les personnes qui transmettent, encadrent et font progresser.</p></div><button className="button button--dark" onClick={onInvite}><Plus size={16} />Inviter un membre</button></div><section className="panel team-panel"><div className="panel-header"><SectionTitle title="Équipe pédagogique" /><span className="panel-select">3 membres actifs <ChevronDown size={13} /></span></div>{team.map(member => <div className="team-row" key={member.name}><Avatar initials={member.initials} tone={member.tone} /><div className="team-member"><strong>{member.name}</strong><small>{member.role}</small></div><span className="role-pill">{member.status}</span><span className="member-status"><i />Actif</span><button className="icon-button" aria-label={`Options de rôle pour ${member.name}`} aria-haspopup="dialog" onClick={() => setEditingMember(member)}><MoreHorizontal size={18} /></button></div>)}</section><div className="content-grid team-lower"><section className="panel"><div className="panel-header"><SectionTitle title="Rôles & permissions" /></div>{Array.from(new Set(team.map(member => member.status))).map(role => { const members = team.filter(member => member.status === role); const actions = permissionOptions.filter(option => members.some(member => member.permissions[option.key])).map(option => option.label); const scopes = Array.from(new Set(members.map(member => scopeOptions.find(option => option.key === member.scope)?.label ?? ""))).filter(Boolean); return <div className="permission-row" key={role}><span className="permission-shield"><ShieldCheck size={15} /></span><div><strong>{role}</strong><small>{actions.length ? actions.join(" · ") : "Aucune action autorisée"} <span>· {scopes.join(" · ")}</span></small></div><span>{members.length} membre{members.length > 1 ? "s" : ""}</span></div>})}</section><section className="team-invite-card"><span className="invite-illustration"><Mail size={21} /></span><Eyebrow>AGRANDIR L’ÉQUIPE</Eyebrow><h2>Le club se construit<br />ensemble.</h2><p>Invitez les professeurs et assistants à rejoindre leur académie.</p><button className="button button--light" onClick={onInvite}>Envoyer une invitation<ArrowRight size={15} /></button></section></div><div className="demo-note"><span className="demo-note-dot" />Membres fictifs <span>·</span> Les rôles affichés sont une démonstration locale.</div>{editingMember && <RoleOptionsModal key={editingMember.name} member={editingMember} onClose={() => setEditingMember(null)} onSave={saveRole} />}</>
+}
+
+function RoleOptionsModal({ member, onClose, onSave }: { member: TeamMember; onClose: () => void; onSave: (draft: RoleDraft) => void }) {
+  const [draft, setDraft] = useState<RoleDraft>(() => ({ status: member.status, permissions: { ...member.permissions }, scope: member.scope }))
+  const dialogRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null
+    const dialog = dialogRef.current
+    dialog?.querySelector<HTMLElement>("select, button, input")?.focus()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key === "Tab" && dialog) {
+        const controls = Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled]), select:not([disabled]), input:not([disabled])'))
+        const first = controls[0]
+        const last = controls[controls.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first?.focus()
+        }
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+      previousFocus?.focus()
+    }
+  }, [onClose])
+
+  const setPermission = (key: TeamPermission, checked: boolean) => {
+    setDraft(current => ({ ...current, permissions: { ...current.permissions, [key]: checked } }))
+  }
+
+  return <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section ref={dialogRef} className="invite-modal role-modal" role="dialog" aria-modal="true" aria-labelledby="role-title" aria-describedby="role-description"><button className="icon-button modal-close" onClick={onClose} aria-label="Fermer les options de rôle"><X size={18} /></button><div className="role-modal-heading"><div><span className="modal-icon"><ShieldCheck size={20} /></span><Eyebrow>MAISON DU JIU · ACCÈS MEMBRE</Eyebrow><h2 id="role-title">Options de rôle</h2><p id="role-description">Ajustez le rôle et les droits de <strong>{member.name}</strong>.</p></div></div><form className="role-form" onSubmit={event => { event.preventDefault(); onSave(draft) }}><div className="role-field"><label htmlFor="team-role">Rôle dans l’académie</label><select id="team-role" className="role-select" value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as TeamRole }))}><option>Administrateur</option><option>Professeure</option><option>Assistant</option><option>Personnalisé</option></select></div><fieldset className="role-section"><legend className="role-section-title">Permissions <small>Choisissez les actions autorisées</small></legend><div className="permission-options">{permissionOptions.map(({ key, label, icon: Icon }) => <button key={key} type="button" role="switch" aria-checked={draft.permissions[key]} aria-label={label} className={`permission-option ${draft.permissions[key] ? "is-enabled" : ""}`} onClick={() => setPermission(key, !draft.permissions[key])}><Icon size={17} aria-hidden="true" /><span>{label}</span><span className="permission-option-check" aria-hidden="true">{draft.permissions[key] && <Check size={12} />}</span></button>)}</div></fieldset><fieldset className="role-section"><legend className="role-section-title">Portée des droits <small>Définissez le périmètre de ses accès</small></legend><div className="scope-options">{scopeOptions.map(scope => <label key={scope.key} className={`scope-option ${draft.scope === scope.key ? "is-selected" : ""}`}><input type="radio" name="team-scope" value={scope.key} checked={draft.scope === scope.key} onChange={() => setDraft(current => ({ ...current, scope: scope.key }))} /><span>{scope.label}<small>{scope.detail}</small></span></label>)}</div></fieldset><div className="role-modal-footer"><p className="demo-disclaimer">Maquette locale · aucun changement n’est envoyé.</p><div className="role-modal-actions"><button className="button button--outline" type="button" onClick={onClose}>Annuler</button><button className="button button--dark" type="submit"><Check size={15} />Enregistrer</button></div></div></form></section></div>
+}
+
+function AcademyView({ onConfirm }: { onConfirm: (message: string) => void }) {
+  const [section, setSection] = useState("Vue d’ensemble")
+  return <><div className="page-heading"><div><Eyebrow>ESPACE PROFESSIONNEL <span className="eyebrow-dot" /> CLUB UZU</Eyebrow><h1>Maison du Jiu<span className="heading-period">.</span></h1><p>Un lieu pour apprendre, transmettre et avancer ensemble.</p></div><button className="button button--outline" onClick={() => onConfirm("Les informations de l’académie sont en lecture seule dans cette maquette.")}><Settings size={16} />Paramètres</button></div><div className="academy-cover"><img src="/uzu-training.png" alt="Entraînement de jiu-jitsu sur les tatamis de l'académie"/><div className="academy-cover-shade"/><span className="academy-emblem">M</span><div><Eyebrow>ACADÉMIE PARTENAIRE UZU</Eyebrow><h2>Maison du Jiu</h2><span><MapPin size={14} />Paris, France <i /> <Users size={14} />248 membres</span></div><span className="academy-state"><i />Académie active</span></div><div className="academy-tabs">{["Vue d’ensemble", "Sections", "Invitations", "Préférences"].map(tab => <button key={tab} className={section === tab ? "active" : ""} onClick={() => setSection(tab)}>{tab}{tab === "Invitations" && <i>2</i>}</button>)}</div>{section === "Sections" ? <div className="section-cards">{[{name:"Jiu-jitsu brésilien",members:"164 membres",classes:"16 cours / semaine",tone:"wine"},{name:"No-gi & Grappling",members:"58 membres",classes:"6 cours / semaine",tone:"dark"},{name:"Jiu-jitsu enfants",members:"26 membres",classes:"4 cours / semaine",tone:"sand"}].map((item, i) => <article className="panel section-card" key={item.name}><span className={`section-index section-index--${item.tone}`}>0{i+1}</span><Eyebrow>SECTION {String(i+1).padStart(2,"0")}</Eyebrow><h3>{item.name}</h3><p>{item.members}<br/>{item.classes}</p><button className="text-link" onClick={() => onConfirm(`Section « ${item.name} »`)}>Gérer la section<ArrowRight size={14}/></button></article>)}<button className="add-section-card" onClick={() => onConfirm("La création d’une section sera disponible prochainement.")}><Plus size={19}/><strong>Créer une section</strong><small>Organiser une nouvelle discipline</small></button></div> : section === "Invitations" ? <section className="panel invitation-panel"><div className="panel-header"><SectionTitle title="Invitations en attente" /><button className="button button--dark button--small" onClick={() => onConfirm("Nouvelle invitation préparée.")}><Plus size={14}/>Inviter</button></div>{[{email:"lea.rousseau@exemple.fr",role:"Professeure",date:"Envoyée le 12 nov.",status:"En attente"},{email:"thomas.girard@exemple.fr",role:"Assistant",date:"Envoyée le 10 nov.",status:"En attente"}].map(i => <div className="invitation-row" key={i.email}><Avatar initials={i.email.slice(0,2).toUpperCase()} tone="light" size="small"/><div><strong>{i.email}</strong><small>{i.role} · {i.date}</small></div><span>{i.status}</span><button className="text-link" onClick={() => onConfirm(`Invitation renvoyée à ${i.email}.`)}>Renvoyer</button></div>)}</section> : section === "Préférences" ? <section className="panel settings-panel"><div className="settings-row"><div><strong>Notifications de l’académie</strong><small>Suivre les inscriptions et les demandes de grade</small></div><button className="toggle is-on" role="switch" aria-checked="true" aria-label="Notifications de l’académie" onClick={e => e.currentTarget.classList.toggle("is-on")}><i /></button></div><div className="settings-row"><div><strong>Visibilité de l’académie</strong><small>Académie visible dans la recherche UZU</small></div><button className="toggle is-on" role="switch" aria-checked="true" aria-label="Visibilité de l’académie" onClick={e => e.currentTarget.classList.toggle("is-on")}><i /></button></div></section> : <div className="content-grid academy-lower"><section className="panel"><div className="panel-header"><SectionTitle title="Informations académie" /></div><div className="detail-list"><div><span>Discipline principale</span><strong>Jiu-jitsu brésilien</strong></div><div><span>Adresse</span><strong>18 rue des Vinaigriers, Paris 10e</strong></div><div><span>Responsable</span><strong>Mehdi Diallo</strong></div><div><span>Académie depuis</span><strong>Avril 2018</strong></div><div><span>Sections actives</span><strong>3 disciplines</strong></div></div></section><section className="panel academy-state-panel"><Eyebrow>VIE DU CLUB</Eyebrow><div className="academy-state-stat"><strong>248</strong><span>membres actifs<br/>dans 3 sections</span></div><div className="section-breakdown"><span>Jiu-jitsu brésilien<i style={{width:"76%"}}/></span><span>No-gi & Grappling<i style={{width:"48%"}}/></span><span>Jiu-jitsu enfants<i style={{width:"26%"}}/></span></div><button className="text-link" onClick={() => setSection("Sections")}>Gérer les sections<ArrowRight size={14}/></button></section></div>}<div className="demo-note"><span className="demo-note-dot"/>Fiche académie fictive <span>·</span> Les informations ne sont pas issues d’un club connecté.</div></>
+}
+
+function InvitationModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (message: string) => void }) {
+  const [email, setEmail] = useState("")
+  const [role, setRole] = useState("Professeure")
+  const [sending, setSending] = useState(false)
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!email.includes("@") || sending) return
+    setSending(true)
+    window.setTimeout(() => {
+      onConfirm(`Invitation envoyée à ${email} · rôle ${role}.`)
+      onClose()
+    }, 650)
+  }
+  return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}><section className="invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-title"><button className="icon-button modal-close" onClick={onClose} aria-label="Fermer"><X size={18}/></button><span className="modal-icon"><Mail size={20}/></span><Eyebrow>MAISON DU JIU</Eyebrow><h2 id="invite-title">Inviter dans votre équipe.</h2><p>Envoyez une invitation à un professeur ou à un assistant pour rejoindre l’académie.</p><form onSubmit={submit}><label htmlFor="invite-email">Adresse e-mail</label><input id="invite-email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="nom@exemple.fr"/><label htmlFor="invite-role">Rôle dans l’académie</label><select id="invite-role" value={role} onChange={e => setRole(e.target.value)}><option>Professeure</option><option>Assistant</option><option>Administrateur</option></select><div className="permission-hint"><ShieldCheck size={15}/><span>Les permissions pourront être ajustées à tout moment.</span></div><button className="button button--dark modal-submit" type="submit" disabled={sending} aria-busy={sending}>{sending ? <><Activity className="loading-icon" size={15}/>Envoi en cours…</> : <>Envoyer l’invitation<ArrowRight size={15}/></>}</button></form><div className="demo-disclaimer">Démonstration uniquement · aucun e-mail ne sera envoyé.</div></section></div>
+}
+
+export function UzuMaquette() {
+  const [space, setSpace] = useState<Space>("athlete")
+  const [active, setActive] = useState("home")
+  const [search, setSearch] = useState("")
+  const [team, setTeam] = useState<TeamMember[]>(initialTeam)
+  const [toast, setToast] = useState("")
+  const [showInvite, setShowInvite] = useState(false)
+  const [studentName, setStudentName] = useState("")
+  const [mobileMenu, setMobileMenu] = useState(false)
+  const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(""), 3200) }
+  const changeSpace = (next: Space) => { setSpace(next); setActive("home"); setStudentName(""); setMobileMenu(false) }
+  const navigate = (id: string) => { setActive(id); setStudentName(""); setMobileMenu(false) }
+  const getTitle = () => {
+    if (studentName) return "FICHE ÉLÈVE"
+    const item = (space === "athlete" ? athleteNav : clubNav).find(i => i.id === active)
+    return item?.label.toUpperCase() ?? "ACCUEIL"
+  }
+  const renderView = () => {
+    if (studentName) return <StudentDetail name={studentName} onBack={() => setStudentName("")} />
+    if (space === "athlete") {
+      if (active === "home") return <AthleteHome onNavigate={navigate} onConfirm={notify} />
+      if (active === "sessions") return <SessionsView onConfirm={notify} />
+      if (active === "progress") return <ProgressView />
+      if (active === "stats") return <StatsView />
+      if (active === "profile") return <ProfileView onConfirm={notify} />
+    } else {
+      if (active === "home") return <ClubHome onNavigate={navigate} onConfirm={notify} />
+      if (active === "attendance") return <AttendanceView onConfirm={notify} />
+      if (active === "students") return <StudentsView onConfirm={notify} onStudent={setStudentName} />
+      if (active === "progress") return <ProgressView club />
+      if (active === "courses") return <CoursesView onConfirm={notify} />
+      if (active === "team") return <TeamView team={team} setTeam={setTeam} onInvite={() => setShowInvite(true)} onConfirm={notify} />
+      if (active === "academy") return <AcademyView onConfirm={notify} />
+    }
+    return null
+  }
+  const navItems = space === "athlete" ? athleteNav : clubNav
+  return <main className={`app-shell ${mobileMenu ? "mobile-menu-open" : ""}`}>
+    <Sidebar space={space} active={active} onNavigate={navigate} onSpaceChange={changeSpace} onInvite={() => setShowInvite(true)} />
+    <div className="workspace"><Topbar space={space} title={getTitle()} onNotify={() => notify("Tout est à jour. Vous n’avez pas de nouvelle notification.")} search={search} onSearch={setSearch}/><div className="mobile-space-bar"><button className="mobile-menu-trigger" aria-label="Ouvrir la navigation" onClick={() => setMobileMenu(!mobileMenu)}><Menu size={19}/></button><BrandMark compact/><div className="mobile-switcher"><button onClick={() => changeSpace(space === "athlete" ? "club" : "athlete")}>{space === "athlete" ? "Athlete" : "Club"}<ChevronDown size={13}/></button></div></div><div className="page-content">{renderView()}</div></div>
+    <nav className="mobile-bottom-nav" aria-label="Navigation mobile">{navItems.slice(0,5).map(item => {const Icon = item.icon; return <button key={item.id} className={active === item.id ? "active" : ""} onClick={() => navigate(item.id)} aria-current={active === item.id ? "page" : undefined}><Icon size={18}/><span>{item.label}</span></button>})}</nav>
+    {showInvite && <InvitationModal onClose={() => setShowInvite(false)} onConfirm={notify}/>}
+    {toast && <div className="toast-message" role="status"><span><Check size={15}/></span>{toast}<button onClick={() => setToast("")} aria-label="Fermer le message"><X size={15}/></button></div>}
+  </main>
+}
