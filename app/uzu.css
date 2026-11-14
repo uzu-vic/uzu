@@ -1,0 +1,42 @@
+/* Compléments à la charte de la maquette (globals.css) pour les écrans réels.
+   Règle mobile : aucun texte sous 12 px sur téléphone (incompatibilité n° 10 de l'audit). */
+.uzu-splash { display: grid; min-height: 100vh; place-items: center; background: var(--ivory); }
+.uzu-splash .brand-glyph { width: 44px; height: 44px; border-color: var(--wine); color: var(--wine); font-size: 26px; }
+.uzu-center { display: grid; min-height: 100vh; place-items: center; padding: 24px 16px; background: var(--ivory); }
+.uzu-card { width: min(100%, 420px); padding: 32px 28px; border: 1px solid #e7dfd7; border-radius: 12px; background: #fff; box-shadow: 0 24px 90px #0000000f; }
+.uzu-login { background: #171717 url('/uzu-training.png') center / cover no-repeat; }
+.uzu-login::before { position: fixed; inset: 0; background: rgb(23 23 23 / 72%); content: ""; }
+.uzu-login .uzu-card { position: relative; }
+.uzu-login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+.uzu-login-brand .brand-glyph { border-color: var(--wine); color: var(--wine); }
+.uzu-login-word { font-size: 18px; font-weight: 750; letter-spacing: .2em; }
+.uzu-title { margin: 10px 0 18px; font-family: Georgia, 'Times New Roman', serif; font-size: 30px; font-weight: 400; letter-spacing: -.04em; line-height: 1.1; }
+.uzu-h2 { margin: 8px 0 8px; font-family: Georgia, 'Times New Roman', serif; font-size: 20px; font-weight: 400; }
+.uzu-text { margin: 0 0 16px; color: #5f5851; font-size: 13px; line-height: 1.6; }
+.uzu-small { margin: 18px 0 0; font-size: 12px; }
+.uzu-text a { color: var(--wine); font-weight: 600; }
+.uzu-form { display: flex; flex-direction: column; gap: 8px; }
+.uzu-form label { margin-top: 6px; color: #49433e; font-size: 12px; font-weight: 600; }
+.uzu-form input { height: 44px; padding: 0 12px; border: 1px solid #e5dfd8; border-radius: 7px; background: #fbfaf8; color: #292522; font-size: 16px; }
+.uzu-submit { width: 100%; min-height: 46px; margin-top: 12px; font-size: 14px; }
+.uzu-error { margin: 6px 0 0; color: #b42318; font-size: 13px; }
+.uzu-panel { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 22px; }
+.uzu-panel .button { margin-top: 4px; font-size: 13px; }
+.uzu-banner { margin-bottom: 16px; padding: 12px 14px; border: 1px solid #e7deda; border-radius: 8px; background: #fbf6f4; color: #5f5851; font-size: 13px; }
+.uzu-banner--error { border-color: #f0c9c5; background: #fdf3f2; color: #8a1c13; }
+.uzu-space-gap { height: 24px; }
+.academy-switcher { position: relative; }
+.uzu-academy-select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.uzu-logout { color: #aaa5a0; }
+.uzu-logout:hover { background: #292929; color: #fff; }
+.profile-switch { cursor: default; }
+.uzu-only-mobile { display: none; }
+@media (max-width: 680px) {
+  .uzu-only-mobile { display: inline-grid; }
+  .nav-item, .space-option { font-size: 14px; }
+  .academy-name strong { font-size: 13px; }
+  .academy-name small, .nav-label { font-size: 12px; }
+  .page-heading p, .eyebrow { font-size: 12px; }
+  .mobile-bottom-nav button span { font-size: 12px; }
+  .mobile-switcher button { font-size: 12px; }
+}

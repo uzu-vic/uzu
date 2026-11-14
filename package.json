@@ -1,9 +1,31 @@
 {
-  "name": "uzu-app",
-  "version": "1.0.0",
-  "type": "module",
+  "name": "uzu",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prepare-legacy": "node scripts/prepare-legacy.mjs",
+    "dev": "node scripts/prepare-legacy.mjs && next dev",
+    "prebuild": "node scripts/prepare-legacy.mjs",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
-    "web-push": "^3.6.7"
+    "@supabase/supabase-js": "2.119.0",
+    "lucide-react": "1.17.0",
+    "next": "16.4.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "shadcn": "^4.11.0",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.7.3"
   }
 }
