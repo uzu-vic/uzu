@@ -4,6 +4,13 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
 
+/** « ios-other » : navigateur tiers sur iPhone/iPad (Chrome, Firefox, Edge…), où l'objet existe mais ne reçoit jamais le son. */
+export function voiceSupport(): "ok" | "ios-other" | "none" {
+  if (typeof navigator === "undefined") return "none"
+  const ua = navigator.userAgent || "", ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  if (ios && /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua)) return "ios-other"
+  return voiceApi() ? "ok" : "none"
+}
 export function voiceApi(): Any { return typeof window === "undefined" ? null : ((window as Any).SpeechRecognition || (window as Any).webkitSpeechRecognition || null) }
 
 /** Remplit le formulaire à partir d'une phrase dictée. Retourne le nouveau formulaire, la note, les exercices et la liste de ce qui a été rempli. */

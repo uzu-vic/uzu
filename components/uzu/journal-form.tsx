@@ -4,7 +4,7 @@
 // des catalogues de l'ancienne application ; l'enregistrement passe par lib/uzu/journal.ts.
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Check, Mic, Minus, Plus, Trash2, X } from "lucide-react"
-import { voiceApi, voiceApply } from "@/lib/uzu/voice"
+import { voiceApi, voiceApply, voiceSupport } from "@/lib/uzu/voice"
 import type { UzuContext } from "@/lib/uzu/context"
 import { addComp, addSession, formFromSession, loadEntry, newCore, updateComp, updateSession, type CompForm } from "@/lib/uzu/journal"
 
@@ -239,20 +239,28 @@ export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string;
 // arrêt de sécurité après 3 minutes ou 4 silences). Le formulaire n'est rempli qu'à « Terminer la dictée ».
 const VOICE_MAX_MS = 180000
 function VoiceBox({ onText, submitLabel }: { onText: (t: string) => { out: string[]; undo: () => void }; submitLabel: string }) {
-  const [ok, setOk] = useState(true)
+  // « speech » : reconnaissance vocale du navigateur ; « keyboard » : phrase dictée avec le micro du clavier (ou écrite), même analyse.
+  const [mode, setMode] = useState<"speech" | "keyboard">("speech")
+  const [why, setWhy] = useState("")
+  const [typed, setTyped] = useState("")
   const [want, setWant] = useState(false)
   const [live, setLive] = useState("")
   const [res, setRes] = useState<{ said: string; out: string[]; err: string } | null>(null)
   const undoRef = useRef<(() => void) | null>(null)
   const onTextRef = useRef(onText); onTextRef.current = onText
-  const st = useRef({ rec: null as Any, on: false, want: false, final: "", sess: "", idle: 0, t0: 0, err: "" })
-  useEffect(() => { setOk(!!voiceApi()) }, [])
-  useEffect(() => () => { st.current.want = false; try { st.current.rec?.abort() } catch { /* déjà arrêtée */ } }, [])
+  const st = useRef({ rec: null as Any, on: false, want: false, final: "", sess: "", idle: 0, t0: 0, err: "", heard: false, dog: 0 as Any })
+  useEffect(() => {
+    const s = voiceSupport()
+    if (s !== "ok") { setMode("keyboard"); setWhy(s === "ios-other" ? "Sur iPhone, seul Safari donne accès à la dictée intégrée. Ici, utilise le micro 🎤 de ton clavier : dicte ta phrase dans la case ci-dessous, puis touche « Remplir le formulaire »." : "Ton navigateur ne propose pas la dictée intégrée. Utilise le micro 🎤 de ton clavier : dicte ta phrase dans la case ci-dessous, puis touche « Remplir le formulaire ».") }
+  }, [])
+  useEffect(() => () => { st.current.want = false; clearTimeout(st.current.dog); try { st.current.rec?.abort() } catch { /* déjà arrêtée */ } }, [])
   const all = () => (st.current.final + " " + st.current.sess).replace(/\s+/g, " ").trim()
+  const apply = (t: string, err = "") => { const r = onTextRef.current(t); undoRef.current = r.undo; setRes({ said: t, out: r.out, err }) }
   const finish = () => {
-    const s = st.current; s.want = false; s.on = false; s.rec = null; setWant(false)
+    const s = st.current; clearTimeout(s.dog); s.want = false; s.on = false; s.rec = null; setWant(false)
     const t = s.final.trim(), err = s.err; s.final = ""; s.sess = ""; s.err = ""; setLive("")
-    if (t) { const r = onTextRef.current(t); undoRef.current = r.undo; setRes({ said: t, out: r.out, err }) }
+    if (t) apply(t, err)
+    else if (!s.heard) { setRes(null); setMode("keyboard"); setWhy(err || "La dictée du navigateur ne répond pas sur ce téléphone. Utilise le micro 🎤 de ton clavier : dicte ta phrase dans la case ci-dessous, puis touche « Remplir le formulaire ».") }
     else setRes({ said: "", out: [], err: err || "Je n'ai rien entendu. Réessaie en parlant près du téléphone." })
   }
   const listen = () => {
@@ -260,9 +268,9 @@ function VoiceBox({ onText, submitLabel }: { onText: (t: string) => { out: strin
     s.rec = rec; s.sess = ""
     rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = !/Android/i.test(navigator.userAgent || ""); rec.maxAlternatives = 1
     rec.onstart = () => { s.on = true }
-    rec.onresult = (e: Any) => { let t = ""; for (let i = 0; i < e.results.length; i++) t += " " + e.results[i][0].transcript; t = t.replace(/\s+/g, " ").trim(); if (t) { s.sess = t; s.idle = 0 } setLive(all()) }
+    rec.onresult = (e: Any) => { let t = ""; for (let i = 0; i < e.results.length; i++) t += " " + e.results[i][0].transcript; t = t.replace(/\s+/g, " ").trim(); if (t) { s.sess = t; s.idle = 0; s.heard = true } setLive(all()) }
     rec.onerror = (e: Any) => { const c = e && e.error; if (c === "no-speech" || c === "aborted") return
-      s.err = c === "not-allowed" || c === "service-not-allowed" ? "Micro refusé ou indisponible. Autorise le micro pour ce site dans les réglages du navigateur, ou ouvre UZU dans Safari ou Chrome." : c === "network" ? "La dictée a besoin d'une connexion internet." : "La dictée s'est interrompue."
+      s.err = c === "not-allowed" || c === "service-not-allowed" ? "Micro refusé ou dictée indisponible. Autorise le micro pour ce site dans les réglages, ou utilise le micro 🎤 de ton clavier ci-dessous." : c === "network" ? "La dictée a besoin d'une connexion internet." : "La dictée s'est interrompue."
       s.want = false }
     rec.onend = () => { s.on = false; if (s.sess) { s.final = all(); s.sess = "" } else s.idle++
       if (s.want && Date.now() - s.t0 < VOICE_MAX_MS && s.idle < 4) { try { listen(); return } catch { /* on termine */ } }
@@ -272,21 +280,32 @@ function VoiceBox({ onText, submitLabel }: { onText: (t: string) => { out: strin
   const toggle = () => {
     const s = st.current
     if (!voiceApi()) return
-    if (s.want) { s.want = false; setWant(false); if (s.rec && s.on) { try { s.rec.stop() } catch { finish() } } else finish(); return }
-    s.want = true; s.final = ""; s.sess = ""; s.idle = 0; s.err = ""; s.t0 = Date.now(); setRes(null); setWant(true); setLive("")
-    try { listen() } catch { s.err = "La dictée n'a pas pu démarrer. Réessaie."; finish() }
+    if (s.want) { s.want = false; setWant(false); clearTimeout(s.dog); if (s.rec && s.on) { try { s.rec.stop() } catch { finish() } ; s.dog = setTimeout(() => { if (s.rec) { try { s.rec.abort() } catch { /* rien */ } finish() } }, 2500) } else finish(); return }
+    s.want = true; s.final = ""; s.sess = ""; s.idle = 0; s.err = ""; s.heard = false; s.t0 = Date.now(); setRes(null); setWant(true); setLive("")
+    // Garde-fou : certains navigateurs démarrent sans jamais transmettre le son (ex. Chrome sur iPhone)
+    clearTimeout(s.dog); s.dog = setTimeout(() => { if (s.want && !s.heard) { s.want = false; try { s.rec?.abort() } catch { /* rien */ } finish() } }, 8000)
+    try { listen() } catch { s.err = "La dictée n'a pas pu démarrer."; finish() }
   }
+  const resultBox = res && <div className="uzu-note" role="status">
+    {res.err && res.said && <p className="uzu-small">{res.err}</p>}
+    {res.said && <p className="uzu-voice-live">« {res.said} »</p>}
+    {!res.said ? <p>{res.err}</p> : res.out.length ? <><p><b>Rempli automatiquement :</b></p><ul>{res.out.map((t, i) => <li key={i}>{t}</li>)}</ul><p className="uzu-small">Ta phrase est aussi ajoutée à ta note privée. Vérifie puis touche « {submitLabel} ».</p></>
+      : <p>Je n'ai rien reconnu de précis. Ta phrase est dans ta note privée : complète le formulaire à la main.</p>}
+    {res.said && <button type="button" className="button button--outline uzu-small-btn" onClick={() => { undoRef.current?.(); undoRef.current = null; setRes(null) }}>Annuler la dictée</button>}
+  </div>
+  if (mode === "keyboard") return <section className="panel uzu-fs uzu-voice">
+    <span className="uzu-label"><Mic size={14} /> Raconter ma séance</span>
+    {why && <small className="uzu-hint">{why}</small>}
+    <textarea className="uzu-input" rows={3} aria-label="Ta séance en une phrase" placeholder="Ex. : 1 h 30 en gi, 5 rounds, deux triangles placés, une guillotine subie contre une bleue, un peu fatigué." value={typed} onChange={e => setTyped(e.target.value)} />
+    <button type="button" className="button button--dark uzu-wide" disabled={!typed.trim()} onClick={() => { const t = typed.trim(); if (!t) return; setTyped(""); apply(t) }}>Remplir le formulaire</button>
+    {voiceSupport() === "ok" && <button type="button" className="text-link uzu-small" onClick={() => { setMode("speech"); setWhy(""); setRes(null) }}>Réessayer la dictée intégrée</button>}
+    {resultBox}
+  </section>
   return <section className="panel uzu-fs uzu-voice">
-    <button type="button" className={`button ${want ? "button--dark uzu-rec" : "button--outline"} uzu-wide`} aria-pressed={want} disabled={!ok} onClick={toggle}><Mic size={16} />{!ok ? "Dictée vocale indisponible ici" : want ? "Terminer la dictée" : "Raconter ma séance à l'oral"}</button>
-    {!ok && <small className="uzu-hint">Ton navigateur ne propose pas la reconnaissance vocale. Utilise Chrome ou Safari, ou le micro de ton clavier dans la note.</small>}
-    {ok && !want && !res && <small className="uzu-hint">Ex. : « 1 h 30 en gi, 5 rounds, deux triangles placés, une guillotine subie contre une bleue, un peu fatigué. »</small>}
+    <button type="button" className={`button ${want ? "button--dark uzu-rec" : "button--outline"} uzu-wide`} aria-pressed={want} onClick={toggle}><Mic size={16} />{want ? "Terminer la dictée" : "Raconter ma séance à l'oral"}</button>
+    {!want && !res && <small className="uzu-hint">Ex. : « 1 h 30 en gi, 5 rounds, deux triangles placés, une guillotine subie contre une bleue, un peu fatigué. »</small>}
     {want && <p className="uzu-text uzu-voice-live" aria-live="polite">{live ? live + " " : ""}<em>{live ? "… continue, ou touche « Terminer la dictée »" : "Parle maintenant. Tu peux faire des pauses : touche « Terminer la dictée » quand tu as fini."}</em></p>}
-    {res && <div className="uzu-note" role="status">
-      {res.err && res.said && <p className="uzu-small">{res.err}</p>}
-      {res.said && <p className="uzu-voice-live">« {res.said} »</p>}
-      {!res.said ? <p>{res.err}</p> : res.out.length ? <><p><b>Rempli automatiquement :</b></p><ul>{res.out.map((t, i) => <li key={i}>{t}</li>)}</ul><p className="uzu-small">Ta phrase est aussi ajoutée à ta note privée. Vérifie puis touche « {submitLabel} ».</p></>
-        : <p>Je n'ai rien reconnu de précis. Ta phrase est dans ta note privée : complète le formulaire à la main.</p>}
-      {res.said && <button type="button" className="button button--outline uzu-small-btn" onClick={() => { undoRef.current?.(); undoRef.current = null; setRes(null) }}>Annuler la dictée</button>}
-    </div>}
+    {resultBox}
+    {!want && <button type="button" className="text-link uzu-small" onClick={() => { setMode("keyboard"); setWhy(""); setRes(null) }}>Plutôt dicter avec le micro du clavier</button>}
   </section>
 }

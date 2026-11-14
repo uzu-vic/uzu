@@ -125,6 +125,30 @@ with sync_playwright() as p:
     check("Élève : aucune erreur JavaScript", not errs); print("   ", errs)
     pg.context.close()
 
+    # ---------------- 1b. Dictée sur iPhone avec Chrome : micro du clavier, même analyse
+    UA_CRIOS = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1"
+    m = Mock(student_ctx(), dict(docs))
+    c = b.new_context(viewport={"width": 390, "height": 844}, user_agent=UA_CRIOS); pg = c.new_page(); errs = []
+    pg.on("pageerror", lambda e: errs.append(str(e)[:200])); pg.route(f"https://{REF}.supabase.co/**", m.handle)
+    pg.add_init_script(f"localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(sess(UID, 'Yanis')))});" + FAKE_SPEECH)
+    pg.goto("http://127.0.0.1:3100/"); pg.wait_for_timeout(2200)
+    pg.locator("button", has_text="Saisir ma séance").first.click(); pg.wait_for_timeout(600)
+    t = content(pg)
+    check("iPhone + Chrome : dictée par le micro du clavier proposée", "seul Safari donne accès à la dictée intégrée" in t and pg.locator("textarea[aria-label='Ta séance en une phrase']").count() == 1)
+    pg.fill("textarea[aria-label='Ta séance en une phrase']", "une heure et demie en no gi, 5 rounds, un peu fatigué")
+    pg.locator("button", has_text="Remplir le formulaire").click(); pg.wait_for_timeout(300)
+    t = content(pg)
+    check("iPhone + Chrome : formulaire rempli depuis la phrase", "Rempli automatiquement" in t and "1 h 30" in t and "No-gi" in t and "5 rounds" in t)
+    check("iPhone + Chrome : aucune erreur JavaScript", not errs)
+    c.close()
+    # ---------------- 1c. Dictée intégrée muette (aucun son reçu) : bascule automatique vers le clavier
+    MUTE = "class MuteRec { start(){ setTimeout(()=>{ this.onstart && this.onstart() }, 20) } stop(){ setTimeout(()=>{ this.onend && this.onend() }, 20) } abort(){ setTimeout(()=>{ this.onend && this.onend() }, 10) } } window.SpeechRecognition = MuteRec;"
+    m = Mock(student_ctx(), dict(docs)); pg, errs = open_page(b, m, UID, "Yanis", extra=MUTE)
+    pg.locator("button", has_text="Saisir ma séance").first.click(); pg.wait_for_timeout(600)
+    pg.locator("button", has_text="Raconter ma séance à l'oral").click(); pg.wait_for_timeout(9000)
+    check("Dictée muette : bascule vers le micro du clavier avec explication", "ne répond pas sur ce téléphone" in content(pg) and pg.locator("textarea[aria-label='Ta séance en une phrase']").count() == 1)
+    pg.context.close()
+
     # ---------------- 2. Lien de notification (?go=prog)
     m = Mock(student_ctx(), dict(docs)); pg, errs = open_page(b, m, UID, "Yanis", path="/?go=prog")
     check("?go=prog ouvre Progression et nettoie l'adresse", "Séances par semaine" in content(pg) and "go=" not in pg.url)
