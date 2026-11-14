@@ -14,6 +14,7 @@ import { fetchContext, switchAcademy, teamOn, type UzuContext } from "@/lib/uzu/
 import { can, isStaff, isSuspended } from "@/lib/uzu/permissions"
 import { AthleteHome, AthleteLog } from "@/components/uzu/athlete"
 import { JournalForm } from "@/components/uzu/journal-form"
+import { AthleteProgress, AthleteTechniques } from "@/components/uzu/progress"
 import { syncPending } from "@/lib/uzu/journal"
 import { Check, X } from "lucide-react"
 
@@ -198,6 +199,8 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
         {space === "club" && isSuspended(ctx) ? <Suspended />
           : space === "athlete" && composing ? <JournalForm uid={session.user.id} ctx={ctx} onCancel={() => setComposing(false)} onDone={m => { setComposing(false); setActive("log"); showToast(m); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={name} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
+          : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick} uid={session.user.id} ctx={ctx} />
+          : space === "athlete" && current?.id === "progress" ? <AthleteProgress key={"p" + syncTick} uid={session.user.id} ctx={ctx} />
           : space === "athlete" && current?.id === "log" ? <AthleteLog key={"l" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
       </div>

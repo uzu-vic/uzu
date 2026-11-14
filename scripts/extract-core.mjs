@@ -32,6 +32,9 @@ const ROOTS = [
   // stockage et synchronisation (mêmes corps de documents que l'ancienne application)
   "memberBody", "privBody", "coachBody", "mergeStates", "unionById", "applyGrade",
   "allSessions", "me", "isSolo", "normCoach", "myEvents", "feedEnabled",
+  // progression (vues Parcours et Progrès)
+  "sysStats", "gmSysSum", "skillList", "subStats", "gmStats", "prepaStats", "actStats", "skillMeta", "lvMap",
+  "beltLabel", "stripesTxt", "duration", "tw", "tg", "REVIEW_DAYS", "weekStart", "effortName", "isPending", "mat", "frShort", "frDate",
 ]
 // Variables d'exécution réglables depuis la nouvelle application (même rôle que dans l'ancienne)
 const SETTABLE = ["state", "pendingDel", "mode", "role", "myRoll", "myGrade", "priv", "privHydrated", "dirty", "ACCT"]

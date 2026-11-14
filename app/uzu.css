@@ -116,3 +116,75 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
   .uzu-rpe { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .toast-message { font-size: 13px; }
 }
+
+/* Techniques et Progression */
+.uzu-muted { color: #8a827b; }
+.uzu-small { font-size: 12px; }
+.uzu-section { margin: 26px 0 10px; }
+.uzu-grid-gap { margin-top: 15px; }
+.uzu-panel-col { display: flex; flex-direction: column; gap: 10px; }
+.uzu-stars { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 1px; color: #ddd4cc; font-size: 15px; letter-spacing: 1px; }
+.uzu-stars i { font-style: normal; }
+.uzu-stars i.on { color: #941b2b; }
+.uzu-stars em { margin-left: 6px; padding: 2px 6px; border-radius: 5px; background: #fbefe3; color: #8a5a1f; font-size: 11px; font-style: normal; letter-spacing: 0; }
+.uzu-belt-card { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px; }
+.uzu-belt-head { display: flex; align-items: center; gap: 18px; }
+.uzu-belt-head .uzu-h2 { margin: 6px 0 4px; }
+.uzu-belt-head .uzu-text { margin: 0; }
+.uzu-note { margin: 0; padding: 10px 12px; border-radius: 8px; background: #f6f2ec; color: #5f5851; font-size: 13px; line-height: 1.5; }
+.uzu-note.wait { background: #fbf3e6; color: #7a5420; }
+.uzu-note.ok { background: #eef3ec; color: #45604b; }
+.uzu-ladder { display: flex; width: 100%; flex-direction: column; margin: 4px 0 0; padding: 0; list-style: none; border-top: 1px solid #f0ece7; }
+.uzu-ladder li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 58px; border-bottom: 1px solid #f0ece7; }
+.uzu-ladder li.future { opacity: .6; }
+.uzu-ladder b { display: block; font-size: 13px; }
+.uzu-ladder small { color: #8a827b; font-size: 12px; }
+.uzu-pill { padding: 4px 8px; border-radius: 6px; background: #f5f2ed; color: #837a72; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.uzu-pill.done { background: #eef3ec; color: #45604b; }
+.uzu-pill.now { background: #f5eae9; color: #941b2b; }
+.uzu-belt-form { display: flex; width: 100%; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid #efe9e3; border-radius: 10px; background: #fbfaf8; }
+.uzu-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.uzu-systems { display: flex; flex-direction: column; gap: 10px; }
+.uzu-sys { padding: 0; }
+.uzu-sys > summary { display: flex; min-height: 56px; align-items: center; gap: 10px; padding: 0 16px; cursor: pointer; list-style: none; }
+.uzu-sys > summary::-webkit-details-marker { display: none; }
+.uzu-sys > summary b { flex: 1; font-size: 14px; font-weight: 600; }
+.uzu-sys[open] > summary svg { transform: rotate(180deg); }
+.uzu-sys > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.uzu-sys > .uzu-skill-list { margin-bottom: 12px; }
+.uzu-sys .progress-track { margin-bottom: 10px; }
+.uzu-pct { color: #941b2b; font-family: Georgia, serif; font-size: 18px; }
+.uzu-dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: #941b2b; }
+.uzu-dot.sd-lutte { background: #941b2b; } .uzu-dot.sd-controle { background: #3d3835; } .uzu-dot.sd-jambes { background: #b79a73; } .uzu-dot.sd-fond { background: #8b9b83; }
+.uzu-skill-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.uzu-skill-list li { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f2ede8; font-size: 13px; }
+.uzu-skill-list li:last-child { border-bottom: 0; }
+.uzu-skill-list li > span:first-child { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.uzu-skill-list small { color: #8a827b; font-size: 12px; }
+.uzu-ency { margin-top: 10px; }
+.uzu-duo-track { display: flex; height: 8px; overflow: hidden; border-radius: 8px; background: #efe9e3; }
+.uzu-duo-track .a { background: #941b2b; } .uzu-duo-track .b { background: #c9b8b0; }
+.uzu-duo-legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; margin-top: 6px; color: #6f6861; font-size: 12px; }
+.uzu-duo-legend i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; }
+.uzu-duo-legend i.a { background: #941b2b; } .uzu-duo-legend i.b { background: #c9b8b0; }
+.uzu-top { display: flex; flex-direction: column; margin: 4px 0 0; padding: 0; list-style: none; }
+.uzu-top li { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid #f2ede8; font-size: 13px; }
+.uzu-top li span { display: flex; min-width: 0; flex-direction: column; }
+.uzu-top small { color: #8a827b; font-size: 12px; }
+.uzu-chart-panel { margin-top: 15px; }
+.uzu-chart-panel .bar-chart { margin-bottom: 20px; }
+.uzu-forme { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
+.uzu-forme i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; }
+.uzu-forme i.ok { background: #6c8d71; } .uzu-forme i.fat { background: #c5a77f; } .uzu-forme i.pain { background: #b42318; }
+.uzu-medals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.uzu-medals span { display: flex; flex-direction: column; align-items: center; padding: 10px 6px; border-radius: 8px; background: #f8f4f0; color: #6f6861; font-size: 12px; }
+.uzu-medals b { font-family: Georgia, serif; font-size: 24px; font-weight: 400; color: #171717; }
+.uzu-medals .or b { color: #a77d12; } .uzu-medals .argent b { color: #6f7378; } .uzu-medals .bronze b { color: #8a5a35; }
+.uzu-res { font-size: 12px; } .uzu-res.or { color: #a77d12; } .uzu-res.argent { color: #6f7378; } .uzu-res.bronze { color: #8a5a35; }
+@media (max-width: 680px) {
+  .uzu-belt-head { gap: 12px; }
+  .uzu-chart-panel .bar-group > span { font-size: 10px; }
+  .uzu-chart-panel .bar-group > small { font-size: 11px; }
+}
+.uzu-chart-panel .bar-chart { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.uzu-sublabel { display: flex; align-items: center; gap: 5px; }

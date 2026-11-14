@@ -220,3 +220,23 @@ export async function syncPending(uid: string, ctx: UzuContext | null): Promise<
   if (!L.hydrated) return false
   return commit(uid, L)
 }
+
+/** État complet du carnet pour l'affichage (mêmes données que l'ancienne application). */
+export async function loadCore(uid: string, ctx: UzuContext | null): Promise<{ core: Core; role: "teacher" | "student" | "solo"; hydrated: boolean; pending: boolean; grade: Any }> {
+  const L = await prepare(uid, ctx)
+  return { core: L.core, role: L.role, hydrated: L.hydrated, pending: L.dirty, grade: L.grade }
+}
+
+/** Déclaration de ceinture (bouton « bSave » de l'ancienne application) :
+ *  équipe ou compte solo → mise à jour directe ; élève de club → demande envoyée au professeur. */
+export async function declareBelt(uid: string, ctx: UzuContext | null, nb: { rank: string; stripes: number; since: string }): Promise<SaveResult & { direct?: boolean }> {
+  try {
+    const L = await prepare(uid, ctx)
+    const C = L.core, state = C.__get("state")
+    const direct = L.role === "teacher" || C.isSolo()
+    if (direct) state.belt = { rank: nb.rank, stripes: nb.stripes, since: nb.since || "" }
+    else state.request = { rank: nb.rank, stripes: nb.stripes, since: nb.since || "", at: new Date().toISOString() }
+    const synced = await commit(uid, L)
+    return { ok: true, synced, item: direct ? state.belt : state.request, direct }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
+}
