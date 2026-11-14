@@ -40,3 +40,32 @@
   .mobile-bottom-nav button span { font-size: 12px; }
   .mobile-switcher button { font-size: 12px; }
 }
+
+/* Espace Athlete — compléments */
+.uzu-caption { white-space: normal; }
+.uzu-belt { display: inline-flex; width: 44px; height: 12px; flex: 0 0 auto; overflow: hidden; border: 1px solid #2a292a; border-radius: 2px; }
+.uzu-belt > span:first-child { flex: 1; }
+.uzu-belt-bar { display: flex; width: 34%; align-items: stretch; justify-content: space-evenly; padding: 1px 2px; }
+.uzu-belt-bar i { width: 2px; background: rgb(255 255 255 / 22%); }
+.uzu-belt-bar i.on { background: #fff; }
+.uzu-belt--large { width: 64px; height: 18px; }
+.rank-card .text-link { align-self: flex-start; margin-top: 4px; }
+.uzu-recent-row { grid-template-columns: 32px minmax(130px,1fr) 110px 60px; }
+.uzu-month { margin-bottom: 22px; }
+.recent-section .uzu-panel { margin-top: 8px; }
+a.button { text-decoration: none; }
+@media (max-width: 680px) {
+  .uzu-recent-row { grid-template-columns: 29px minmax(100px,1fr) 70px; }
+  .uzu-recent-row .recent-duration { display: none; }
+  .uzu-recent-row .recent-date { display: block; font-size: 12px; }
+  .recent-description strong, .session-card-top h3 { font-size: 13px; }
+  .recent-description small, .session-meta, .metric-top, .metric-footer { font-size: 12px; }
+  .session-label { font-size: 11px; }
+  .timeline-title h2 { font-size: 17px; }
+  .timeline-title > span { font-size: 12px; }
+}
+.athlete-hero + .uzu-banner, .athlete-hero + .uzu-banner + .metric-grid { margin-top: 16px; }
+@media (max-width: 680px) {
+  .subnav-tabs button { font-size: 13px; }
+  .page-heading > .button { font-size: 12px; }
+}

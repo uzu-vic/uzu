@@ -12,6 +12,7 @@ import { CONFIG_OK } from "@/lib/uzu/env"
 import { uzu } from "@/lib/uzu/client"
 import { fetchContext, switchAcademy, teamOn, type UzuContext } from "@/lib/uzu/context"
 import { can, isStaff, isSuspended } from "@/lib/uzu/permissions"
+import { AthleteHome, AthleteLog } from "@/components/uzu/athlete"
 
 type Space = "athlete" | "club"
 type IconType = typeof Dumbbell
@@ -174,7 +175,10 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
         {ctxError && <div className="uzu-banner uzu-banner--error" role="alert">Impossible de lire votre contexte : {ctxError} <button className="text-link" onClick={onReload}>Réessayer</button></div>}
         {notice && <div className="uzu-banner uzu-banner--error" role="alert">{notice}</div>}
         {ctx && !teamOn(ctx) && <div className="uzu-banner">La base de cet environnement n'a pas la migration « équipe » : affichage en mode simplifié.</div>}
-        {space === "club" && isSuspended(ctx) ? <Suspended /> : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
+        {space === "club" && isSuspended(ctx) ? <Suspended />
+          : space === "athlete" && current?.id === "home" ? <AthleteHome uid={session.user.id} ctx={ctx} name={name} onNavigate={go} />
+          : space === "athlete" && current?.id === "log" ? <AthleteLog uid={session.user.id} ctx={ctx} />
+          : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
       </div>
     </div>
     <nav className="mobile-bottom-nav" aria-label="Navigation mobile">
