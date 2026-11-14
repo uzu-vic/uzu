@@ -8,6 +8,7 @@ import type { UzuContext } from "@/lib/uzu/context"
 import { compResult, durTxt, frDate, nextClasses, normSched, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd, type Session } from "@/lib/uzu/training"
 import { useTraining } from "@/components/uzu/athlete"
 import { SessionDetail } from "@/components/uzu/session-detail"
+import { CombatMapCard, useFullSessions } from "@/components/uzu/combat-map"
 
 const DSHORT = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"]
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -134,6 +135,7 @@ const seasonStart = (d: Date) => new Date(d.getMonth() >= 8 ? d.getFullYear() : 
 
 export function AthleteStats({ uid, ctx, onCompose }: { uid: string; ctx: UzuContext | null; onCompose: () => void }) {
   const { data, error, reload } = useTraining(uid, ctx)
+  const full = useFullSessions(uid, ctx)
   const [period, setPeriod] = useState<Period>("season")
   const today = dayOf(new Date())
   const st = useMemo(() => {
@@ -171,7 +173,7 @@ export function AthleteStats({ uid, ctx, onCompose }: { uid: string; ctx: UzuCon
     const rep: [string, number][] = [["Gi", 0], ["No-gi", 0], ["Open mat", 0], ["Prépa physique", 0]]
     P.forEach(s => { const i = isPrepa(s) ? 3 : s.kind === "open" ? 2 : /no.?gi/i.test(s.type || "") ? 1 : 0; rep[i][1]++ })
     const delta = (a: number, b: number, unit = "") => (period === "all" ? "" : a - b > 0 ? `+${a - b}${unit}` : a - b < 0 ? `${a - b}${unit}` : "=")
-    return { label, P, Q, mins, qMins, pWeeks: pWeeks.size, nWeeks, cur, best, last8, pct, ML, rep, delta }
+    return { label, P, Q, mins, qMins, pWeeks: pWeeks.size, nWeeks, cur, best, last8, pct, ML, rep, delta, fromS: ymd(from), toS: ymd(to) }
   }, [data, period]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const heading = <div className="page-heading"><div><Eyebrow>VOS REPÈRES{st ? <><span className="eyebrow-dot" />{st.label}</> : null}</Eyebrow><h1>Les chiffres racontent<span className="heading-period">.</span></h1><p>Une pratique régulière, mesurée à votre façon.</p></div>
@@ -193,6 +195,7 @@ export function AthleteStats({ uid, ctx, onCompose }: { uid: string; ctx: UzuCon
       <Metric label="Semaines actives" value={String(st.pWeeks)} unit={`/ ${st.nWeeks}`} delta={`${Math.round(st.pWeeks / st.nWeeks * 100)} %`} caption="des semaines de la période" icon={Flame} bars={st.last8.map(x => (x.n ? 90 : 12))} />
       <Metric label="Série en cours" value={String(st.cur)} unit={st.cur > 1 ? "semaines" : "semaine"} delta={`Record : ${st.best}`} caption="semaines d'affilée" icon={Award} bars={st.last8.map(x => (x.n ? 90 : 12))} />
     </div>
+    {full ? <CombatMapCard C={full.C} S={full.S} from={st.fromS} to={st.toS} /> : <div className="uzu-banner" aria-busy="true">Calcul de ta carte de combat…</div>}
     <section className="panel stats-chart-panel">
       <div className="panel-header"><div className="section-title"><h2>La régularité dans le temps</h2></div><span className="uzu-muted uzu-small">Par mois</span></div>
       {(() => { const n = st.ML.reduce((a, m) => a + m.n, 0); return <div className="chart-summary"><strong>{n}<span> séance{n > 1 ? "s" : ""}</span></strong><span>sur {st.ML.length === 12 && period === "all" ? "les 12 derniers" : st.ML.length} mois</span></div> })()}

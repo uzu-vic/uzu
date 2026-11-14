@@ -409,3 +409,17 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-detail > p { margin: 0; color: #3c3632; font-size: 13.5px; line-height: 1.55; }
 .uzu-detail > p.uzu-det-title { margin: 4px 0 12px; font-size: 16px; }
 .uzu-detail h4 { color: #171717; font-family: Georgia, serif; font-size: 15px; font-weight: 400; }
+/* Carte de combat */
+.uzu-map-grid { display: grid; grid-template-columns: minmax(260px, 380px) 1fr; gap: 18px; align-items: start; width: 100%; }
+@media (max-width: 760px) { .uzu-map-grid { grid-template-columns: 1fr; } }
+.uzu-radar { width: 100%; max-width: 380px; height: auto; margin: 0 auto; overflow: visible; }
+.uzu-radar-ring { fill: none; stroke: #ece6df; stroke-width: 1; }
+.uzu-radar-axis { stroke: #ece6df; stroke-width: 1; }
+.uzu-radar-area { fill: #941b2b2e; stroke: #941b2b; stroke-width: 2; stroke-linejoin: round; }
+.uzu-radar-dot { fill: #941b2b; stroke: #fff; stroke-width: 1.5; } .uzu-radar-dot.off { fill: #c9c1b8; }
+.uzu-radar-lbl { fill: #3c3632; font-size: 13px; font-weight: 600; } .uzu-radar-lbl.off { fill: #a39b94; font-weight: 500; }
+.uzu-map-lists { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.uzu-sublabel.uzu-good { color: #45604b; } .uzu-sublabel.uzu-bad { color: #941b2b; }
+.uzu-sublabel { display: inline-flex; align-items: center; gap: 5px; }
+.uzu-remind { width: 100%; padding: 12px 14px; border-radius: 8px; background: #fbf3e6; }
+.uzu-remind .uzu-top li { border-color: #f0e2cc; }

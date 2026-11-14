@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUpRight, Award, CalendarDays, Clock3, Dumbbell, Flame,
 import { deleteEntry, loadCore } from "@/lib/uzu/journal"
 import { loadVideos, videoUrl } from "@/lib/uzu/videos"
 import { Stars } from "@/components/uzu/progress"
+import { ReminderCard } from "@/components/uzu/combat-map"
 import type { UzuContext } from "@/lib/uzu/context"
 import {
   beltColor, beltName, compResult, durTxt, frDate, loadTraining, nextClasses, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd,
@@ -171,6 +172,7 @@ function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: 
       <ul className="uzu-skill-list">{review.slice(0, 3).map(i => <li key={i.name}><span><b>{i.name}</b><small>{core.agoTxt(i.days)}</small></span><Stars lvl={i.lvl} /></li>)}</ul>
       <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("progress")}>Voir mes techniques</button>
     </section>}
+    {core && <ReminderCard C={core} S={core.allSessions().filter((x: { sample?: boolean }) => !x.sample)} onOpen={() => onNavigate("stats")} />}
     {solo && <section className="panel uzu-panel-col uzu-grid-gap"><div className="eyebrow">CARNET SOLO</div>
       <p className="uzu-text">Tu t'entraînes dans un club ? Relie ton carnet : ton prof validera tes ceintures et tes techniques ★★★. Tout ton historique te suit.</p>
       <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("profile")}>J'ai un code d'invitation</button></section>}
