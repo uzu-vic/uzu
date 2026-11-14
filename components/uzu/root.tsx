@@ -1,4 +1,5 @@
 "use client"
+import { UzuMark } from "@/components/uzu/mark"
 // Point d'entrée de la nouvelle application UZU (lot 1 — socle).
 // Les écrans pas encore portés renvoient vers l'ancienne application (/legacy/),
 // qui partage la même session et la même base.
@@ -123,10 +124,10 @@ export function UzuRoot() {
   }, [ctx, uid, booted])
 
   if (!CONFIG_OK) return <ConfigMissing />
-  if (!ready) return <div className="uzu-splash" aria-busy="true"><span className="brand-glyph">U</span></div>
+  if (!ready) return <div className="uzu-splash" aria-busy="true"><UzuMark size={52} /></div>
   if (!session) return <Login />
   if (recovery) return <Recovery onDone={() => { setRecovery(false); setFlash("Mot de passe modifié.") }} />
-  if (ctx && !ctxError && (welcome === "" || welcome === "check")) return <div className="uzu-splash" aria-busy="true"><span className="brand-glyph">U</span></div>
+  if (ctx && !ctxError && (welcome === "" || welcome === "check")) return <div className="uzu-splash" aria-busy="true"><UzuMark size={52} /></div>
   if (welcome === "show" && ctx) {
     const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>
     return <Welcome initialName={String(meta.name || "")} onLogout={() => { uzu().auth.signOut() }} onSubmit={async p => { const r = await giveConsent(session.user.id, ctx, p); if (!r.ok) return r.msg; setWelcome("ok"); setFlash("Bienvenue sur UZU"); return "" }} />
@@ -208,7 +209,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
 
   return <main className={`app-shell ${menuOpen ? "mobile-menu-open" : ""}`}>
     <aside className="sidebar">
-      <div className="sidebar-top"><div className="brand-mark" aria-label="UZU"><span className="brand-glyph">U</span><span className="brand-word">UZU</span></div><button className="icon-button sidebar-collapse uzu-only-mobile" aria-label="Fermer le menu" onClick={() => setMenuOpen(false)}><Menu size={17} /></button></div>
+      <div className="sidebar-top"><div className="brand-mark" aria-label="UZU"><UzuMark /><span className="brand-word">UZU</span></div><button className="icon-button sidebar-collapse uzu-only-mobile" aria-label="Fermer le menu" onClick={() => setMenuOpen(false)}><Menu size={17} /></button></div>
       {staff && <div className="space-picker" aria-label="Choisir un espace">
         <button className={`space-option ${space === "athlete" ? "is-selected" : ""}`} onClick={() => changeSpace("athlete")} aria-pressed={space === "athlete"}><span className="space-option-icon"><UserRound size={15} /></span><span>Athlete</span></button>
         <button className={`space-option ${space === "club" ? "is-selected" : ""}`} onClick={() => changeSpace("club")} aria-pressed={space === "club"}><span className="space-option-icon"><ShieldCheck size={15} /></span><span>Club</span></button>
@@ -228,7 +229,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
     </aside>
     <div className="workspace">
       <header className="topbar"><div className="topbar-crumb"><span>UZU</span><span className="crumb-slash">/</span><span>{space === "athlete" ? "ATHLETE" : "CLUB"}</span><span className="crumb-slash">/</span><strong>{current?.label.toUpperCase()}</strong></div><div className="topbar-actions"><BellButton unread={notifs.unread} onClick={openNotifs} /></div></header>
-      <div className="mobile-space-bar"><button className="mobile-menu-trigger" aria-label="Ouvrir la navigation" onClick={() => setMenuOpen(true)}><Menu size={19} /></button><div className="brand-mark brand-mark--compact"><span className="brand-glyph">U</span><span className="brand-word">UZU</span></div><span className="uzu-mobile-bell"><BellButton unread={notifs.unread} onClick={openNotifs} /></span>{staff && <div className="mobile-switcher"><button onClick={() => changeSpace(space === "athlete" ? "club" : "athlete")}>{space === "athlete" ? "Athlete" : "Club"}<ChevronDown size={13} /></button></div>}</div>
+      <div className="mobile-space-bar"><button className="mobile-menu-trigger" aria-label="Ouvrir la navigation" onClick={() => setMenuOpen(true)}><Menu size={19} /></button><div className="brand-mark brand-mark--compact"><UzuMark /><span className="brand-word">UZU</span></div><span className="uzu-mobile-bell"><BellButton unread={notifs.unread} onClick={openNotifs} /></span>{staff && <div className="mobile-switcher"><button onClick={() => changeSpace(space === "athlete" ? "club" : "athlete")}>{space === "athlete" ? "Athlete" : "Club"}<ChevronDown size={13} /></button></div>}</div>
       <div className="page-content">
         {ctxError && <div className="uzu-banner uzu-banner--error" role="alert">Impossible de lire votre contexte : {ctxError} <button className="text-link" onClick={onReload}>Réessayer</button></div>}
         {notice && <div className="uzu-banner uzu-banner--error" role="alert">{notice}</div>}

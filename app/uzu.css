@@ -372,3 +372,10 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-path.primary { border-color: #941b2b; background: #941b2b; color: #fff; } .uzu-path.primary small { color: #f5e6e8; }
 .uzu-feat { display: flex; flex-direction: column; gap: 8px; padding-left: 18px; }
 .uzu-flash { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; border-color: #c9dccb; background: #eef3ec; color: #2f4a35; }
+/* Logo tourbillon : rouge UZU sur fond sombre, bordeaux de la charte sur fond clair */
+.uzu-mark { flex: none; display: block; color: #941B2B; }
+.sidebar .uzu-mark { color: #E8283F; }
+.uzu-splash .uzu-mark { color: #941B2B; animation: uzu-spin 1.6s linear infinite; }
+@keyframes uzu-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .uzu-splash .uzu-mark { animation: none; } }
+.uzu-login-brand .uzu-mark { width: 34px; height: 34px; }
