@@ -379,3 +379,11 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 @keyframes uzu-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .uzu-splash .uzu-mark { animation: none; } }
 .uzu-login-brand .uzu-mark { width: 34px; height: 34px; }
+/* Slogan */
+.uzu-brand-block { display: flex; flex-direction: column; gap: 6px; }
+.uzu-slogan { color: #941B2B; font-family: Georgia, serif; font-size: 13px; font-style: italic; letter-spacing: .01em; }
+.sidebar .uzu-slogan { padding-left: 2px; color: #b9aea4; font-size: 12px; }
+.uzu-login .uzu-brand-block { margin-bottom: 14px; }
+.uzu-splash-in { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.uzu-brand-compact { gap: 1px; } .uzu-brand-compact .uzu-slogan { padding-left: 36px; font-size: 10.5px; line-height: 1.1; }
+.uzu-brand-block .uzu-login-brand { margin-bottom: 0; }

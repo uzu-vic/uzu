@@ -18,7 +18,7 @@ const AGES: [string, string][] = [["lt16", "Moins de 16 ans"], ["16-17", "16-17 
 const SEXES: [string, string][] = [["h", "Homme"], ["f", "Femme"], ["a", "Autre"]]
 const ROLE_LBL: Record<string, string> = { owner: "Responsable", section_lead: "Responsable de section", instructor: "Professeur", assistant: "Assistant" }
 
-function Brand() { return <div className="uzu-login-brand"><UzuMark /><span className="uzu-login-word">UZU</span></div> }
+function Brand() { return <div className="uzu-brand-block"><div className="uzu-login-brand"><UzuMark /><span className="uzu-login-word">UZU</span></div><span className="uzu-slogan">The mat doesn&apos;t lie</span></div> }
 
 export function Login() {
   const [path, setPath] = useState<Path>("home")
