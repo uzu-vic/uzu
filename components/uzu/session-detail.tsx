@@ -1,7 +1,8 @@
 "use client"
 // Aperçu d'une séance en lecture seule (même contenu que la fiche séance de l'ancienne application).
 import { useEffect, useRef, useState } from "react"
-import { Pencil, X } from "lucide-react"
+import { Download, Pencil, Share2, X } from "lucide-react"
+import { storyCanvas } from "@/lib/uzu/story"
 import type { UzuContext } from "@/lib/uzu/context"
 import { loadSessionDetail } from "@/lib/uzu/journal"
 import { Stars } from "@/components/uzu/progress"
@@ -11,7 +12,7 @@ type Any = any
 const durTxt = (m: number) => { const h = Math.floor(m / 60), r = m % 60; return h ? `${h} h${r ? " " + String(r).padStart(2, "0") : ""}` : `${r} min` }
 const pl = (n: number, w: string) => `${n} ${w}${n > 1 ? "s" : ""}`
 
-export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete }: { uid: string; ctx: UzuContext | null; id: string; onClose: () => void; onEdit: (id: string) => void; onComplete: () => void }) {
+export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete, saved }: { uid: string; ctx: UzuContext | null; id: string; onClose: () => void; onEdit: (id: string) => void; onComplete: () => void; saved?: boolean }) {
   const [d, setD] = useState<{ core: Any; s: Any } | null | "none">(null)
   const closeRef = useRef(onClose); closeRef.current = onClose
   useEffect(() => {
@@ -25,6 +26,7 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete }: { u
     if (d === null) return <p className="uzu-text uzu-muted" aria-busy="true">Chargement de la séance…</p>
     if (d === "none") return <p className="uzu-text">Séance introuvable.</p>
     const C = d.core, s = d.s, pp = C.isPrepa(s)
+    const streak = C.streakDays(C.allSessions().filter((x: Any) => !x.sample), s.date)
     const blocks: Any[] = pp ? [] : C.sessBlocks(s).filter((x: Any) => x.tech || x.sys)
     const subs: Any[] = pp ? [] : C.subsOf(s)
     const gm = pp ? {} : C.gmOf(s), gl: string[] = []
@@ -33,6 +35,7 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete }: { u
     const cu: Any[] = pp ? [] : C.normCustoms(s.customs)
     const title = pp ? "Prépa physique · " + C.effortName(s) : s.kind === "open" ? "Open mat" : (blocks.length > 1 ? blocks.map(b => b.tech || C.SYSTEMS[b.sys]?.n).join(" · ") : s.theme) || (s.roll ? "Cours du club" : "Séance")
     return <>
+      {saved && <p className="uzu-note ok">{streak > 1 ? `Série : ${streak} jours d'affilée sur le tatami.` : "Bravo, une séance de plus dans ton carnet."}</p>}
       <p className="uzu-det-title"><b>{title}</b>{s.roll && <em className="uzu-rolltag">Appel du prof</em>}</p>
       <dl className="uzu-det">
         <dt>Date</dt><dd>{C.parse(s.date).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</dd>
@@ -50,6 +53,7 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete }: { u
       {cu.length > 0 && <><h4>Techniques perso</h4><ul className="uzu-det-list">{cu.map((c, i) => <li key={i}><span>{c.n} (profil {String(C.OPP_PROFILES[c.p] || "").toLowerCase()})</span></li>)}</ul></>}
       {!pp && s.prepa && <><h4>Bloc prépa physique</h4><p className="uzu-text">{durTxt(+s.prepa.dur || 0)} · {C.EFFORTS[s.prepa.effort] || C.EFFORTS.force}{+s.prepa.rpe ? ` · RPE ${+s.prepa.rpe}/10` : ""}</p>{s.prepa.exos && <p className="uzu-text uzu-pre">{s.prepa.exos}</p>}</>}
       {s.note && <><h4>Note privée</h4><p className="uzu-text uzu-pre">{s.note}</p></>}
+      {!s.roll && !s.sample && <StoryBox C={C} s={s} />}
       <div className="uzu-actions uzu-actions--start uzu-det-acts">
         {s.roll ? <button className="button button--dark uzu-small-btn" onClick={onComplete}>Compléter ma séance</button>
           : !s.sample && <button className="button button--outline uzu-small-btn" onClick={() => onEdit(s.id)}><Pencil size={14} />Modifier cette séance</button>}
@@ -60,9 +64,38 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete }: { u
   return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
     <section className="invite-modal uzu-notif uzu-detail" role="dialog" aria-modal="true" aria-labelledby="det-title">
       <button className="icon-button modal-close" onClick={onClose} aria-label="Fermer"><X size={18} /></button>
-      <div className="eyebrow">APERÇU · LECTURE SEULE</div>
+      <div className="eyebrow">{saved ? "SÉANCE ENREGISTRÉE ✓" : "APERÇU · LECTURE SEULE"}</div>
       <h2 id="det-title">Séance du {d && d !== "none" ? d.core.frShort(d.s.date) : "…"}</h2>
       {body}
     </section>
+  </div>
+}
+
+/** Image à partager en Story (Instagram, WhatsApp…) : partage direct, téléchargement ou copie. */
+function StoryBox({ C, s }: { C: Any; s: Any }) {
+  const [img, setImg] = useState<{ url: string; blob: Blob; file: File | null } | null>(null)
+  const [msg, setMsg] = useState("")
+  useEffect(() => () => { if (img) URL.revokeObjectURL(img.url) }, [img])
+  const make = () => {
+    const c = storyCanvas(C, s, C.allSessions())
+    c.toBlob(blob => {
+      if (!blob) { setMsg("Image indisponible sur cet appareil"); return }
+      let file: File | null = null
+      try { file = new File([blob], `uzu-seance-${s.date}.png`, { type: "image/png" }) } catch { /* ancien navigateur */ }
+      setImg({ url: URL.createObjectURL(blob), blob, file })
+    }, "image/png")
+  }
+  if (!img) return <button type="button" className="button button--outline uzu-small-btn uzu-story-btn" onClick={make}><Share2 size={14} />Partager (Story)</button>
+  const canShare = !!(img.file && typeof navigator !== "undefined" && navigator.canShare && navigator.canShare({ files: [img.file] }))
+  const canCopy = typeof navigator !== "undefined" && !!navigator.clipboard && typeof ClipboardItem !== "undefined"
+  return <div className="uzu-story">
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src={img.url} alt="Aperçu de ta Story UZU" />
+    <div className="uzu-actions uzu-actions--start">
+      {canShare && <button type="button" className="button button--dark uzu-small-btn" onClick={() => navigator.share({ files: [img.file!], title: "UZU — The mat doesn't lie" }).catch(() => {})}><Share2 size={14} />Partager en Story</button>}
+      <a className="button button--outline uzu-small-btn" href={img.url} download={`uzu-seance-${s.date}.png`}><Download size={14} />Télécharger l&apos;image</a>
+      {canCopy && <button type="button" className="button button--outline uzu-small-btn" onClick={() => navigator.clipboard.write([new ClipboardItem({ "image/png": img.blob })]).then(() => setMsg("Image copiée : colle-la dans ta Story"), () => setMsg("Copie impossible : télécharge l'image"))}>Copier l&apos;image</button>}
+    </div>
+    {msg && <p className="uzu-text uzu-small uzu-muted" role="status">{msg}</p>}
   </div>
 }

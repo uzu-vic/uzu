@@ -32,7 +32,7 @@ const GMDIRS: [string, string][] = [["placed", "Placé"], ["suffered", "Subi"]]
 const FORMES: [string, string][] = [["ok", "En forme"], ["fatigue", "Fatigué"], ["douleur", "Douleur / blessé"]]
 const RESULTS: [string, string][] = [["or", "Or"], ["argent", "Argent"], ["bronze", "Bronze"], ["aucun", "Sans podium"]]
 
-export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string; ctx: UzuContext | null; onDone: (msg: string) => void; onCancel: () => void; edit?: { kind: "s" | "c"; id: string } | null }) {
+export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string; ctx: UzuContext | null; onDone: (msg: string, savedId?: string) => void; onCancel: () => void; edit?: { kind: "s" | "c"; id: string } | null }) {
   const C = useMemo(() => newCore(), [])
   const today = C.ymd(C.TODAY) as string
   const [mode, setMode] = useState<"session" | "comp">("session")
@@ -112,7 +112,7 @@ export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string;
       if (!r.ok) { setError(r.msg); return }
       const hurt = f.forme === "douleur"
       onDone(!r.synced ? "Séance enregistrée sur ce téléphone. Elle sera synchronisée dès le retour du réseau."
-        : edit ? "Séance modifiée" : hurt ? "Séance enregistrée. Ménage-toi si la douleur persiste." : "Séance enregistrée")
+        : edit ? "Séance modifiée" : hurt ? "Séance enregistrée. Ménage-toi si la douleur persiste." : "Séance enregistrée", edit ? "" : String(r.item?.id || ""))
     } else {
       const r = edit ? await updateComp(uid, ctx, edit.id, cf, { date: cDate, event: cEvent }) : await addComp(uid, ctx, cf, { date: cDate, event: cEvent })
       setBusy(false)

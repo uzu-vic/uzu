@@ -29,6 +29,10 @@ def handle(route):
     r = route.request; u = r.url; q = up.parse_qs(up.urlparse(u).query)
     ok = lambda body, st=200: route.fulfill(status=st, content_type="application/json", body=json.dumps(body))
     if "/rpc/get_my_context" in u: return ok(CTX)
+    if "/rest/v1/docs" in u and r.method == "POST":
+        bd = json.loads(r.post_data); bd = bd if isinstance(bd, list) else [bd]
+        for x in bd: DOCS[x["path"]] = x["data"]
+        return ok([], 201)
     if "/rest/v1/docs" in u:
         p = q.get("path", [""])[0]
         if p.startswith("like."): return ok([])
@@ -64,6 +68,10 @@ with sync_playwright() as p:
         dt = pg.inner_text(".uzu-detail")
         check(f"[{name}] Aperçu : séance complète en lecture seule", "LECTURE SEULE" in dt and "1 h 30 sur le tatami" in dt and "Rounds\n5" in dt.replace("\t", "\n") and "Lutte & Scrambles" in dt and "Clé de bras · placée × 2" in dt and "3 réussies" in dt)
         check(f"[{name}] Aperçu : état et note privée de l'élève, aucun champ modifiable", "Fatigué" in dt and "Genou un peu sensible" in dt and pg.locator(".uzu-detail input, .uzu-detail textarea, .uzu-detail select").count() == 0)
+        pg.locator(".uzu-detail button", has_text="Partager (Story)").click(); pg.wait_for_timeout(1200)
+        src = pg.locator(".uzu-story img").get_attribute("src") or ""
+        size = pg.evaluate("() => { const i = document.querySelector('.uzu-story img'); return [i.naturalWidth, i.naturalHeight] }")
+        check(f"[{name}] Story : image 1080 × 1920 générée, téléchargeable {size}", src.startswith("blob:") and size == [1080, 1920] and pg.locator(".uzu-story a[download]").count() == 1)
         pg.locator(".uzu-detail button", has_text="Fermer").last.click(); pg.wait_for_timeout(300)
         check(f"[{name}] Aperçu : fermeture sans rien enregistrer", pg.locator(".uzu-detail").count() == 0)
         pg.locator(".session-card", has_text="Appel du club").locator("button", has_text="Aperçu").click(); pg.wait_for_timeout(800)
@@ -92,6 +100,14 @@ with sync_playwright() as p:
         pg.select_option("select[aria-label='Période']", "all"); pg.wait_for_timeout(300)
         check(f"[{name}] Stats depuis le début : 7 séances", pg.locator(".stats-metrics .metric-main strong").first.inner_text() == "7")
         pg.screenshot(path=f"/tmp/stats_{name}.png", full_page=True)
+        if name == "mobile":
+            pg.locator(".mobile-bottom-nav button", has_text="Accueil").click(); pg.wait_for_timeout(800)
+            pg.locator("button", has_text="Saisir ma séance").first.click(); pg.wait_for_timeout(600)
+            pg.locator("button[type=submit]").click(); pg.wait_for_timeout(2000)
+            dt = pg.inner_text(".uzu-detail") if pg.locator(".uzu-detail").count() else ""
+            check(f"[{name}] Après saisie : fiche « Séance enregistrée ✓ » avec partage en Story", "SÉANCE ENREGISTRÉE ✓" in dt and "Partager (Story)" in dt)
+            pg.locator(".uzu-detail button", has_text="Partager (Story)").click(); pg.wait_for_timeout(1200)
+            pg.locator(".uzu-story img").screenshot(path="/tmp/story.png")
         check(f"[{name}] aucune erreur JavaScript", not errs); print("   ", errs)
         c.close()
     b.close()

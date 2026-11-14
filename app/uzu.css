@@ -423,3 +423,6 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-sublabel { display: inline-flex; align-items: center; gap: 5px; }
 .uzu-remind { width: 100%; padding: 12px 14px; border-radius: 8px; background: #fbf3e6; }
 .uzu-remind .uzu-top li { border-color: #f0e2cc; }
+.uzu-story-btn { margin-top: 14px; }
+.uzu-story { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.uzu-story img { width: 160px; max-width: 50%; border-radius: 10px; box-shadow: 0 8px 26px #0002; }

@@ -29,9 +29,12 @@ type Tab = "next" | "journal" | "comps" | "calendar"
 export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialTab }: { uid: string; ctx: UzuContext | null; initialTab?: string; onCompose: () => void; onEdit: (kind: "s" | "c", id: string) => void; onToast: (m: string) => void }) {
   const { data, error, reload } = useTraining(uid, ctx)
   const solo = !ctx?.club || ctx.role === "solo"
-  const [tab, setTab] = useState<Tab>(initialTab === "journal" || initialTab === "comps" || initialTab === "calendar" ? initialTab : solo ? "journal" : "next")
+  const it = (initialTab || "").split(":")[0]
+  const [tab, setTab] = useState<Tab>(it === "journal" || it === "comps" || it === "calendar" ? it : solo ? "journal" : "next")
   const [confirm, setConfirm] = useState("")
-  const [view, setView] = useState("")
+  // Après une nouvelle saisie : fiche « Séance enregistrée ✓ » avec partage en Story (comme l'ancienne application)
+  const [view, setView] = useState((initialTab || "").split(":")[1] || "")
+  const [saved, setSaved] = useState(!!(initialTab || "").split(":")[1])
   const now = new Date()
   const del = async (kind: "s" | "c", id: string) => {
     if (confirm !== kind + id) { setConfirm(kind + id); window.setTimeout(() => setConfirm(c => (c === kind + id ? "" : c)), 3500); return }
@@ -42,7 +45,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
     reload()
   }
   const Acts = ({ kind, id, roll }: { kind: "s" | "c"; id: string; roll?: boolean }) => <div className="uzu-acts" onClick={e => e.stopPropagation()}>
-    {kind === "s" && <button type="button" onClick={() => setView(id)} aria-label="Aperçu"><Eye size={14} /><span>Aperçu</span></button>}
+    {kind === "s" && <button type="button" onClick={() => { setSaved(false); setView(id) }} aria-label="Aperçu"><Eye size={14} /><span>Aperçu</span></button>}
     {!roll && <><button type="button" onClick={() => onEdit(kind, id)} aria-label="Modifier"><Pencil size={14} /><span>Modifier</span></button>
     <button type="button" className={confirm === kind + id ? "danger" : ""} onClick={() => del(kind, id)} aria-label="Supprimer"><Trash2 size={14} /><span>{confirm === kind + id ? "Confirmer" : "Supprimer"}</span></button></>}
   </div>
@@ -81,7 +84,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
       {tab === "journal" && (months.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Votre journal est vide pour l'instant.</p><button className="button button--dark" onClick={onCompose}><Plus size={15} />Saisir ma première séance</button></div>
         : months.map(([k, list]) => <section key={k} className="uzu-month">
           <div className="timeline-title"><h2>{cap(parseYmd(k + "-01").toLocaleDateString("fr-FR", { month: "long", year: "numeric" }))}</h2><span>{list.length} séance{list.length > 1 ? "s" : ""} · {durTxt(list.reduce((a, s) => a + (Number(s.dur) || 0), 0))}</span></div>
-          <div className="session-list">{list.map(s => <article className="session-card uzu-clickable" key={s.id} role="button" tabIndex={0} aria-label={`Aperçu de la séance du ${frDate(s.date, { day: "numeric", month: "long" })}`} onClick={() => setView(s.id)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setView(s.id) } }}>
+          <div className="session-list">{list.map(s => <article className="session-card uzu-clickable" key={s.id} role="button" tabIndex={0} aria-label={`Aperçu de la séance du ${frDate(s.date, { day: "numeric", month: "long" })}`} onClick={() => { setSaved(false); setView(s.id) }} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setView(s.id) } }}>
             <div className="session-date"><span>{parseYmd(s.date).toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase()}</span><strong>{parseYmd(s.date).getDate()}</strong></div>
             <span className={`session-marker session-marker--${isPrepa(s) ? "sand" : s.roll ? "dark" : "wine"}`} />
             <div className="session-main"><div className="session-card-top"><h3>{sessionTitle(s)}</h3><span className={`session-label session-label--${s.roll ? "plain" : "soon"}`}>{sessionKind(s)}</span></div>
@@ -101,7 +104,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
 
       {tab === "calendar" && <CalendarWeek sessions={data.sessions} schedule={solo ? [] : ctx?.club?.schedule} />}
     </>}
-    {view && <SessionDetail uid={uid} ctx={ctx} id={view} onClose={() => setView("")} onEdit={id => { setView(""); onEdit("s", id) }} onComplete={() => { setView(""); onCompose() }} />}
+    {view && <SessionDetail uid={uid} ctx={ctx} id={view} saved={saved} onClose={() => { setView(""); setSaved(false) }} onEdit={id => { setView(""); onEdit("s", id) }} onComplete={() => { setView(""); onCompose() }} />}
   </>
 }
 

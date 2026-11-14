@@ -40,7 +40,7 @@ const ROOTS = [
   // espace Club : fiche élève, grades, appels
   "gradeHist", "count3", "bestStars", "medalsOf", "mergeRoll", "rollToSession", "asP", "topSys", "beltShort", "beltIdx", "skillsFromSessions",
   // dictée vocale, accueil, bilan d'activité
-  "parseVoice", "vSnap", "reviewList", "agoTxt", "FORME_TXT", "ageIdx",
+  "parseVoice", "vSnap", "reviewList", "agoTxt", "FORME_TXT", "ageIdx", "streakDays",
 ]
 // Variables d'exécution réglables depuis la nouvelle application (même rôle que dans l'ancienne)
 const SETTABLE = ["state", "pendingDel", "mode", "role", "myRoll", "myGrade", "priv", "privHydrated", "dirty", "ACCT", "feedDocs", "myUid"]
