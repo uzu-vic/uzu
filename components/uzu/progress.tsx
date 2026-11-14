@@ -33,7 +33,7 @@ function Loading({ error, onRetry }: { error: string; onRetry: () => void }) {
   if (error) return <div className="uzu-banner uzu-banner--error" role="alert">Lecture impossible : {error} <button className="text-link" onClick={onRetry}>Réessayer</button></div>
   return <div className="uzu-banner" aria-busy="true">Chargement…</div>
 }
-function Stars({ lvl, review }: { lvl: number; review?: boolean }) {
+export function Stars({ lvl, review }: { lvl: number; review?: boolean }) {
   return <span className="uzu-stars" aria-label={`${lvl} étoile${lvl > 1 ? "s" : ""} sur 3${review ? ", à réviser" : ""}`}>
     {[1, 2, 3].map(i => <i key={i} className={i <= lvl ? "on" : ""}>★</i>)}{review && <em>À réviser</em>}</span>
 }
@@ -44,12 +44,12 @@ export function BeltMark({ rank, stripes, size = 44 }: { rank: string; stripes: 
     <span className="uzu-belt-bar" style={{ background: bar }}>{[0, 1, 2, 3].map(i => <i key={i} className={i < stripes ? "on" : ""} />)}</span>
   </span>
 }
-function Bar({ a, b, la, lb }: { a: number; b: number; la: string; lb: string }) {
+export function Bar({ a, b, la, lb }: { a: number; b: number; la: string; lb: string }) {
   const t = a + b
   return <div className="uzu-duo"><div className="uzu-duo-track"><span className="a" style={{ width: `${t ? a / t * 100 : 0}%` }} /><span className="b" style={{ width: `${t ? b / t * 100 : 0}%` }} /></div>
     <div className="uzu-duo-legend"><span><i className="a" />{la} <b>{a}</b></span><span><i className="b" />{lb} <b>{b}</b></span></div></div>
 }
-function TopList({ rows, empty }: { rows: [string, number][]; empty: string }) {
+export function TopList({ rows, empty }: { rows: [string, number][]; empty: string }) {
   if (!rows.length) return <p className="uzu-text uzu-muted">{empty}</p>
   return <ul className="uzu-top">{rows.map(([n, v]) => <li key={n}><span>{n}</span><b>{v}</b></li>)}</ul>
 }

@@ -59,3 +59,4 @@ La construction échoue si le code extrait touche à l'écran, au stockage ou au
 | `python3 tests/athlete_mock_e2e.py` | Accueil et Carnet, Supabase simulé |
 | `python3 tests/progress_mock_e2e.py` | Techniques et Progression, données riches |
 | `python3 tests/social_e2e.py` | Fil du club, profil, modification et suppression |
+| `python3 tests/club_mock_e2e.py` | Espace Club : accès selon les droits, appel, fiche élève, notes pédagogiques, ★★★, retrait, grades |

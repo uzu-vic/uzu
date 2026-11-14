@@ -223,3 +223,67 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-setting strong { font-size: 14px; }
 .uzu-setting small { font-size: 12px; line-height: 1.5; }
 @media (max-width: 680px) { .uzu-profile-head { align-items: flex-start; } .uzu-big strong { font-size: 28px; } }
+
+/* ---------- Espace Club (lot 3) ---------- */
+.uzu-metric-btn { width: 100%; border: 1px solid transparent; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.uzu-metric-btn:hover { border-color: #e3ddd6; }
+.uzu-metric-btn.is-hot strong { color: #941b2b; }
+.uzu-qa { display: flex; flex-wrap: wrap; gap: 8px; }
+.uzu-qa .button { margin: 0; }
+.uzu-invite { display: flex; flex-direction: column; gap: 8px; width: 100%; padding-top: 8px; }
+.uzu-wide { width: 100%; justify-content: center; }
+.uzu-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.uzu-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; margin: 6px 0; }
+.uzu-counts--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.uzu-counts > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; background: #f5f2ed; }
+.uzu-counts b { color: #171717; font-size: 20px; font-weight: 650; }
+.uzu-counts small { color: #777; font-size: 12px; }
+@media (max-width: 560px) { .uzu-counts--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.uzu-roll-tools { display: flex; width: 100%; align-items: center; gap: 8px; }
+.uzu-search { position: relative; display: flex; flex: 1; width: 100%; align-items: center; }
+.uzu-search svg { position: absolute; left: 12px; color: #8a827b; pointer-events: none; }
+.uzu-search .uzu-input { padding-left: 34px; }
+.uzu-roll { display: flex; flex-direction: column; width: 100%; margin: 4px 0; padding: 0; list-style: none; }
+.uzu-roll li { display: flex; min-height: 56px; align-items: center; gap: 10px; border-bottom: 1px solid #f2ede8; }
+.uzu-roll li:last-child { border-bottom: 0; }
+.uzu-av { display: grid; flex: none; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #f5f2ed; color: #5b534c; font-size: 12px; font-weight: 650; }
+.uzu-roll-n { display: flex; min-width: 0; flex: 1; flex-direction: column; font-size: 14px; }
+.uzu-roll-n small { color: #8a827b; font-size: 12px; }
+.uzu-roll-btns { display: flex; flex: none; gap: 6px; }
+.uzu-roll-btns button { min-width: 74px; min-height: 40px; border: 1px solid #e3ddd6; border-radius: 8px; background: #fff; color: #4b4540; font-size: 13px; font-weight: 550; }
+.uzu-roll-btns button.pres { border-color: #45604b; background: #45604b; color: #fff; }
+.uzu-roll-btns button.abs { border-color: #941b2b; background: #941b2b; color: #fff; }
+.uzu-roll-btns button:disabled { opacity: .55; }
+.uzu-req { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 12px 0; border-bottom: 1px solid #f2ede8; }
+.uzu-req:last-child { border-bottom: 0; }
+.uzu-req-head { display: flex; flex-direction: column; gap: 2px; }
+.uzu-req-head small { color: #777; font-size: 12.5px; }
+.uzu-req-chg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #6f6861; font-size: 13px; }
+.uzu-req-chg b { color: #171717; }
+.uzu-fiche { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: #fbfaf8; font-size: 13px; }
+.uzu-actions--start { justify-content: flex-start; }
+.uzu-inline-belt { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.uzu-hbars { display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 0; padding: 0; list-style: none; }
+.uzu-hbars li { display: grid; grid-template-columns: minmax(110px, 40%) 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
+.uzu-hbars b { text-align: right; }
+.uzu-hbar { height: 8px; overflow: hidden; border-radius: 4px; background: #f2ede8; }
+.uzu-hbar i { display: block; height: 100%; border-radius: 4px; background: #941b2b; }
+.uzu-plist { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.uzu-pcard { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #ece6df; border-radius: 10px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.uzu-pcard:hover { border-color: #c8b3ad; }
+.uzu-pc-main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.uzu-pc-main small { color: #8a827b; font-size: 12px; }
+.uzu-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; }
+.uzu-tabs { overflow-x: auto; flex-wrap: nowrap; margin-bottom: 12px; }
+.uzu-tabs button { flex: none; }
+.uzu-danger { color: #941b2b !important; }
+.uzu-chips--static { display: flex; flex-wrap: wrap; gap: 6px; }
+.uzu-rolltag { margin-left: 6px; padding: 1px 6px; border-radius: 5px; background: #f5eae9; color: #941b2b; font-size: 11px; font-style: normal; font-weight: 600; }
+.uzu-pre { white-space: pre-line; }
+.uzu-skill-acts { display: flex; flex: none; align-items: center; gap: 8px; }
+.uzu-notes { display: flex; flex-direction: column; gap: 10px; width: 100%; margin: 0; padding: 0; list-style: none; }
+.uzu-notes li { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; border: 1px solid #efe9e3; border-radius: 8px; }
+.uzu-note-h { display: flex; align-items: center; gap: 8px; }
+.uzu-note-h small { color: #8a827b; font-size: 12px; }
+.uzu-top li span.uzu-ev { display: block; min-width: 0; padding: 6px 0; }
+.uzu-top li > small { flex: none; color: #8a827b; font-size: 12px; }

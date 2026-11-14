@@ -37,6 +37,8 @@ const ROOTS = [
   "beltLabel", "stripesTxt", "duration", "tw", "tg", "REVIEW_DAYS", "weekStart", "effortName", "isPending", "mat", "frShort", "frDate",
   // modification d'une séance, fil du club, profil
   "subsOf", "gmOf", "actOf", "kindOf", "feedItems", "feedStats", "checkCount", "feedWhen", "AGES", "SEXES", "ordFr",
+  // espace Club : fiche élève, grades, appels
+  "gradeHist", "count3", "bestStars", "medalsOf", "mergeRoll", "rollToSession", "asP", "topSys", "beltShort", "beltIdx", "skillsFromSessions",
 ]
 // Variables d'exécution réglables depuis la nouvelle application (même rôle que dans l'ancienne)
 const SETTABLE = ["state", "pendingDel", "mode", "role", "myRoll", "myGrade", "priv", "privHydrated", "dirty", "ACCT", "feedDocs", "myUid"]

@@ -17,6 +17,8 @@ import { JournalForm } from "@/components/uzu/journal-form"
 import { AthleteProgress, AthleteTechniques } from "@/components/uzu/progress"
 import { AthleteFeed, AthleteProfile } from "@/components/uzu/social"
 import { syncPending } from "@/lib/uzu/journal"
+import { ClubAttendance, ClubHome, ClubProgress } from "@/components/uzu/club"
+import { ClubStudents } from "@/components/uzu/club-students"
 import { Check, X } from "lucide-react"
 
 type Space = "athlete" | "club"
@@ -36,10 +38,11 @@ const athleteNav: NavItem[] = [
 
 function clubNav(ctx: UzuContext | null): NavItem[] {
   const items: (NavItem & { show: boolean })[] = [
-    { id: "home", label: "Accueil", icon: LayoutDashboard, legacy: "prof", show: true },
-    { id: "attendance", label: "Présences", icon: CheckCircle2, legacy: "prof", show: can(ctx, "attendance", "view") },
+    // Mêmes règles d'accès aux onglets que l'ancienne application (tabAllowed)
+    { id: "home", label: "Accueil", icon: LayoutDashboard, legacy: "prof", show: can(ctx, "dashboard", "view") },
+    { id: "attendance", label: "Présences", icon: CheckCircle2, legacy: "prof", show: can(ctx, "attendance", "view") || can(ctx, "attendance", "create") },
     { id: "students", label: "Élèves", icon: Users, legacy: "prof", show: can(ctx, "students", "view") },
-    { id: "progress", label: "Progression", icon: TrendingUp, legacy: "prof", show: can(ctx, "belts", "view") || can(ctx, "progression", "view") },
+    { id: "progress", label: "Progression", icon: TrendingUp, legacy: "prof", show: can(ctx, "progression", "view") || can(ctx, "belts", "view") || can(ctx, "belts", "create") },
     { id: "courses", label: "Cours", icon: CalendarDays, legacy: "prof", show: can(ctx, "schedule", "view") || can(ctx, "courses", "view") },
     { id: "team", label: "Équipe", icon: GraduationCap, legacy: "prof", show: can(ctx, "instructors", "view") },
     { id: "academy", label: "Mon académie", icon: ShieldCheck, legacy: "prof", show: true },
@@ -158,7 +161,8 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
   const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>
   const name = String(meta.name || meta.full_name || session.user.email || "Utilisateur")
   const memberships = (ctx?.memberships ?? []).filter(m => m.status === "active")
-  const go = (id: string) => { setActive(id); setMenuOpen(false); setComposing(false); setEditing(null) }
+  const [navArg, setNavArg] = useState("")
+  const go = (id: string, arg = "") => { setActive(id); setNavArg(arg); setMenuOpen(false); setComposing(false); setEditing(null); window.scrollTo(0, 0) }
   const changeSpace = (s: Space) => { setSpace(s); setActive("home"); setMenuOpen(false); setComposing(false) }
 
   const onSwitch = async (academyId: string) => {
@@ -206,6 +210,10 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
           : space === "athlete" && current?.id === "log" ? <AthleteLog key={"l" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} onEdit={(kind, id) => { setEditing({ kind, id }); setComposing(true); window.scrollTo(0, 0) }} onToast={showToast} />
           : space === "athlete" && current?.id === "feed" ? <AthleteFeed key={"f" + syncTick} uid={session.user.id} ctx={ctx} onToast={showToast} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "profile" ? <AthleteProfile key={"pr" + syncTick} session={session} ctx={ctx} onToast={showToast} />
+          : space === "club" && teamOn(ctx) && current?.id === "home" ? <ClubHome key={"ch" + ctx?.club?.id} uid={session.user.id} ctx={ctx} name={name} onToast={showToast} onNavigate={go} />
+          : space === "club" && teamOn(ctx) && current?.id === "attendance" ? <ClubAttendance key={"ca" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} />
+          : space === "club" && teamOn(ctx) && current?.id === "students" ? <ClubStudents key={"cs" + ctx?.club?.id + navArg} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} initialFilter={navArg} />
+          : space === "club" && teamOn(ctx) && current?.id === "progress" ? <ClubProgress key={"cp" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} />
           : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
       </div>
     </div>
