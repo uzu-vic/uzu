@@ -13,7 +13,7 @@ results=[]
 def check(label, cond, got=""):
     results.append((label,bool(cond))); print(("OK    " if cond else "ÉCHEC ")+label+("" if cond else f"  → {got}"))
 def run(pw, role, offline=False):
-    docs={f"members/{UID}":{"name":"Yanis","acct":"club","sessions":[{"id":"old1","date":d(5),"cat":"jjb","type":"Gi","dur":90,"theme":"Takedowns","sys":"lutte"}],"belt":{"rank":"noire"}},
+    docs={f"members/{UID}":{"consent":{"at":"2026-01-01T00:00:00Z","share":True},"name":"Yanis","acct":"club","sessions":[{"id":"old1","date":d(5),"cat":"jjb","type":"Gi","dur":90,"theme":"Takedowns","sys":"lutte"}],"belt":{"rank":"noire"}},
           f"data/users/{UID}/private":{"s":{"old1":{"n":"ancienne note","f":"ok"}}},
           f"grades/{UID}":{"rank":"bleue","stripes":2,"since":"2026-03-01"},
           f"data/users/{UID}/training":{"sessions":[{"id":"t1","date":d(3),"cat":"jjb","dur":60,"theme":"Wrestle-up"}]}}

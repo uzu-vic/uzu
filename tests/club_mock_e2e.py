@@ -19,7 +19,7 @@ CLUB = {"id": "c1", "name": "Académie de test", "invite_code": "TEST2026",
         "schedule": [{"id": "x1", "d": WD, "s": "00:01", "e": "23:59", "t": "JJB Gi adultes"}, {"id": "x2", "d": WD, "s": "00:00", "e": "23:58", "t": "Grappling"}],
         "tactical_focus": {"weekTheme": "Front headlock", "focusFrom": "lutte", "focusTo": "controle", "focusDetails": "Snap down puis guillotine"}, "profile": {}}
 def ctx(role="owner", perms=None, team=True):
-    c = {"role": "coach" if role == "owner" else "student", "share_activity": False, "club": CLUB}
+    c = {"role": "student" if role == "student" else "coach", "share_activity": False, "club": CLUB}
     if team:
         c.update({"academy_role": role, "member_status": "active", "member_id": "m0", "section_id": None, "perms": perms,
                   "memberships": [{"academy_id": "c1", "name": CLUB["name"], "role": role, "status": "active"}]})

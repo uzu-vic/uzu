@@ -412,3 +412,33 @@ export async function createClubFromSolo(name: string, code: string): Promise<{ 
   if (error) return { ok: false, msg: error.message }
   return { ok: true, code: String((data as Any)?.invite_code || code) }
 }
+
+// ---------- Première ouverture : accord sur les données (écran de bienvenue de l'ancienne application) ----------
+/** Applique le profil saisi à l'inscription (« uzu-signup ») s'il existe ; renvoie true si l'accord est (désormais) enregistré. */
+export async function ensureConsent(uid: string, ctx: UzuContext | null): Promise<boolean> {
+  if (legacyRole(ctx) === "teacher") return true
+  const L = await prepare(uid, ctx)
+  const C = L.core, state = C.__get("state")
+  if (state.consent || !L.hydrated) return true // hors ligne : on ne redemande jamais un accord peut-être déjà donné
+  let su: Any = null
+  try { su = JSON.parse(localStorage.getItem("uzu-signup") || "null") } catch { /* rien */ }
+  if (!su || !su.name) return false
+  try { localStorage.removeItem("uzu-signup") } catch { /* rien */ }
+  state.name = String(su.name).slice(0, 40)
+  if (su.demo) state.demo = { age: C.ageIdx(su.demo.age) > -1 ? su.demo.age : "", sex: C.SEXES[su.demo.sex] ? su.demo.sex : "" }
+  if (su.acct === "solo") state.acct = "solo"
+  state.consent = { at: String(su.at || new Date().toISOString()), share: state.acct !== "solo", parental: !!su.parental }
+  await commit(uid, L)
+  return true
+}
+export async function giveConsent(uid: string, ctx: UzuContext | null, p: { name: string; age: string; sex: string; parental: boolean }): Promise<SaveResult> {
+  try {
+    const L = await prepare(uid, ctx)
+    const state = L.core.__get("state")
+    state.consent = { at: new Date().toISOString(), share: true, parental: p.age === "lt16" }
+    state.demo = { age: p.age, sex: p.sex }
+    state.name = p.name.trim().slice(0, 40)
+    const synced = await commit(uid, L)
+    return { ok: true, synced, item: null }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
+}

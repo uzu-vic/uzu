@@ -18,7 +18,7 @@ def club():
             "schedule": [{"id": "x1", "d": 1, "s": "19:00", "e": "20:30", "t": "JJB Gi adultes"}, {"id": "x2", "d": 3, "s": "18:00", "e": "19:00", "t": "Grappling"}],
             "tactical_focus": {}, "profile": {"desc": "", "addr": "", "contact": "", "disc": ["jjb"]}}
 def ctx(role="owner", perms=None):
-    return {"role": "coach" if role == "owner" else "student", "share_activity": False, "club": club(), "academy_role": role, "member_status": "active",
+    return {"role": "student" if role == "student" else "coach", "share_activity": False, "club": club(), "academy_role": role, "member_status": "active",
             "member_id": "m0", "section_id": None, "perms": perms, "memberships": [{"academy_id": "c1", "name": "Académie de test", "role": role, "status": "active"}]}
 TEAM = {"members": [
     {"id": "m0", "user_id": UID, "role": "owner", "status": "active", "section_id": None, "name": "Paul Prof", "email": "prof@test.fr", "joined_at": d(300) + "T10:00:00Z", "is_me": True, "courses": 1, "last_activity": None, "perms": None, "students": []},

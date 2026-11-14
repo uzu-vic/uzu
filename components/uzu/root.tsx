@@ -21,6 +21,9 @@ import { ClubAttendance, ClubHome, ClubProgress } from "@/components/uzu/club"
 import { ClubStudents } from "@/components/uzu/club-students"
 import { ClubAcademy, ClubContents, ClubCourses, ClubTeam } from "@/components/uzu/club-admin"
 import { BellButton, NotifCenter, useNotifs } from "@/components/uzu/notifications"
+import { Login, Recovery, Welcome } from "@/components/uzu/auth-screens"
+import { PENDING, acceptInvitation, captureInviteToken, cleanInviteUrl, dropInviteToken, inviteToken } from "@/lib/uzu/auth"
+import { createClubFromSolo, ensureConsent, giveConsent } from "@/lib/uzu/journal"
 import { Check, X } from "lucide-react"
 
 type Space = "athlete" | "club"
@@ -68,17 +71,18 @@ export function UzuRoot() {
   const [ctx, setCtx] = useState<UzuContext | null>(null)
   const [ctxError, setCtxError] = useState("")
 
-  // Liens existants de l'ancienne application (invitation, notification) : transmis tels quels.
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search)
-    if (q.has("invite")) window.location.replace(LEGACY + window.location.search)
-  }, [])
+  // Lien d'invitation d'équipe (?invite=) : jeton gardé sur le téléphone, accepté après la connexion
+  useState(() => { if (typeof window !== "undefined") captureInviteToken(); return 0 })
+  useEffect(() => { const t = window.setTimeout(cleanInviteUrl, 0); return () => window.clearTimeout(t) }, [])
+  const [recovery, setRecovery] = useState(false)
+  const [flash, setFlash] = useState("")
+  const [welcome, setWelcome] = useState<"" | "check" | "show" | "ok">("")
 
   useEffect(() => {
     if (!CONFIG_OK) { setReady(true); return }
     const sb = uzu()
     sb.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true) })
-    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data: sub } = sb.auth.onAuthStateChange((ev, s) => { if (ev === "PASSWORD_RECOVERY") setRecovery(true); setSession(s) })
     return () => sub.subscription.unsubscribe()
   }, [])
 
@@ -87,50 +91,54 @@ export function UzuRoot() {
     try { setCtx(await fetchContext()) } catch (e) { setCtxError((e as Error).message) }
   }, [])
 
-  useEffect(() => { if (session) loadCtx(); else setCtx(null) }, [session, loadCtx])
+  const uid = session?.user.id || ""
+  useEffect(() => { if (uid) loadCtx(); else { setCtx(null); setWelcome("") } }, [uid, loadCtx])
+
+  // Après la connexion, une seule fois : club en attente de création, invitation d'équipe, accord sur les données.
+  const [booted, setBooted] = useState("")
+  useEffect(() => {
+    if (!ctx || !uid || booted === uid) return
+    setBooted(uid)
+    ;(async () => {
+      let c: UzuContext = ctx
+      const refresh = async () => { try { c = await fetchContext(); setCtx(c) } catch { /* contexte précédent conservé */ } }
+      let pend: { name?: string; code?: string } | null = null
+      try { pend = JSON.parse(localStorage.getItem(PENDING) || "null") } catch { /* rien */ }
+      if (pend && pend.name && ctx.role === "solo") {
+        try { localStorage.removeItem(PENDING) } catch { /* rien */ }
+        const r = await createClubFromSolo(pend.name, pend.code || "")
+        setFlash(r.ok ? `${pend.name} est créé. Donne ce code invitation à tes élèves : ${r.code}. Ils l'indiquent à l'inscription ou depuis leur carnet solo (Mon profil) pour te rejoindre avec tout leur historique.`
+          : `Création du club impossible : ${r.msg} Ton compte est ouvert en carnet solo : tu peux recréer ton club depuis Mon profil.`)
+        if (r.ok) await refresh()
+      }
+      const tk = inviteToken()
+      if (tk && teamOn(c)) {
+        const r = await acceptInvitation(tk); dropInviteToken()
+        setFlash(r.ok ? `Bienvenue dans l'équipe : tu fais maintenant partie de l'équipe de ${r.club}. Tes accès ont été définis par le responsable de l'académie.` : `Invitation non acceptée : ${r.msg}`)
+        if (r.ok) await refresh()
+      }
+      setWelcome("check")
+      try { setWelcome(await ensureConsent(uid, c) ? "ok" : "show") } catch { setWelcome("ok") }
+    })()
+  }, [ctx, uid, booted])
 
   if (!CONFIG_OK) return <ConfigMissing />
   if (!ready) return <div className="uzu-splash" aria-busy="true"><span className="brand-glyph">U</span></div>
   if (!session) return <Login />
-  return <Shell session={session} ctx={ctx} ctxError={ctxError} onReload={loadCtx} onCtx={setCtx} />
+  if (recovery) return <Recovery onDone={() => { setRecovery(false); setFlash("Mot de passe modifié.") }} />
+  if (ctx && !ctxError && (welcome === "" || welcome === "check")) return <div className="uzu-splash" aria-busy="true"><span className="brand-glyph">U</span></div>
+  if (welcome === "show" && ctx) {
+    const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>
+    return <Welcome initialName={String(meta.name || "")} onLogout={() => { uzu().auth.signOut() }} onSubmit={async p => { const r = await giveConsent(session.user.id, ctx, p); if (!r.ok) return r.msg; setWelcome("ok"); setFlash("Bienvenue sur UZU"); return "" }} />
+  }
+  return <Shell session={session} ctx={ctx} ctxError={ctxError} onReload={loadCtx} onCtx={setCtx} flash={flash} onFlashClose={() => setFlash("")} />
 }
 
 function ConfigMissing() {
   return <main className="uzu-center"><section className="uzu-card"><span className="modal-icon"><ShieldCheck size={20} /></span><h1 className="uzu-title">Configuration manquante<span className="heading-period">.</span></h1><p className="uzu-text">Cet environnement n'a pas de projet Supabase défini (NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY).</p></section></main>
 }
 
-function Login() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState("")
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (busy) return
-    setBusy(true); setError("")
-    const { error: err } = await uzu().auth.signInWithPassword({ email: email.trim(), password })
-    if (err) setError(err.message === "Invalid login credentials" ? "Adresse ou mot de passe incorrect." : err.message)
-    setBusy(false)
-  }
-  return <main className="uzu-center uzu-login">
-    <section className="uzu-card">
-      <div className="uzu-login-brand"><span className="brand-glyph">U</span><span className="uzu-login-word">UZU</span></div>
-      <div className="eyebrow">ATHLETE &amp; CLUB</div>
-      <h1 className="uzu-title">Bon retour sur le tatami<span className="heading-period">.</span></h1>
-      <form className="uzu-form" onSubmit={submit}>
-        <label htmlFor="uzu-email">Adresse e-mail</label>
-        <input id="uzu-email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} />
-        <label htmlFor="uzu-password">Mot de passe</label>
-        <input id="uzu-password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} />
-        {error && <p className="uzu-error" role="alert">{error}</p>}
-        <button className="button button--dark uzu-submit" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Connexion…" : <>Se connecter<ArrowRight size={16} /></>}</button>
-      </form>
-      <p className="uzu-text uzu-small">Pas encore de compte, mot de passe oublié ou code club ? <a href={LEGACY}>Continuer dans l'application actuelle</a>.</p>
-    </section>
-  </main>
-}
-
-function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; ctx: UzuContext | null; ctxError: string; onReload: () => void; onCtx: (c: UzuContext) => void }) {
+function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }: { session: Session; ctx: UzuContext | null; ctxError: string; onReload: () => void; onCtx: (c: UzuContext) => void; flash: string; onFlashClose: () => void }) {
   const staff = isStaff(ctx)
   const [space, setSpace] = useState<Space>("athlete")
   const [active, setActive] = useState("home")
@@ -224,6 +232,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
       <div className="page-content">
         {ctxError && <div className="uzu-banner uzu-banner--error" role="alert">Impossible de lire votre contexte : {ctxError} <button className="text-link" onClick={onReload}>Réessayer</button></div>}
         {notice && <div className="uzu-banner uzu-banner--error" role="alert">{notice}</div>}
+        {flash && <div className="uzu-banner uzu-flash" role="status"><span>{flash}</span><button className="icon-button" aria-label="Fermer le message" onClick={onFlashClose}><X size={15} /></button></div>}
         {ctx && !teamOn(ctx) && <div className="uzu-banner">La base de cet environnement n'a pas la migration « équipe » : affichage en mode simplifié.</div>}
         {space === "club" && isSuspended(ctx) ? <Suspended />
           : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={m => { setComposing(false); setEditing(null); setActive("log"); showToast(m); window.scrollTo(0, 0) }} />

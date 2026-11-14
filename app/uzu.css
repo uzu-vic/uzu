@@ -361,3 +361,14 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
   body.uzu-print-bilan .uzu-bilan { position: absolute; top: 0; left: 0; width: 100%; border: 0; }
   .uzu-sexbar span, .uzu-pyr span, .uzu-sexleg i { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* Accès : inscription et bienvenue */
+.uzu-form select { height: 44px; padding: 0 10px; border: 1px solid #e5dfd8; border-radius: 7px; background: #fbfaf8; color: #292522; font-size: 16px; }
+.uzu-form .uzu-check-row input { width: 18px; height: 18px; padding: 0; }
+.uzu-form label.uzu-check-row { margin-top: 8px; font-weight: 500; }
+.uzu-form .uzu-seg button { min-height: 40px; }
+.uzu-paths { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.uzu-path { display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; border: 1px solid #e5dfd8; border-radius: 10px; background: #fbfaf8; color: #292522; font: inherit; text-align: left; cursor: pointer; }
+.uzu-path b { font-size: 15px; } .uzu-path small { color: #777; font-size: 12.5px; line-height: 1.4; }
+.uzu-path.primary { border-color: #941b2b; background: #941b2b; color: #fff; } .uzu-path.primary small { color: #f5e6e8; }
+.uzu-feat { display: flex; flex-direction: column; gap: 8px; padding-left: 18px; }
+.uzu-flash { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; border-color: #c9dccb; background: #eef3ec; color: #2f4a35; }

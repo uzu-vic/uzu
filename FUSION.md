@@ -59,6 +59,7 @@ La construction échoue si le code extrait touche à l'écran, au stockage ou au
 | `python3 tests/athlete_mock_e2e.py` | Accueil et Carnet, Supabase simulé |
 | `python3 tests/progress_mock_e2e.py` | Techniques et Progression, données riches |
 | `python3 tests/social_e2e.py` | Fil du club, profil, modification et suppression |
+| `python3 tests/auth_e2e.py` | Connexion, création de compte (solo, rejoindre, créer un club), mot de passe oublié et nouveau mot de passe, lien d'invitation d'équipe, écran de bienvenue |
 | `python3 tests/lot3c_e2e.py` | Accueil complet, notifications et liens ?go=, dictée vocale, carnet solo (rejoindre, créer), suppression des données, vidéos, bilan d'activité |
 | `python3 tests/club_admin_e2e.py` | Espace Club : cours et encadrement, équipe (invitations, rôles, droits sensibles, affectations), contenus, Mon académie, quitter |
 | `python3 tests/club_mock_e2e.py` | Espace Club : accès selon les droits, appel, fiche élève, notes pédagogiques, ★★★, retrait, grades |

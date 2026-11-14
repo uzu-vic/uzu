@@ -11,7 +11,7 @@ T=date.today(); d=lambda n: (T-timedelta(days=n)).isoformat()
 wd=(T.weekday()+1)%7+1  # demain (1=lundi)
 CTX={"role":"student","share_activity":False,"academy_role":"student","member_status":"active","member_id":"m1","section_id":None,"perms":None,"memberships":[{"academy_id":"c1","name":"AG Academie","role":"student","status":"active"}],
      "club":{"id":"c1","name":"AG Academie","schedule":[{"id":"x1","d":wd,"s":"19:00","e":"20:30","t":"JJB Gi"}],"tactical_focus":{},"profile":{}}}
-DOCS={f"members/{UID}":{"sessions":[{"id":"u1","date":d(3),"cat":"jjb","type":"Gi","dur":90,"theme":"Takedowns","sys":"lutte","rounds":5},{"id":"u2","date":d(40),"cat":"prepa","effort":"cardio","dur":45,"rpe":7}],"comps":[{"id":"c1","date":d(20),"event":"Open de l'Essonne","type":"No-gi","result":"bronze","wins":2,"losses":1}],"belt":{"rank":"noire"}},
+DOCS={f"members/{UID}":{"consent":{"at":"2026-01-01T00:00:00Z","share":True},"sessions":[{"id":"u1","date":d(3),"cat":"jjb","type":"Gi","dur":90,"theme":"Takedowns","sys":"lutte","rounds":5},{"id":"u2","date":d(40),"cat":"prepa","effort":"cardio","dur":45,"rpe":7}],"comps":[{"id":"c1","date":d(20),"event":"Open de l'Essonne","type":"No-gi","result":"bronze","wins":2,"losses":1}],"belt":{"rank":"noire"}},
       f"roll/{UID}":{"s":[{"k":"x1|"+d(10),"date":d(10),"title":"JJB No-gi","dur":60}]},
       f"grades/{UID}":{"rank":"bleue","stripes":2,"since":"2026-03-01"}}
 LOCAL={UID:{"v":1,"at":"x","dirty":True,"deleted":{"s":[],"c":[]},"state":{"sessions":[{"id":"u9","date":d(1),"cat":"jjb","type":"No-gi","dur":60,"theme":"Front headlock","sys":"controle"}],"comps":[],"belt":{"rank":"blanche"}}}}
@@ -36,7 +36,7 @@ import json as _j
 L=_j.load(open("/tmp/legacy-out.json"))
 rich=[x["item"] for x in L["sessions"]]
 for i,it in enumerate(rich): it["id"]="r%d"%i; it.pop("note",None); it.pop("forme",None)
-DOCS[f"members/{UID}"]={"sessions":rich+DOCS[f"members/{UID}"]["sessions"],"comps":[{"id":"c1","date":d(20),"event":"Open de l'Essonne","type":"No-gi","result":"argent","wins":3,"losses":1,"subs":2}],"skills":L["sessions"][1]["skills"],"belt":{"rank":"bleue"}}
+DOCS[f"members/{UID}"]={"consent":{"at":"2026-01-01T00:00:00Z","share":True},"sessions":rich+DOCS[f"members/{UID}"]["sessions"],"comps":[{"id":"c1","date":d(20),"event":"Open de l'Essonne","type":"No-gi","result":"argent","wins":3,"losses":1,"subs":2}],"skills":L["sessions"][1]["skills"],"belt":{"rank":"bleue"}}
 DOCS[f"grades/{UID}"]={"rank":"bleue","stripes":2,"since":"2026-03-01","verified":{"Wrestle-up":{"verified_by_coach":True,"at":"2026-09-01","by":"Prof Malik"}}}
 DOCS[f"data/users/{UID}/private"]={"s":{"r0":{"n":"genou","f":"douleur"},"r1":{"n":"","f":"ok"}}}
 with sync_playwright() as p:

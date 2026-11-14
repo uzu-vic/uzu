@@ -141,7 +141,7 @@ with sync_playwright() as p:
     pg.context.close()
 
     # ---------------- 4. Carnet solo : rejoindre un club, créer un club
-    m = Mock(solo_ctx(), {f"members/{UID}": {"name": "Yanis", "sessions": []}}); pg, errs = open_page(b, m, UID, "Yanis")
+    m = Mock(solo_ctx(), {f"members/{UID}": {"name": "Yanis", "sessions": [], "consent": {"at": "2026-01-01T00:00:00Z", "share": False}}}); pg, errs = open_page(b, m, UID, "Yanis")
     t = content(pg)
     check("Solo : pas de focus ni d'annonce, invitation à relier son club", "CARNET SOLO" in t.upper() and "Front headlock" not in t)
     pg.locator(".primary-nav .nav-item", has_text="Mon profil").click(); pg.wait_for_timeout(1200)
