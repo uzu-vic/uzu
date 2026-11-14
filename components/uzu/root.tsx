@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react"
 import type { Session } from "@supabase/supabase-js"
 import {
   ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Dumbbell, GraduationCap, LayoutDashboard,
-  LogOut, Menu, MoreHorizontal, ShieldCheck, Target, TrendingUp, UserRound, Users,
+  LogOut, Menu, MoreHorizontal, Newspaper, ShieldCheck, Target, TrendingUp, UserRound, Users,
 } from "lucide-react"
 import { CONFIG_OK } from "@/lib/uzu/env"
 import { uzu } from "@/lib/uzu/client"
@@ -19,6 +19,7 @@ import { AthleteFeed, AthleteProfile } from "@/components/uzu/social"
 import { syncPending } from "@/lib/uzu/journal"
 import { ClubAttendance, ClubHome, ClubProgress } from "@/components/uzu/club"
 import { ClubStudents } from "@/components/uzu/club-students"
+import { ClubAcademy, ClubContents, ClubCourses, ClubTeam } from "@/components/uzu/club-admin"
 import { Check, X } from "lucide-react"
 
 type Space = "athlete" | "club"
@@ -43,6 +44,7 @@ function clubNav(ctx: UzuContext | null): NavItem[] {
     { id: "attendance", label: "Présences", icon: CheckCircle2, legacy: "prof", show: can(ctx, "attendance", "view") || can(ctx, "attendance", "create") },
     { id: "students", label: "Élèves", icon: Users, legacy: "prof", show: can(ctx, "students", "view") },
     { id: "progress", label: "Progression", icon: TrendingUp, legacy: "prof", show: can(ctx, "progression", "view") || can(ctx, "belts", "view") || can(ctx, "belts", "create") },
+    { id: "contents", label: "Contenus", icon: Newspaper, legacy: "prof", show: can(ctx, "contents", "view") || can(ctx, "communications", "view") || can(ctx, "communications", "create") },
     { id: "courses", label: "Cours", icon: CalendarDays, legacy: "prof", show: can(ctx, "schedule", "view") || can(ctx, "courses", "view") },
     { id: "team", label: "Équipe", icon: GraduationCap, legacy: "prof", show: can(ctx, "instructors", "view") },
     { id: "academy", label: "Mon académie", icon: ShieldCheck, legacy: "prof", show: true },
@@ -214,6 +216,10 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
           : space === "club" && teamOn(ctx) && current?.id === "attendance" ? <ClubAttendance key={"ca" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} />
           : space === "club" && teamOn(ctx) && current?.id === "students" ? <ClubStudents key={"cs" + ctx?.club?.id + navArg} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} initialFilter={navArg} />
           : space === "club" && teamOn(ctx) && current?.id === "progress" ? <ClubProgress key={"cp" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} />
+          : space === "club" && teamOn(ctx) && current?.id === "contents" ? <ClubContents key={"cc" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
+          : space === "club" && teamOn(ctx) && current?.id === "courses" ? <ClubCourses key={"co" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
+          : space === "club" && teamOn(ctx) && current?.id === "team" ? <ClubTeam key={"ct" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
+          : space === "club" && teamOn(ctx) && current?.id === "academy" ? <ClubAcademy key={"ac" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
           : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
       </div>
     </div>

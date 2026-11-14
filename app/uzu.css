@@ -287,3 +287,24 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-note-h small { color: #8a827b; font-size: 12px; }
 .uzu-top li span.uzu-ev { display: block; min-width: 0; padding: 6px 0; }
 .uzu-top li > small { flex: none; color: #8a827b; font-size: 12px; }
+.uzu-input--auto { width: auto; min-width: 130px; max-width: 100%; }
+.uzu-field--end { display: flex; flex-direction: column; justify-content: flex-end; }
+.uzu-pcard--static { cursor: default; }
+.uzu-pcard--static:hover { border-color: #ece6df; }
+.uzu-link { overflow-wrap: anywhere; user-select: all; }
+.uzu-av--lg { width: 52px; height: 52px; font-size: 16px; }
+.uzu-swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 50%; vertical-align: -1px; }
+.is-armed { border-color: #941b2b !important; background: #941b2b !important; color: #fff !important; }
+.uzu-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; width: 100%; }
+.uzu-perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; width: 100%; }
+.uzu-perm-cat { display: flex; flex-direction: column; gap: 2px; padding: 12px; border: 1px solid #efe9e3; border-radius: 8px; }
+.uzu-perm-cat > b { margin-bottom: 4px; font-size: 13.5px; }
+.uzu-perm-row { display: flex; min-height: 42px; align-items: center; gap: 10px; font-size: 13px; }
+.uzu-perm-l { flex: 1; min-width: 0; }
+.uzu-sens { margin-left: 6px; padding: 1px 5px; border-radius: 4px; background: #fbf3e6; color: #7a5420; font-size: 10.5px; font-style: normal; font-weight: 600; }
+.uzu-perm-row .uzu-input { min-height: 36px; padding: 4px 8px; font-size: 13px; }
+.uzu-switch { position: relative; flex: none; width: 40px; height: 24px; padding: 0; border: 0; border-radius: 12px; background: #d9d2ca; transition: background .15s; }
+.uzu-switch i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: left .15s; }
+.uzu-switch.on { background: #941b2b; }
+.uzu-switch.on i { left: 19px; }
+.uzu-switch:disabled { opacity: .5; }

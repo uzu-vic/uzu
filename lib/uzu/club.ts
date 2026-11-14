@@ -173,3 +173,82 @@ export const getTeam = () => call<Any>("get_team")
 export const getAudit = (limit = 50, before: number | null = null) => call<Any[]>("get_audit_log", { p_limit: limit, p_before: before })
 
 export function canAny(ctx: UzuContext | null, pairs: [string, string][]): boolean { return pairs.some(([r, a]) => can(ctx, r, a)) }
+
+// ---------- Catalogues de l'équipe (mêmes libellés et modèles que l'ancienne application) ----------
+export const ROLE_LBL: Record<string, string> = { owner: "Responsable", section_lead: "Responsable de section", instructor: "Professeur", assistant: "Assistant", student: "Élève" }
+export const STATUS_LBL: Record<string, string> = { active: "Actif", suspended: "Suspendu", removed: "Retiré", pending: "Invitation en attente", expired: "Invitation expirée" }
+export const SCOPE_LBL: Record<string, string> = { academy: "Toute l'académie", section: "Sa section", assigned_courses: "Ses cours", authorized_students: "Élèves confiés", own_content: "Ses contenus" }
+export const SENSITIVE: Record<string, 1> = { "instructors.create": 1, "instructors.update": 1, "instructors.delete": 1, "academy_settings.update": 1, "belts.approve": 1, "academy_audit_logs.view": 1, "students.delete": 1 }
+export const PERM_CAT: [string, string, string[], string[]][] = [
+  ["dashboard", "Tableau de bord", ["view"], ["academy"]],
+  ["students", "Élèves", ["view", "create", "delete"], ["academy", "section", "assigned_courses", "authorized_students"]],
+  ["courses", "Cours", ["view", "create", "update", "delete", "manage"], ["academy", "section", "assigned_courses"]],
+  ["sessions", "Séances", ["view", "update"], ["academy", "section", "assigned_courses"]],
+  ["attendance", "Présences", ["view", "create", "update", "delete"], ["academy", "section", "assigned_courses"]],
+  ["progression", "Progression", ["view", "update"], ["academy", "section", "assigned_courses", "authorized_students"]],
+  ["belts", "Grades et ceintures", ["view", "create", "approve"], ["academy", "section", "assigned_courses", "authorized_students"]],
+  ["pedagogical_notes", "Notes pédagogiques", ["view", "create", "update", "delete"], ["academy", "section", "assigned_courses", "authorized_students"]],
+  ["contents", "Contenus", ["view", "create", "update", "delete"], ["academy", "own_content"]],
+  ["schedule", "Planning", ["view"], ["academy"]],
+  ["instructors", "Équipe pédagogique", ["view", "create", "update", "delete"], ["academy"]],
+  ["academy_statistics", "Statistiques", ["view"], ["academy"]],
+  ["communications", "Communication", ["view", "create", "delete"], ["academy"]],
+  ["academy_settings", "Paramètres", ["view", "update"], ["academy"]],
+  ["academy_audit_logs", "Journal d'activité", ["view"], ["academy"]],
+]
+export const ACT_LBL: Record<string, string> = { view: "Consulter", create: "Créer", update: "Modifier", delete: "Supprimer", approve: "Valider", manage: "Gérer" }
+export const ACT_OVR: Record<string, Record<string, string>> = {
+  students: { create: "Inviter (code club)", delete: "Retirer de l'académie" }, courses: { manage: "Affecter l'encadrement" }, sessions: { update: "Encadrement d'une séance" },
+  attendance: { create: "Faire l'appel", update: "Corriger un appel", delete: "Effacer un pointage" }, progression: { update: "Valider les ★★★" }, belts: { create: "Proposer", approve: "Valider définitivement" },
+  contents: { create: "Publier", update: "Modifier", delete: "Retirer" }, instructors: { create: "Inviter", update: "Rôles, droits, affectations", delete: "Suspendre ou retirer" },
+  communications: { create: "Publier une annonce", delete: "Retirer une annonce" },
+}
+export const actLabel = (r: string, a: string) => ACT_OVR[r]?.[a] || ACT_LBL[a] || a
+const T = (l: string) => l.split(" ").map(x => { const p = x.split(":"); return { r: p[0], a: p[1], s: p[2] || "academy" } })
+export const PERM_TPL: Record<string, { r: string; a: string; s: string }[]> = {
+  instructor: T("dashboard:view schedule:view students:view courses:view sessions:view:assigned_courses sessions:update:assigned_courses attendance:view attendance:create:assigned_courses attendance:update:assigned_courses progression:view progression:update belts:view belts:create pedagogical_notes:view pedagogical_notes:create pedagogical_notes:update contents:view contents:create:own_content contents:update:own_content communications:view"),
+  assistant: T("dashboard:view schedule:view students:view:assigned_courses courses:view:assigned_courses sessions:view:assigned_courses attendance:view:assigned_courses attendance:create:assigned_courses attendance:update:assigned_courses communications:view"),
+  section_lead: T("dashboard:view schedule:view students:view:section courses:view courses:update:section courses:manage:section sessions:view:section sessions:update:section attendance:view:section attendance:create:section attendance:update:section attendance:delete:section progression:view:section progression:update:section belts:view:section belts:create:section belts:approve:section pedagogical_notes:view:section pedagogical_notes:create:section pedagogical_notes:update:section contents:view contents:create:own_content contents:update:own_content contents:delete:own_content communications:view academy_statistics:view instructors:view"),
+  custom: [],
+}
+export const TPL_LBL: Record<string, string> = { instructor: "Professeur standard", assistant: "Assistant", section_lead: "Responsable de section", custom: "Personnalisé (tout désactivé)" }
+export type PermDraft = Record<string, Record<string, string>>
+export function tplMap(k: string): PermDraft { const m: PermDraft = {}; (PERM_TPL[k] || []).forEach(p => { (m[p.r] = m[p.r] || {})[p.a] = p.s }); return m }
+export function mapToList(m: PermDraft | null | undefined) {
+  const o: { r: string; a: string; s: string; e: "allow" }[] = []
+  Object.keys(m || {}).forEach(r => Object.keys(m![r]).forEach(a => { const s = m![r][a]; if (s && s !== "deny") o.push({ r, a, s, e: "allow" }) }))
+  return o
+}
+export const AUDIT_LBL: Record<string, string> = {
+  "academy.created": "Académie créée", "academy.updated": "Académie modifiée", "academy.invite_code": "Code invitation changé", "academy.ownership_transferred": "Responsabilité transférée",
+  "invitation.created": "Invitation envoyée", "invitation.revoked": "Invitation annulée", "invitation.resent": "Nouveau lien d'invitation", "invitation.accepted": "Invitation acceptée",
+  "member.role_changed": "Rôle modifié", "member.permissions_changed": "Droits modifiés", "member.suspended": "Membre suspendu", "member.reactivated": "Membre réactivé", "member.removed": "Membre retiré", "member.left": "Membre parti", "member.students_assigned": "Élèves confiés",
+  "attendance.saved": "Appel enregistré", "grade.validated": "Grade validé", "grade.refused": "Grade refusé", "grade.proposed": "Grade proposé", "grade.proposal_cancelled": "Proposition annulée",
+  "technique.verified": "★★★ validée", "technique.unverified": "★★★ retirée", "course.staff_changed": "Encadrement modifié", "course.updated": "Cours modifié", "section.saved": "Section enregistrée", "student.removed": "Élève retiré",
+}
+export const DISCIPLINES: [string, string][] = [["jjb", "JJB"], ["grappling", "Grappling"], ["mma", "MMA"], ["lutte", "Lutte"], ["boxe", "Boxe anglaise"], ["muaythai", "Muay-thaï"], ["kick", "Kick / K-1"], ["judo", "Judo"], ["prepa", "Préparation physique"]]
+export const PRESETS: Record<string, { n: string; l: string }> = {
+  cyan: { n: "Cyan électrique", l: "#0891B2" }, sceau: { n: "Bordeaux UZU", l: "#941B2B" }, vif: { n: "Rouge vif", l: "#C8102E" }, orange: { n: "Orange", l: "#C2410C" },
+  or: { n: "Or", l: "#8A6A0E" }, vert: { n: "Vert", l: "#1F6B45" }, turquoise: { n: "Turquoise", l: "#0F766E" }, marine: { n: "Bleu marine", l: "#1E3A5F" },
+}
+export const STAFF_ROLES: [string, string][] = [["", "—"], ["lead", "Prof principal"], ["associate", "Prof associé"], ["assistant", "Assistant"]]
+
+// ---------- Écritures : équipe, cours, académie (fonctions serveur, droits revérifiés côté serveur) ----------
+export type TeamMember = { id: string; user_id: string; role: string; status: string; section_id: string | null; name: string; email: string; joined_at: string; is_me: boolean; courses: number; last_activity: string | null; perms: PermDraft | null; students: string[] }
+export type Team = { members: TeamMember[]; invitations: { id: string; email: string; role: string; status: string; expires_at: string }[]; sections: { id: string; name: string; discipline: string }[]; course_staff: { course_key: string; member_id: string; role: string; date: string | null }[]; course_meta: { course_key: string; section_id: string | null; discipline: string; level: string }[] }
+export const createInvitation = (email: string, role: string, perms: ReturnType<typeof mapToList>) => call<Any>("create_invitation", { p_email: email, p_role: role, p_section: null, p_perms: role === "owner" ? [] : perms })
+export const revokeInvitation = (id: string) => call("revoke_invitation", { p_id: id })
+export const resendInvitation = (id: string) => call<Any>("resend_invitation", { p_id: id })
+export const setMemberRole = (id: string, role: string, section: string | null) => call("set_member_role", { p_member: id, p_role: role, p_section: section })
+export const setMemberPermissions = (id: string, perms: ReturnType<typeof mapToList>) => call("set_member_permissions", { p_member: id, p_perms: perms })
+export const setMemberStatus = (id: string, status: "active" | "suspended" | "removed") => call("set_member_status", { p_member: id, p_status: status })
+export const transferOwnership = (id: string) => call("transfer_ownership", { p_member: id })
+export const setStudentAccess = (id: string, students: string[]) => call("set_student_access", { p_member: id, p_students: students })
+export const upsertSection = (name: string) => call<string>("upsert_section", { p_id: null, p_name: name, p_discipline: "" })
+export const setCourseStaff = (course: string, date: string | null, staff: { member_id: string; role: string }[]) => call("set_course_staff", { p_course: course, p_date: date, p_staff: staff })
+export const setCourseMeta = (course: string, section: string | null, discipline: string, level: string) => call("set_course_meta", { p_course: course, p_section: section, p_discipline: discipline, p_level: level })
+/** Modification partielle de l'académie : le serveur ne contrôle que les champs réellement changés. */
+export const updateAcademy = (patch: Record<string, unknown>) => call<Any>("update_academy", { p_patch: patch })
+export const updateInviteCode = (code: string) => call<string>("update_invite_code", { new_code: code })
+export const leaveAcademy = () => call("leave_academy", {})
+export const inviteUrl = (token: string) => window.location.origin + "/?invite=" + encodeURIComponent(token)
