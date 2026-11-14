@@ -396,3 +396,16 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-cal-legend .lg-wine { background: #941b2b; } .uzu-cal-legend .lg-sand { background: #c7a77f; } .uzu-cal-legend .lg-dark { background: #2b2724; }
 .calendar-event strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upcoming-copy p i { display: inline-block; width: 3px; height: 3px; margin: 0 6px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+/* Aperçu d'une séance */
+.uzu-detail h4 { margin: 14px 0 6px; font-size: 13.5px; }
+.uzu-det-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 10px; font-size: 15px; }
+.uzu-det { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 13.5px; }
+.uzu-det dt { color: #8a827b; } .uzu-det dd { margin: 0; }
+.uzu-det-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+.uzu-det-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f2ede8; }
+.uzu-det-acts { margin-top: 16px; }
+.session-card.uzu-clickable { cursor: pointer; }
+.session-card.uzu-clickable:hover { border-color: #d8c9c4; }
+.uzu-detail > p { margin: 0; color: #3c3632; font-size: 13.5px; line-height: 1.55; }
+.uzu-detail > p.uzu-det-title { margin: 4px 0 12px; font-size: 16px; }
+.uzu-detail h4 { color: #171717; font-family: Georgia, serif; font-size: 15px; font-weight: 400; }

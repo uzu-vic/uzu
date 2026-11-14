@@ -15,13 +15,14 @@ SESS = {"access_token": jwt(), "token_type": "bearer", "expires_in": 3600, "expi
 CTX = {"role": "student", "share_activity": False, "academy_role": "student", "member_status": "active", "perms": {}, "memberships": [{"academy_id": "c1", "name": "Académie de test", "role": "student", "status": "active"}],
        "club": {"id": "c1", "name": "Académie de test", "schedule": [{"id": "x1", "d": TOM, "s": "19:00", "e": "20:30", "t": "JJB Gi adultes"}], "tactical_focus": {}, "profile": {}}}
 DOCS = {f"members/{UID}": {"consent": {"at": "2026-01-01T00:00:00Z", "share": True}, "name": "Yanis B.",
-        "sessions": [{"id": "s1", "date": d(1), "cat": "jjb", "kind": "cours", "type": "Gi", "dur": 90, "theme": "Passage de garde"},
+        "sessions": [{"id": "s1", "date": d(1), "cat": "jjb", "kind": "cours", "type": "Gi", "dur": 90, "theme": "Passage de garde", "sys": "lutte", "tech": "Takedowns", "rounds": 5, "subs": [{"t": "armbar", "d": "placee", "n": 2}], "lucha_takedowns_done": 3},
                      {"id": "s2", "date": d(3), "cat": "jjb", "kind": "cours", "type": "No-gi", "dur": 60, "theme": "Front headlock"},
                      {"id": "s3", "date": d(10), "cat": "jjb", "kind": "open", "type": "Gi", "dur": 60},
                      {"id": "s4", "date": d(40), "cat": "prepa", "effort": "cardio", "dur": 45, "rpe": 6},
                      {"id": "s5", "date": d(200), "cat": "jjb", "kind": "cours", "type": "Gi", "dur": 90, "theme": "Triangle"},
                      {"id": "s6", "date": d(400), "cat": "jjb", "kind": "cours", "type": "Gi", "dur": 90, "theme": "Armbar"}],
         "comps": [{"id": "k1", "date": d(20), "event": "Open de test", "type": "No-gi", "result": "or", "wins": 3, "losses": 0}]},
+        f"data/users/{UID}/private": {"s": {"s1": {"n": "Genou un peu sensible", "f": "fatigue"}}},
         f"roll/{UID}": {"s": [{"k": d(5) + "|x1", "date": d(5), "title": "JJB No-gi", "dur": 60}]}}
 
 def handle(route):
@@ -56,7 +57,17 @@ with sync_playwright() as p:
         pg.locator(".subnav-tabs button", has_text="Mon journal").click(); pg.wait_for_timeout(300)
         t = pg.inner_text(".page-content")
         check(f"[{name}] Journal : séances, appel du club, prépa", "Passage de garde" in t and "Appel du club" in t and "Prépa physique" in t and "Open mat" in t)
-        check(f"[{name}] Journal : modifier et supprimer (pas sur les appels)", pg.locator(".uzu-acts").count() == 6)
+        check(f"[{name}] Journal : aperçu partout, modifier et supprimer sauf sur les appels", pg.locator(".uzu-acts").count() == 7 and pg.locator(".uzu-acts button", has_text="Modifier").count() == 6 and pg.locator(".uzu-acts button", has_text="Aperçu").count() == 7)
+        pg.locator(".session-card", has_text="Passage de garde").locator(".session-main h3").click(); pg.wait_for_timeout(800)
+        dt = pg.inner_text(".uzu-detail")
+        check(f"[{name}] Aperçu : séance complète en lecture seule", "LECTURE SEULE" in dt and "1 h 30 sur le tatami" in dt and "Rounds\n5" in dt.replace("\t", "\n") and "Lutte & Scrambles" in dt and "Clé de bras · placée × 2" in dt and "3 réussies" in dt)
+        check(f"[{name}] Aperçu : état et note privée de l'élève, aucun champ modifiable", "Fatigué" in dt and "Genou un peu sensible" in dt and pg.locator(".uzu-detail input, .uzu-detail textarea, .uzu-detail select").count() == 0)
+        pg.locator(".uzu-detail button", has_text="Fermer").last.click(); pg.wait_for_timeout(300)
+        check(f"[{name}] Aperçu : fermeture sans rien enregistrer", pg.locator(".uzu-detail").count() == 0)
+        pg.locator(".session-card", has_text="Appel du club").locator("button", has_text="Aperçu").click(); pg.wait_for_timeout(800)
+        dt = pg.inner_text(".uzu-detail")
+        check(f"[{name}] Aperçu d'une séance de l'appel", "Appel du prof" in dt and "Compléter ma séance" in dt and "Modifier cette séance" not in dt)
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
         pg.locator(".subnav-tabs button", has_text="Compétitions").click(); pg.wait_for_timeout(200)
         check(f"[{name}] Compétitions", "Open de test" in pg.inner_text(".page-content") and "Or" in pg.inner_text(".page-content"))
         pg.locator(".subnav-tabs button", has_text="Calendrier").click(); pg.wait_for_timeout(300)

@@ -2,11 +2,12 @@
 // Espace Athlete — Entraînements (à venir, journal, compétitions, calendrier) et Statistiques,
 // au design de la maquette, sur les vraies données du carnet et du planning du club.
 import { useMemo, useState } from "react"
-import { ArrowUpRight, Award, CalendarDays, ChevronLeft, ChevronRight, Clock3, Dumbbell, Flame, MapPin, Pencil, Plus, Trash2, Trophy } from "lucide-react"
+import { ArrowUpRight, Award, CalendarDays, ChevronLeft, ChevronRight, Clock3, Dumbbell, Eye, Flame, MapPin, Pencil, Plus, Trash2, Trophy } from "lucide-react"
 import { deleteEntry } from "@/lib/uzu/journal"
 import type { UzuContext } from "@/lib/uzu/context"
 import { compResult, durTxt, frDate, nextClasses, normSched, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd, type Session } from "@/lib/uzu/training"
 import { useTraining } from "@/components/uzu/athlete"
+import { SessionDetail } from "@/components/uzu/session-detail"
 
 const DSHORT = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"]
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -29,6 +30,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
   const solo = !ctx?.club || ctx.role === "solo"
   const [tab, setTab] = useState<Tab>(initialTab === "journal" || initialTab === "comps" || initialTab === "calendar" ? initialTab : solo ? "journal" : "next")
   const [confirm, setConfirm] = useState("")
+  const [view, setView] = useState("")
   const now = new Date()
   const del = async (kind: "s" | "c", id: string) => {
     if (confirm !== kind + id) { setConfirm(kind + id); window.setTimeout(() => setConfirm(c => (c === kind + id ? "" : c)), 3500); return }
@@ -38,9 +40,10 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
     onToast(kind === "s" ? (r.synced ? "Séance supprimée" : "Séance supprimée sur ce téléphone : synchronisation au retour du réseau") : (r.synced ? "Compétition supprimée" : "Compétition supprimée sur ce téléphone : synchronisation au retour du réseau"))
     reload()
   }
-  const Acts = ({ kind, id }: { kind: "s" | "c"; id: string }) => <div className="uzu-acts">
-    <button type="button" onClick={() => onEdit(kind, id)} aria-label="Modifier"><Pencil size={14} /><span>Modifier</span></button>
-    <button type="button" className={confirm === kind + id ? "danger" : ""} onClick={() => del(kind, id)} aria-label="Supprimer"><Trash2 size={14} /><span>{confirm === kind + id ? "Confirmer" : "Supprimer"}</span></button>
+  const Acts = ({ kind, id, roll }: { kind: "s" | "c"; id: string; roll?: boolean }) => <div className="uzu-acts" onClick={e => e.stopPropagation()}>
+    {kind === "s" && <button type="button" onClick={() => setView(id)} aria-label="Aperçu"><Eye size={14} /><span>Aperçu</span></button>}
+    {!roll && <><button type="button" onClick={() => onEdit(kind, id)} aria-label="Modifier"><Pencil size={14} /><span>Modifier</span></button>
+    <button type="button" className={confirm === kind + id ? "danger" : ""} onClick={() => del(kind, id)} aria-label="Supprimer"><Trash2 size={14} /><span>{confirm === kind + id ? "Confirmer" : "Supprimer"}</span></button></>}
   </div>
   const months = useMemo(() => {
     const m = new Map<string, Session[]>()
@@ -77,12 +80,12 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
       {tab === "journal" && (months.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Votre journal est vide pour l'instant.</p><button className="button button--dark" onClick={onCompose}><Plus size={15} />Saisir ma première séance</button></div>
         : months.map(([k, list]) => <section key={k} className="uzu-month">
           <div className="timeline-title"><h2>{cap(parseYmd(k + "-01").toLocaleDateString("fr-FR", { month: "long", year: "numeric" }))}</h2><span>{list.length} séance{list.length > 1 ? "s" : ""} · {durTxt(list.reduce((a, s) => a + (Number(s.dur) || 0), 0))}</span></div>
-          <div className="session-list">{list.map(s => <article className="session-card" key={s.id}>
+          <div className="session-list">{list.map(s => <article className="session-card uzu-clickable" key={s.id} role="button" tabIndex={0} aria-label={`Aperçu de la séance du ${frDate(s.date, { day: "numeric", month: "long" })}`} onClick={() => setView(s.id)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setView(s.id) } }}>
             <div className="session-date"><span>{parseYmd(s.date).toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase()}</span><strong>{parseYmd(s.date).getDate()}</strong></div>
             <span className={`session-marker session-marker--${isPrepa(s) ? "sand" : s.roll ? "dark" : "wine"}`} />
             <div className="session-main"><div className="session-card-top"><h3>{sessionTitle(s)}</h3><span className={`session-label session-label--${s.roll ? "plain" : "soon"}`}>{sessionKind(s)}</span></div>
               <div className="session-meta"><span><Clock3 size={14} />{Number(s.dur) ? durTxt(Number(s.dur)) : "Durée non précisée"}</span>{sessionMeta(s) && <span>{sessionMeta(s)}</span>}</div>
-              {!s.roll && <Acts kind="s" id={s.id} />}</div>
+              <Acts kind="s" id={s.id} roll={s.roll} /></div>
           </article>)}</div>
         </section>))}
 
@@ -97,6 +100,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
 
       {tab === "calendar" && <CalendarWeek sessions={data.sessions} schedule={solo ? [] : ctx?.club?.schedule} />}
     </>}
+    {view && <SessionDetail uid={uid} ctx={ctx} id={view} onClose={() => setView("")} onEdit={id => { setView(""); onEdit("s", id) }} onComplete={() => { setView(""); onCompose() }} />}
   </>
 }
 

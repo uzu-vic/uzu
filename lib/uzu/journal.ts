@@ -442,3 +442,10 @@ export async function giveConsent(uid: string, ctx: UzuContext | null, p: { name
     return { ok: true, synced, item: null }
   } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
 }
+
+/** Aperçu d'une séance (lecture seule) : séances saisies et séances issues de l'appel, avec l'état physique et la note privée de l'élève. */
+export async function loadSessionDetail(uid: string, ctx: UzuContext | null, id: string): Promise<{ core: Core; s: Any } | null> {
+  const L = await prepare(uid, ctx)
+  const s = L.core.allSessions().find((x: Any) => x.id === id)
+  return s ? { core: L.core, s } : null
+}
