@@ -1,0 +1,43 @@
+{
+  "baseState": {
+    "belt": {"rank": "bleue", "stripes": 1, "since": "2026-01-10"},
+    "sessions": [
+      {"id": "old1", "date": "2026-10-01", "cat": "jjb", "kind": "cours", "type": "Gi", "dur": 90, "theme": "Knee slice", "sys": "fond", "flow": "impose", "stars": 1},
+      {"id": "old2", "date": "2026-10-20", "cat": "jjb", "kind": "cours", "type": "No-gi", "dur": 60, "theme": "Front headlock", "sys": "controle", "flow": "subi"}
+    ],
+    "comps": [],
+    "skills": {"Knee slice": {"lvl": 2, "at": "2026-10-01", "partner": {"name": "Sam", "at": "2026-10-02"}, "rev": "", "legacy": false},
+               "Front headlock": {"lvl": 1, "at": "2026-10-20", "partner": null, "rev": "", "legacy": false}},
+    "coach3": {"Wrestle-up": {"at": "2026-09-01", "by": "Prof"}},
+    "name": "Yanis"
+  },
+  "sessions": [
+    {"label": "cours complet : technique imposée, soumissions, détail du sparring, technique perso tapée",
+     "form": {"cat": "jjb", "kind": "cours", "type": "No-gi", "dur": 90, "sys": "controle", "flow": "impose", "tech": "Front headlock", "rounds": 5, "forme": "fatigue",
+              "subs": [{"t": "guillotine", "d": "placee", "n": 2}, {"t": "triangle", "d": "subieG", "n": 1}, {"t": "inconnue", "d": "subieW", "n": 3}, {"t": "rnc", "d": "placee", "n": 0}],
+              "gm": {"sweeps_placed": {"scissor_sweep": 2, "pendulum": 1}, "passes_suffered": {"toreando": 1, "inexistant": 2}},
+              "lucha_takedowns_done": 3, "guard_retentions": 2, "customs": [{"n": "Snap to front headlock", "p": "lutteur"}]},
+     "inputs": {"date": "2026-11-12", "note": "  Bonne séance  ", "exos": "", "cuName": "  Darce   depuis le front  ", "cuProf": "explosif"}},
+    {"label": "plusieurs blocs, dont une technique validée par le prof (★★★) et une déjà ★★",
+     "form": {"cat": "jjb", "kind": "cours", "type": "Gi", "dur": 75, "rounds": 3,
+              "blocks": [{"sys": "lutte", "flow": "impose", "tech": "Wrestle-up"}, {"sys": "fond", "flow": "", "tech": "Knee slice"}], "sys": "jambes", "flow": "subi", "tech": ""},
+     "inputs": {"date": "", "note": "", "exos": "", "cuName": "", "cuProf": "flexible"}},
+    {"label": "open mat : les techniques deviennent leurs systèmes, sans doublon",
+     "form": {"cat": "jjb", "kind": "open", "type": "No-gi", "dur": 120, "rounds": 8,
+              "blocks": [{"sys": "controle", "flow": "impose", "tech": "Back attack"}, {"sys": "controle", "flow": "subi", "tech": "Front headlock"}, {"sys": "fond", "flow": "", "tech": ""}],
+              "subs": [{"t": "armbar", "d": "placee", "n": 40}]},
+     "inputs": {"date": "2026-11-13", "note": "", "exos": "", "cuName": "", "cuProf": "flexible"}},
+    {"label": "prépa physique : aucun champ de JJB",
+     "form": {"cat": "prepa", "effort": "cardio", "rpe": 8, "dur": 45, "rounds": 4, "sys": "lutte", "tech": "Takedowns", "subs": [{"t": "armbar", "d": "placee", "n": 1}], "lucha_takedowns_done": 2, "forme": "douleur"},
+     "inputs": {"date": "2026-11-14", "note": "genou", "exos": "Fractionné 10 × 30 s", "cuName": "ignorée", "cuProf": "lourd"}},
+    {"label": "cours + prépa ajoutée",
+     "form": {"cat": "jjb", "kind": "compet", "type": "Gi", "dur": 90, "sys": "fond", "tech": "Renversements", "withPrepa": true, "effort": "endurance", "rpe": 6, "pdur": 20},
+     "inputs": {"date": "2026-11-11", "note": "", "exos": "Course 20 min", "cuName": "", "cuProf": "flexible"}},
+    {"label": "séance libre sans technique",
+     "form": {"cat": "jjb", "kind": "prive", "type": "Gi", "dur": 60},
+     "inputs": {"date": "2026-11-10", "note": "", "exos": "", "cuName": "", "cuProf": "autre"}}
+  ],
+  "comps": [
+    {"label": "compétition avec podium", "form": {"type": "No-gi", "result": "argent", "wins": 3, "losses": 1, "subs": 2}, "inputs": {"date": "2026-11-08", "event": "  Open de l'Essonne "}}
+  ]
+}

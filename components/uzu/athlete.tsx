@@ -1,6 +1,5 @@
 "use client"
-// Espace Athlete — écrans réels en lecture (Accueil, Carnet). La saisie reste dans l'ancienne
-// application jusqu'au portage testé du formulaire.
+// Espace Athlete — Accueil et Carnet (lecture) ; la saisie passe par components/uzu/journal-form.tsx.
 import { useEffect, useMemo, useState } from "react"
 import { ArrowRight, ArrowUpRight, Award, CalendarDays, Clock3, Dumbbell, Flame, MapPin, Plus, Trophy } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
@@ -9,7 +8,6 @@ import {
   type Session, type Training,
 } from "@/lib/uzu/training"
 
-const LEGACY = "/legacy/"
 
 export function useTraining(uid: string, ctx: UzuContext | null) {
   const [data, setData] = useState<Training | null>(null)
@@ -54,12 +52,12 @@ function Loading({ error, onRetry }: { error: string; onRetry: () => void }) {
 
 function PendingNote({ data }: { data: Training }) {
   if (!data.pendingLocal) return null
-  return <div className="uzu-banner">Des saisies faites sur ce téléphone attendent encore d'être envoyées. Elles sont affichées ici et partiront automatiquement depuis l'application actuelle.</div>
+  return <div className="uzu-banner">Des saisies faites sur ce téléphone attendent encore d'être envoyées. Elles sont affichées ici et partiront automatiquement à la prochaine connexion au réseau.</div>
 }
 
 const monthKey = (s: string) => s.slice(0, 7)
 
-export function AthleteHome({ uid, ctx, name, onNavigate }: { uid: string; ctx: UzuContext | null; name: string; onNavigate: (id: string) => void }) {
+export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: string; ctx: UzuContext | null; name: string; onNavigate: (id: string) => void; onCompose: () => void }) {
   const { data, error, reload } = useTraining(uid, ctx)
   const today = new Date()
   const first = name.split(/[\s@]/)[0]
@@ -87,7 +85,7 @@ export function AthleteHome({ uid, ctx, name, onNavigate }: { uid: string; ctx: 
 
   return <>
     <div className="page-heading"><div><Eyebrow>{today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase()}</Eyebrow><h1>Bonjour {first}<span className="heading-period">.</span></h1><p>Chaque séance vous rapproche de votre prochain grade.</p></div>
-      <a className="button button--dark" href={LEGACY}><Plus size={16} />Saisir ma séance</a></div>
+      <button className="button button--dark" onClick={onCompose}><Plus size={16} />Saisir ma séance</button></div>
 
     <section className="athlete-hero">
       <div className="hero-copy">
@@ -117,7 +115,7 @@ export function AthleteHome({ uid, ctx, name, onNavigate }: { uid: string; ctx: 
 
       <section className="recent-section">
         <div className="section-title"><h2>Activité récente</h2><button className="text-link" onClick={() => onNavigate("log")}>Tout le carnet<ArrowRight size={14} /></button></div>
-        {data.sessions.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Aucune séance pour l'instant. Saisissez votre premier entraînement pour lancer votre compteur.</p><a className="button button--dark" href={LEGACY}><Plus size={15} />Saisir ma première séance</a></div>
+        {data.sessions.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Aucune séance pour l'instant. Saisissez votre premier entraînement pour lancer votre compteur.</p><button className="button button--dark" onClick={onCompose}><Plus size={15} />Saisir ma première séance</button></div>
           : <div className="recent-list">{data.sessions.slice(0, 5).map(s => <SessionRow key={s.id} s={s} />)}</div>}
       </section>
     </>}
@@ -133,7 +131,7 @@ function SessionRow({ s }: { s: Session }) {
   </div>
 }
 
-export function AthleteLog({ uid, ctx }: { uid: string; ctx: UzuContext | null }) {
+export function AthleteLog({ uid, ctx, onCompose }: { uid: string; ctx: UzuContext | null; onCompose: () => void }) {
   const { data, error, reload } = useTraining(uid, ctx)
   const [tab, setTab] = useState<"sessions" | "comps">("sessions")
   const months = useMemo(() => {
@@ -144,14 +142,14 @@ export function AthleteLog({ uid, ctx }: { uid: string; ctx: UzuContext | null }
 
   return <>
     <div className="page-heading"><div><Eyebrow>VOTRE PRATIQUE{data ? <><span className="eyebrow-dot" />{data.sessions.length} SÉANCE{data.sessions.length > 1 ? "S" : ""}</> : null}</Eyebrow><h1>Carnet<span className="heading-period">.</span></h1><p>Le journal de vos efforts et des moments qui comptent.</p></div>
-      <a className="button button--dark" href={LEGACY}><Plus size={16} />Saisir une séance</a></div>
+      <button className="button button--dark" onClick={onCompose}><Plus size={16} />Saisir une séance</button></div>
     <div className="subnav"><div className="subnav-tabs">
       <button className={tab === "sessions" ? "active" : ""} onClick={() => setTab("sessions")}>Séances</button>
       <button className={tab === "comps" ? "active" : ""} onClick={() => setTab("comps")}>Compétitions{data?.comps.length ? ` (${data.comps.length})` : ""}</button>
     </div></div>
     {!data ? <Loading error={error} onRetry={reload} /> : <>
       <PendingNote data={data} />
-      {tab === "sessions" ? (months.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Votre carnet est vide pour l'instant.</p><a className="button button--dark" href={LEGACY}><Plus size={15} />Saisir ma première séance</a></div>
+      {tab === "sessions" ? (months.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Votre carnet est vide pour l'instant.</p><button className="button button--dark" onClick={onCompose}><Plus size={15} />Saisir ma première séance</button></div>
         : months.map(([k, list]) => <section key={k} className="uzu-month">
           <div className="timeline-title"><h2>{parseYmd(k + "-01").toLocaleDateString("fr-FR", { month: "long", year: "numeric" }).replace(/^./, c => c.toUpperCase())}</h2><span>{list.length} séance{list.length > 1 ? "s" : ""} · {durTxt(list.reduce((a, s) => a + (Number(s.dur) || 0), 0))}</span></div>
           <div className="session-list">{list.map(s => <article className="session-card" key={s.id}>

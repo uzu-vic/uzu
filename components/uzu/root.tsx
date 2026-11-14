@@ -13,6 +13,9 @@ import { uzu } from "@/lib/uzu/client"
 import { fetchContext, switchAcademy, teamOn, type UzuContext } from "@/lib/uzu/context"
 import { can, isStaff, isSuspended } from "@/lib/uzu/permissions"
 import { AthleteHome, AthleteLog } from "@/components/uzu/athlete"
+import { JournalForm } from "@/components/uzu/journal-form"
+import { syncPending } from "@/lib/uzu/journal"
+import { Check, X } from "lucide-react"
 
 type Space = "athlete" | "club"
 type IconType = typeof Dumbbell
@@ -126,6 +129,23 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
   const [menuOpen, setMenuOpen] = useState(false)
   const [switching, setSwitching] = useState(false)
   const [notice, setNotice] = useState("")
+  const [composing, setComposing] = useState(false)
+  const [toast, setToast] = useState("")
+  const showToast = (m: string) => { setToast(m); window.setTimeout(() => setToast(""), 4500) }
+
+  // Saisies restées sur le téléphone : envoyées au démarrage, au retour du réseau et au retour sur l'appli
+  const [syncTick, setSyncTick] = useState(0)
+  useEffect(() => {
+    if (!ctx) return
+    let live = true
+    syncPending(session.user.id, ctx).then(sent => { if (live && sent) { showToast("Saisies de ce téléphone synchronisées"); setSyncTick(t => t + 1) } }).catch(() => {})
+    return () => { live = false }
+  }, [ctx, session.user.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const kick = () => { if (document.visibilityState === "visible" && ctx) syncPending(session.user.id, ctx).then(sent => { if (sent) { showToast("Saisies de ce téléphone synchronisées"); setSyncTick(t => t + 1) } }).catch(() => {}) }
+    window.addEventListener("online", kick); document.addEventListener("visibilitychange", kick)
+    return () => { window.removeEventListener("online", kick); document.removeEventListener("visibilitychange", kick) }
+  }, [ctx, session.user.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Un élève ne voit jamais l'espace Club ; le serveur refuse de toute façon ses actions.
   useEffect(() => { if (!staff && space === "club") { setSpace("athlete"); setActive("home") } }, [staff, space])
@@ -135,8 +155,8 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
   const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>
   const name = String(meta.name || meta.full_name || session.user.email || "Utilisateur")
   const memberships = (ctx?.memberships ?? []).filter(m => m.status === "active")
-  const go = (id: string) => { setActive(id); setMenuOpen(false) }
-  const changeSpace = (s: Space) => { setSpace(s); setActive("home"); setMenuOpen(false) }
+  const go = (id: string) => { setActive(id); setMenuOpen(false); setComposing(false) }
+  const changeSpace = (s: Space) => { setSpace(s); setActive("home"); setMenuOpen(false); setComposing(false) }
 
   const onSwitch = async (academyId: string) => {
     if (!academyId || academyId === ctx?.club?.id) return
@@ -176,11 +196,13 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
         {notice && <div className="uzu-banner uzu-banner--error" role="alert">{notice}</div>}
         {ctx && !teamOn(ctx) && <div className="uzu-banner">La base de cet environnement n'a pas la migration « équipe » : affichage en mode simplifié.</div>}
         {space === "club" && isSuspended(ctx) ? <Suspended />
-          : space === "athlete" && current?.id === "home" ? <AthleteHome uid={session.user.id} ctx={ctx} name={name} onNavigate={go} />
-          : space === "athlete" && current?.id === "log" ? <AthleteLog uid={session.user.id} ctx={ctx} />
+          : space === "athlete" && composing ? <JournalForm uid={session.user.id} ctx={ctx} onCancel={() => setComposing(false)} onDone={m => { setComposing(false); setActive("log"); showToast(m); window.scrollTo(0, 0) }} />
+          : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={name} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
+          : space === "athlete" && current?.id === "log" ? <AthleteLog key={"l" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
       </div>
     </div>
+    {toast && <div className="toast-message" role="status"><span><Check size={15} /></span>{toast}<button onClick={() => setToast("")} aria-label="Fermer le message"><X size={15} /></button></div>}
     <nav className="mobile-bottom-nav" aria-label="Navigation mobile">
       {bottom.map(item => { const Icon = item.icon; return <button key={item.id} className={current?.id === item.id ? "active" : ""} onClick={() => go(item.id)} aria-current={current?.id === item.id ? "page" : undefined}><Icon size={18} /><span>{item.label}</span></button> })}
       {items.length > 5 && <button className={bottom.some(b => b.id === current?.id) ? "" : "active"} onClick={() => setMenuOpen(true)}><MoreHorizontal size={18} /><span>Plus</span></button>}

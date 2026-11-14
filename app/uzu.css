@@ -69,3 +69,50 @@ a.button { text-decoration: none; }
   .subnav-tabs button { font-size: 13px; }
   .page-heading > .button { font-size: 12px; }
 }
+
+/* Formulaire de saisie (mobile d'abord) */
+.uzu-journal { display: flex; flex-direction: column; gap: 14px; padding-bottom: 90px; }
+.uzu-fs { display: flex; flex-direction: column; gap: 16px; padding: 18px; }
+.uzu-h3 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 400; }
+.uzu-field { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
+.uzu-label { color: #49433e; font-size: 13px; font-weight: 650; }
+.uzu-sublabel { margin-top: 4px; color: #77716c; font-size: 12px; font-weight: 600; }
+.uzu-hint { color: #8a827b; font-size: 12px; line-height: 1.5; }
+.uzu-input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #e5dfd8; border-radius: 8px; background: #fbfaf8; color: #292522; font-size: 16px; font-family: inherit; }
+textarea.uzu-input { resize: vertical; line-height: 1.5; }
+.uzu-input:focus { border-color: #b96a73; outline: 0; box-shadow: 0 0 0 3px #941b2b14; }
+.uzu-row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.uzu-row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.uzu-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.uzu-seg button, .uzu-chips button, .uzu-rpe button { min-height: 40px; padding: 0 14px; border: 1px solid #e3ddd6; border-radius: 8px; background: #fff; color: #4b4540; font-size: 13px; font-weight: 550; transition: background .15s, border .15s, color .15s; }
+.uzu-seg button.on, .uzu-chips button.on, .uzu-rpe button.on { border-color: #941b2b; background: #941b2b; color: #fff; }
+.uzu-seg button:hover:not(.on), .uzu-chips button:hover:not(.on) { border-color: #c8b3ad; }
+.uzu-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.uzu-chips--small button { min-height: 36px; padding: 0 11px; font-size: 13px; }
+.uzu-chips--small button:active { background: #f6efec; }
+.uzu-rpe { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.uzu-rpe button { padding: 0; }
+.uzu-stepper { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid #ece6df; border-radius: 9px; background: #fbfaf8; }
+.uzu-stepper > span { color: #49433e; font-size: 13px; font-weight: 600; }
+.uzu-stepper > div { display: flex; align-items: center; gap: 6px; }
+.uzu-stepper button { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #e3ddd6; border-radius: 8px; background: #fff; color: #941b2b; }
+.uzu-stepper output { min-width: 28px; text-align: center; font-family: Georgia, serif; font-size: 20px; }
+.uzu-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid #efe9e3; border-radius: 8px; }
+.uzu-list li { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 6px 6px 12px; border-bottom: 1px solid #f2ede8; color: #3c3632; font-size: 13px; }
+.uzu-list li:last-child { border-bottom: 0; }
+.uzu-list li.current { background: #fbf6f4; }
+.uzu-list li small { color: #941b2b; font-size: 12px; }
+.uzu-list button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #8a827b; }
+.uzu-list button:hover { background: #f4f0ec; color: #941b2b; }
+.uzu-small-btn { align-self: flex-start; min-height: 38px; font-size: 13px; white-space: normal; text-align: left; }
+.uzu-prepa-toggle { margin-top: -2px; }
+.uzu-submit-bar { position: sticky; z-index: 5; bottom: 0; padding: 12px 0; background: linear-gradient(to top, var(--ivory) 70%, transparent); }
+.uzu-submit-main { width: 100%; min-height: 50px; font-size: 15px; }
+@media (max-width: 680px) {
+  .uzu-fs { padding: 16px 14px; }
+  .uzu-row3 { grid-template-columns: 1fr; }
+  .uzu-row2 { grid-template-columns: 1fr; }
+  .uzu-submit-bar { bottom: calc(62px + env(safe-area-inset-bottom)); }
+  .uzu-rpe { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .toast-message { font-size: 13px; }
+}

@@ -1,0 +1,98 @@
+[
+ {
+  "test": "documents envoyés : fiche + données privées",
+  "ok": true
+ },
+ {
+  "test": "ancienne séance conservée",
+  "ok": true
+ },
+ {
+  "test": "séance : technique, système, sens, tenue, durée",
+  "ok": true
+ },
+ {
+  "test": "séance : rounds 3, 2 placées, 1 subie contre gradé, 1 renversement, 1 amenée",
+  "ok": true
+ },
+ {
+  "test": "confidentialité : ni note ni état physique dans la fiche lue par le prof",
+  "ok": true
+ },
+ {
+  "test": "note et état physique dans le document privé",
+  "ok": true
+ },
+ {
+  "test": "ceinture de la fiche = grade validé (bleue, 2 barrettes)",
+  "ok": true
+ },
+ {
+  "test": "étoile ★ attribuée à la technique",
+  "ok": true
+ },
+ {
+  "test": "cache du téléphone : synchronisé (dirty = false)",
+  "ok": true
+ },
+ {
+  "test": "message de confirmation",
+  "ok": true
+ },
+ {
+  "test": "la séance apparaît dans le carnet",
+  "ok": true
+ },
+ {
+  "test": "aucune erreur de page",
+  "ok": true
+ },
+ {
+  "test": "documents envoyés : entraînement perso + fil (sans activité), comme l'ancienne application",
+  "ok": true
+ },
+ {
+  "test": "fil d'un membre de l'équipe : aucune activité publiée",
+  "ok": true
+ },
+ {
+  "test": "entraînement perso : ancienne + nouvelle séance",
+  "ok": true
+ },
+ {
+  "test": "aucune fiche élève créée pour un membre de l'équipe",
+  "ok": true
+ },
+ {
+  "test": "cache équipe sous la clé <uid>:coach",
+  "ok": true
+ },
+ {
+  "test": "aucun document envoyé",
+  "ok": true
+ },
+ {
+  "test": "message : enregistrée sur ce téléphone",
+  "ok": true
+ },
+ {
+  "test": "saisie gardée sur le téléphone (dirty = true)",
+  "ok": true
+ },
+ {
+  "test": "envoi automatique au retour du réseau (fiche + privé)",
+  "ok": true
+ },
+ {
+  "test": "la séance hors ligne est bien sur le serveur",
+  "ok": true
+ },
+ {
+  "test": "cache du téléphone de nouveau synchronisé",
+  "ok": true
+ },
+ {
+  "test": "message de synchronisation",
+  "ok": true
+ }
+]

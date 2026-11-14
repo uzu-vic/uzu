@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "prepare-legacy": "node scripts/prepare-legacy.mjs",
-    "dev": "node scripts/prepare-legacy.mjs && next dev",
-    "prebuild": "node scripts/prepare-legacy.mjs",
+    "dev": "node scripts/extract-core.mjs && node scripts/prepare-legacy.mjs && next dev",
+    "prebuild": "node scripts/extract-core.mjs && node scripts/prepare-legacy.mjs",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "extract-core": "node scripts/extract-core.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",
@@ -24,8 +25,11 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "acorn": "^8.19.0",
+    "acorn-walk": "^8.3.5",
     "postcss": "^8.5",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "5.7.3"
   }
 }

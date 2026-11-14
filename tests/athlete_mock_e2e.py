@@ -18,6 +18,10 @@ LOCAL={UID:{"v":1,"at":"x","dirty":True,"deleted":{"s":[],"c":[]},"state":{"sess
 def handle(route):
     r=route.request; u=r.url
     if "/rpc/get_my_context" in u: return route.fulfill(status=200, content_type="application/json", body=json.dumps(CTX))
+    if "/rest/v1/docs" in u and r.method=="POST":
+        body=json.loads(r.post_data); body=body if isinstance(body,list) else [body]
+        for b0 in body: DOCS[b0["path"]]=b0["data"]
+        return route.fulfill(status=201, content_type="application/json", body="[]")
     if "/rest/v1/docs" in u:
         import urllib.parse as up
         q=up.parse_qs(up.urlparse(u).query); path=q.get("path",["eq."])[0][3:]
@@ -37,7 +41,7 @@ with sync_playwright() as p:
         pg.goto("http://127.0.0.1:3100/"); pg.wait_for_timeout(2500)
         print(name,"h1:",pg.inner_text("h1")); 
         txt=pg.inner_text(".page-content")
-        for k in ["JJB Gi","demain","Séances ce mois","Ceinture bleue","2 barrettes","Front headlock","Takedowns","JJB No-gi","attendent encore"]: print("  ",k, k in txt)
+        for k in ["JJB Gi","demain","Séances ce mois","Ceinture bleue","2 barrettes","Front headlock","Takedowns","JJB No-gi"]: print("  ",k, k in txt)
         print("  club button visible:", pg.locator(".space-picker").count())
         pg.screenshot(path=f"/tmp/ath_home_{name}.png", full_page=True)
         pg.locator(".nav-item", has_text="Carnet").first.click() if name=="desk" else pg.locator(".mobile-bottom-nav button", has_text="Carnet").click()
