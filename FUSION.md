@@ -57,3 +57,5 @@ La construction échoue si le code extrait touche à l'écran, au stockage ou au
 | `node tests/equivalence/make-harness.mjs legacy/index.html /tmp/legacy-harness.html` puis `python3 tests/equivalence/legacy_run.py /tmp/legacy-harness.html tests/equivalence/scenarios.json /tmp/legacy-out.json` puis `npx tsx tests/equivalence/new_run.ts tests/equivalence/scenarios.json /tmp/legacy-out.json` | Mêmes saisies dans l'ancienne et la nouvelle application : enregistrements comparés au caractère près |
 | `python3 tests/journal_e2e.py` (serveur sur le port 3100) | Saisie de bout en bout, Supabase simulé : documents envoyés, confidentialité, équipe, hors ligne, retour du réseau |
 | `python3 tests/athlete_mock_e2e.py` | Accueil et Carnet, Supabase simulé |
+| `python3 tests/progress_mock_e2e.py` | Techniques et Progression, données riches |
+| `python3 tests/social_e2e.py` | Fil du club, profil, modification et suppression |

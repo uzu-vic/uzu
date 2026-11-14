@@ -188,3 +188,38 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 }
 .uzu-chart-panel .bar-chart { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 .uzu-sublabel { display: flex; align-items: center; gap: 5px; }
+.uzu-acts { display: flex; gap: 6px; margin-top: 8px; }
+.uzu-acts button { display: inline-flex; min-height: 34px; align-items: center; gap: 5px; padding: 0 10px; border: 1px solid #e9e4dd; border-radius: 7px; background: #fff; color: #6f6861; font-size: 12px; }
+.uzu-acts button:hover { border-color: #c8b3ad; color: #941b2b; }
+.uzu-acts button.danger { border-color: #b42318; background: #b42318; color: #fff; }
+.session-card { align-items: flex-start; }
+
+/* Fil du club et profil */
+.uzu-big { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.uzu-big strong { font-family: Georgia, serif; font-size: 32px; font-weight: 400; letter-spacing: -.03em; }
+.uzu-big span { color: #77716c; font-size: 13px; }
+.uzu-pod { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px; }
+.uzu-pod em { font-style: normal; }
+.uzu-feed { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.uzu-fcard { display: flex; flex-direction: column; gap: 8px; }
+.uzu-fcard.mine { border-color: #e6d3cf; background: #fffaf8; }
+.uzu-fc-head { display: flex; align-items: center; gap: 10px; }
+.uzu-fc-head b { flex: 1; font-size: 14px; }
+.uzu-fc-body { margin: 0; color: #3c3632; font-size: 14px; line-height: 1.5; }
+.uzu-fc-body strong { font-family: Georgia, serif; font-size: 16px; font-weight: 400; }
+.uzu-fc-body .uzu-pill { margin-left: 8px; }
+.uzu-fc-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.uzu-check { min-height: 36px; margin-left: auto; padding: 0 12px; border: 1px solid #e3ddd6; border-radius: 18px; background: #fff; color: #4b4540; font-size: 13px; display: inline-flex; align-items: center; }
+.uzu-check.on { border-color: #941b2b; background: #f5eae9; color: #941b2b; }
+.uzu-profile-head { display: flex; align-items: center; gap: 16px; }
+.uzu-profile-head .uzu-h2 { margin: 0 0 4px; }
+.uzu-profile-head .uzu-text { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 4px; }
+.uzu-stack { display: flex; min-width: 0; flex-direction: column; gap: 15px; }
+.uzu-h3 { display: flex; align-items: center; gap: 7px; }
+.uzu-code { padding: 3px 8px; border-radius: 6px; background: #f5eae9; color: #941b2b; font-family: ui-monospace, monospace; font-weight: 700; letter-spacing: .08em; }
+.uzu-check-row { display: flex; align-items: flex-start; gap: 8px; color: #49433e; font-size: 13px; }
+.uzu-check-row input { width: 18px; height: 18px; margin-top: 1px; accent-color: #941b2b; }
+.uzu-setting { border: 0; min-height: auto; padding: 0; }
+.uzu-setting strong { font-size: 14px; }
+.uzu-setting small { font-size: 12px; line-height: 1.5; }
+@media (max-width: 680px) { .uzu-profile-head { align-items: flex-start; } .uzu-big strong { font-size: 28px; } }

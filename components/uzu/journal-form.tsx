@@ -2,10 +2,10 @@
 // Formulaire de saisie (séance et compétition) au design UZU Athlete.
 // Les choix proposés (systèmes, techniques, soumissions, renversements, passages, profils) viennent
 // des catalogues de l'ancienne application ; l'enregistrement passe par lib/uzu/journal.ts.
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Check, Minus, Plus, Trash2, X } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
-import { addComp, addSession, newCore, type CompForm } from "@/lib/uzu/journal"
+import { addComp, addSession, formFromSession, loadEntry, newCore, updateComp, updateSession, type CompForm } from "@/lib/uzu/journal"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -31,7 +31,7 @@ const GMDIRS: [string, string][] = [["placed", "Placé"], ["suffered", "Subi"]]
 const FORMES: [string, string][] = [["ok", "En forme"], ["fatigue", "Fatigué"], ["douleur", "Douleur / blessé"]]
 const RESULTS: [string, string][] = [["or", "Or"], ["argent", "Argent"], ["bronze", "Bronze"], ["aucun", "Sans podium"]]
 
-export function JournalForm({ uid, ctx, onDone, onCancel }: { uid: string; ctx: UzuContext | null; onDone: (msg: string) => void; onCancel: () => void }) {
+export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string; ctx: UzuContext | null; onDone: (msg: string) => void; onCancel: () => void; edit?: { kind: "s" | "c"; id: string } | null }) {
   const C = useMemo(() => newCore(), [])
   const today = C.ymd(C.TODAY) as string
   const [mode, setMode] = useState<"session" | "comp">("session")
@@ -46,6 +46,22 @@ export function JournalForm({ uid, ctx, onDone, onCancel }: { uid: string; ctx: 
   const [cEvent, setCEvent] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+
+  const [loaded, setLoaded] = useState(!edit)
+  // Modification : le formulaire reprend l'enregistrement existant (comme l'ancienne application)
+  useEffect(() => {
+    if (!edit) return
+    let live = true
+    setMode(edit.kind === "s" ? "session" : "comp")
+    loadEntry(uid, ctx, edit.kind, edit.id).then(r => {
+      if (!live) return
+      if (!r) { setError("Enregistrement introuvable"); setLoaded(true); return }
+      if (edit.kind === "s") { const p = formFromSession(r.core, r.entry); setF(p.form); setNote(p.note); setExos(p.exos); setDate(r.entry.date) }
+      else { const c = r.entry; setCf({ type: c.type, result: c.result, wins: c.wins || 0, losses: c.losses || 0, subs: c.subs || 0 }); setCEvent(c.event || ""); setCDate(c.date) }
+      setLoaded(true)
+    }, e => { if (live) { setError((e as Error).message); setLoaded(true) } })
+    return () => { live = false }
+  }, [edit?.kind, edit?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const up = (patch: Any) => setF((x: Any) => ({ ...x, ...patch }))
   const prepa = f.cat === "prepa", open = !prepa && f.kind === "open"
@@ -89,27 +105,29 @@ export function JournalForm({ uid, ctx, onDone, onCancel }: { uid: string; ctx: 
     if (busy) return
     setBusy(true); setError("")
     if (mode === "session") {
-      const r = await addSession(uid, ctx, JSON.parse(JSON.stringify(f)), { date, note, exos, cuName, cuProf })
+      const inp = { date, note, exos, cuName, cuProf }
+      const r = edit ? await updateSession(uid, ctx, edit.id, JSON.parse(JSON.stringify(f)), inp) : await addSession(uid, ctx, JSON.parse(JSON.stringify(f)), inp)
       setBusy(false)
       if (!r.ok) { setError(r.msg); return }
       const hurt = f.forme === "douleur"
       onDone(!r.synced ? "Séance enregistrée sur ce téléphone. Elle sera synchronisée dès le retour du réseau."
-        : hurt ? "Séance enregistrée. Ménage-toi si la douleur persiste." : "Séance enregistrée")
+        : edit ? "Séance modifiée" : hurt ? "Séance enregistrée. Ménage-toi si la douleur persiste." : "Séance enregistrée")
     } else {
-      const r = await addComp(uid, ctx, cf, { date: cDate, event: cEvent })
+      const r = edit ? await updateComp(uid, ctx, edit.id, cf, { date: cDate, event: cEvent }) : await addComp(uid, ctx, cf, { date: cDate, event: cEvent })
       setBusy(false)
       if (!r.ok) { setError(r.msg); return }
-      onDone(r.synced ? "Compétition enregistrée" : "Compétition enregistrée sur ce téléphone. Elle sera synchronisée dès le retour du réseau.")
+      onDone(r.synced ? (edit ? "Compétition modifiée" : "Compétition enregistrée") : "Compétition enregistrée sur ce téléphone. Elle sera synchronisée dès le retour du réseau.")
     }
   }
 
   return <>
-    <div className="page-heading"><div><div className="eyebrow">{mode === "session" ? "APRÈS LE COURS" : "APRÈS LA COMPÉTITION"}</div><h1>{mode === "session" ? "Ta séance" : "Ton résultat"}<span className="heading-period">.</span></h1><p>{mode === "session" ? "Quelques touches suffisent : tout le reste est facultatif." : "Chaque combat compte dans ta progression."}</p></div>
+    <div className="page-heading"><div><div className="eyebrow">{edit ? "MODIFICATION" : mode === "session" ? "APRÈS LE COURS" : "APRÈS LA COMPÉTITION"}</div><h1>{edit ? (mode === "session" ? "Modifier la séance" : "Modifier la compétition") : mode === "session" ? "Ta séance" : "Ton résultat"}<span className="heading-period">.</span></h1><p>{mode === "session" ? "Quelques touches suffisent : tout le reste est facultatif." : "Chaque combat compte dans ta progression."}</p></div>
       <button className="button button--outline" type="button" onClick={onCancel}><X size={16} />Fermer</button></div>
-    <div className="subnav"><div className="subnav-tabs">
+    {!edit && <div className="subnav"><div className="subnav-tabs">
       <button type="button" className={mode === "session" ? "active" : ""} onClick={() => setMode("session")}>Séance</button>
       <button type="button" className={mode === "comp" ? "active" : ""} onClick={() => setMode("comp")}>Compétition</button>
-    </div></div>
+    </div></div>}
+    {!loaded && <div className="uzu-banner" aria-busy="true">Chargement de l'enregistrement…</div>}
 
     <form className="uzu-journal" onSubmit={submit} noValidate>
       {mode === "session" ? <>
@@ -208,7 +226,7 @@ export function JournalForm({ uid, ctx, onDone, onCancel }: { uid: string; ctx: 
 
       {error && <div className="uzu-banner uzu-banner--error" role="alert">{error}</div>}
       <div className="uzu-submit-bar">
-        <button className="button button--dark uzu-submit-main" type="submit" disabled={busy} aria-busy={busy}><Check size={16} />{busy ? "Enregistrement…" : mode === "session" ? "Enregistrer la séance" : "Enregistrer la compétition"}</button>
+        <button className="button button--dark uzu-submit-main" type="submit" disabled={busy || !loaded} aria-busy={busy}><Check size={16} />{busy ? "Enregistrement…" : edit ? "Enregistrer les modifications" : mode === "session" ? "Enregistrer la séance" : "Enregistrer la compétition"}</button>
       </div>
     </form>
   </>

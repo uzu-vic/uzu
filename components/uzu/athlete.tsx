@@ -1,7 +1,8 @@
 "use client"
 // Espace Athlete — Accueil et Carnet (lecture) ; la saisie passe par components/uzu/journal-form.tsx.
 import { useEffect, useMemo, useState } from "react"
-import { ArrowRight, ArrowUpRight, Award, CalendarDays, Clock3, Dumbbell, Flame, MapPin, Plus, Trophy } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Award, CalendarDays, Clock3, Dumbbell, Flame, MapPin, Pencil, Plus, Trash2, Trophy } from "lucide-react"
+import { deleteEntry } from "@/lib/uzu/journal"
 import type { UzuContext } from "@/lib/uzu/context"
 import {
   beltColor, beltName, compResult, durTxt, frDate, loadTraining, nextClasses, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd,
@@ -131,8 +132,21 @@ function SessionRow({ s }: { s: Session }) {
   </div>
 }
 
-export function AthleteLog({ uid, ctx, onCompose }: { uid: string; ctx: UzuContext | null; onCompose: () => void }) {
+export function AthleteLog({ uid, ctx, onCompose, onEdit, onToast }: { uid: string; ctx: UzuContext | null; onCompose: () => void; onEdit: (kind: "s" | "c", id: string) => void; onToast: (m: string) => void }) {
   const { data, error, reload } = useTraining(uid, ctx)
+  const [confirm, setConfirm] = useState("")
+  const del = async (kind: "s" | "c", id: string) => {
+    if (confirm !== kind + id) { setConfirm(kind + id); window.setTimeout(() => setConfirm(c => (c === kind + id ? "" : c)), 3500); return }
+    setConfirm("")
+    const r = await deleteEntry(uid, ctx, kind, id)
+    if (!r.ok) { onToast(r.msg); return }
+    onToast(kind === "s" ? (r.synced ? "Séance supprimée" : "Séance supprimée sur ce téléphone : synchronisation au retour du réseau") : (r.synced ? "Compétition supprimée" : "Compétition supprimée sur ce téléphone : synchronisation au retour du réseau"))
+    reload()
+  }
+  const Acts = ({ kind, id }: { kind: "s" | "c"; id: string }) => <div className="uzu-acts">
+    <button type="button" onClick={() => onEdit(kind, id)} aria-label="Modifier"><Pencil size={14} /><span>Modifier</span></button>
+    <button type="button" className={confirm === kind + id ? "danger" : ""} onClick={() => del(kind, id)} aria-label="Supprimer"><Trash2 size={14} /><span>{confirm === kind + id ? "Confirmer" : "Supprimer"}</span></button>
+  </div>
   const [tab, setTab] = useState<"sessions" | "comps">("sessions")
   const months = useMemo(() => {
     const m = new Map<string, Session[]>()
@@ -156,7 +170,8 @@ export function AthleteLog({ uid, ctx, onCompose }: { uid: string; ctx: UzuConte
             <div className="session-date"><span>{parseYmd(s.date).toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase()}</span><strong>{parseYmd(s.date).getDate()}</strong></div>
             <span className={`session-marker session-marker--${s.cat === "prepa" ? "sand" : s.roll ? "dark" : "wine"}`} />
             <div className="session-main"><div className="session-card-top"><h3>{sessionTitle(s)}</h3><span className={`session-label session-label--${s.roll ? "plain" : "soon"}`}>{sessionKind(s)}</span></div>
-              <div className="session-meta"><span><Clock3 size={14} />{Number(s.dur) ? durTxt(Number(s.dur)) : "Durée non précisée"}</span>{sessionMeta(s) && <span>{sessionMeta(s)}</span>}</div></div>
+              <div className="session-meta"><span><Clock3 size={14} />{Number(s.dur) ? durTxt(Number(s.dur)) : "Durée non précisée"}</span>{sessionMeta(s) && <span>{sessionMeta(s)}</span>}</div>
+              {!s.roll && <Acts kind="s" id={s.id} />}</div>
           </article>)}</div>
         </section>))
         : (data.comps.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Aucune compétition enregistrée.</p></div>
@@ -164,7 +179,8 @@ export function AthleteLog({ uid, ctx, onCompose }: { uid: string; ctx: UzuConte
             <div className="session-date"><span>{parseYmd(c.date).toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase()}</span><strong>{parseYmd(c.date).getDate()}</strong></div>
             <span className="session-marker session-marker--wine" />
             <div className="session-main"><div className="session-card-top"><h3>{c.event || "Compétition"}</h3>{compResult(c) && <span className="session-label session-label--soon"><Trophy size={11} /> {compResult(c)}</span>}</div>
-              <div className="session-meta">{c.type && <span>{c.type}</span>}<span>{Number(c.wins) || 0} victoire{(Number(c.wins) || 0) > 1 ? "s" : ""} · {Number(c.losses) || 0} défaite{(Number(c.losses) || 0) > 1 ? "s" : ""}</span><span>{frDate(c.date, { day: "numeric", month: "long", year: "numeric" })}</span></div></div>
+              <div className="session-meta">{c.type && <span>{c.type}</span>}<span>{Number(c.wins) || 0} victoire{(Number(c.wins) || 0) > 1 ? "s" : ""} · {Number(c.losses) || 0} défaite{(Number(c.losses) || 0) > 1 ? "s" : ""}</span><span>{frDate(c.date, { day: "numeric", month: "long", year: "numeric" })}</span></div>
+              <Acts kind="c" id={c.id} /></div>
           </article>)}</div>)}
     </>}
   </>

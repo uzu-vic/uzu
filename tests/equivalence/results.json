@@ -1,9 +1,17 @@
 {
- "ok": 7,
- "total": 7,
+ "ok": 19,
+ "total": 19,
  "report": [
   {
    "label": "cours complet : technique imposée, soumissions, détail du sparring, technique perso tapée",
+   "same": true
+  },
+  {
+   "label": "modification · formulaire prérempli · cours complet : technique imposée, soumissions, détail du sparring, technique perso tapée",
+   "same": true
+  },
+  {
+   "label": "modification · réenregistrement · cours complet : technique imposée, soumissions, détail du sparring, technique perso tapée",
    "same": true
   },
   {
@@ -11,7 +19,23 @@
    "same": true
   },
   {
+   "label": "modification · formulaire prérempli · plusieurs blocs, dont une technique validée par le prof (★★★) et une déjà ★★",
+   "same": true
+  },
+  {
+   "label": "modification · réenregistrement · plusieurs blocs, dont une technique validée par le prof (★★★) et une déjà ★★",
+   "same": true
+  },
+  {
    "label": "open mat : les techniques deviennent leurs systèmes, sans doublon",
+   "same": true
+  },
+  {
+   "label": "modification · formulaire prérempli · open mat : les techniques deviennent leurs systèmes, sans doublon",
+   "same": true
+  },
+  {
+   "label": "modification · réenregistrement · open mat : les techniques deviennent leurs systèmes, sans doublon",
    "same": true
   },
   {
@@ -19,11 +43,35 @@
    "same": true
   },
   {
+   "label": "modification · formulaire prérempli · prépa physique : aucun champ de JJB",
+   "same": true
+  },
+  {
+   "label": "modification · réenregistrement · prépa physique : aucun champ de JJB",
+   "same": true
+  },
+  {
    "label": "cours + prépa ajoutée",
    "same": true
   },
   {
+   "label": "modification · formulaire prérempli · cours + prépa ajoutée",
+   "same": true
+  },
+  {
+   "label": "modification · réenregistrement · cours + prépa ajoutée",
+   "same": true
+  },
+  {
    "label": "séance libre sans technique",
+   "same": true
+  },
+  {
+   "label": "modification · formulaire prérempli · séance libre sans technique",
+   "same": true
+  },
+  {
+   "label": "modification · réenregistrement · séance libre sans technique",
    "same": true
   },
   {

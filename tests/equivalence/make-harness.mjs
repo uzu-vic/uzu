@@ -21,6 +21,8 @@ window.__UZU_T={
  submit:function(){editing=null;$("logForm").dispatchEvent(new Event("submit",{cancelable:true}))},
  setComp:function(c,i){cform=Object.assign({type:"Gi",result:"aucun",wins:0,losses:0,subs:0},c);$("cDate").value=i.date||"";$("cEvent").value=i.event||""},
  submitComp:function(){editing=null;$("compForm").dispatchEvent(new Event("submit",{cancelable:true}))},
+ editForm:function(id){editing={kind:"s",id:id};renderLogForm();return {form:JSON.parse(JSON.stringify(form)),note:$("fNote").value,exos:$("fExos").value}},
+ submitEdit:function(){$("logForm").dispatchEvent(new Event("submit",{cancelable:true}))},
  mode:function(){return mode},role:function(){return role}
 };`
 const newCode = code.slice(0, at) + hook + code.slice(at)

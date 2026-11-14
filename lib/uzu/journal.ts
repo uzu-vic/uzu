@@ -112,6 +112,7 @@ async function prepare(uid: string, ctx: UzuContext | null): Promise<Loaded> {
   const acct = role === "solo" ? "solo" : "club"
   core.__set("mode", "cloud")
   core.__set("role", role === "teacher" ? "teacher" : "student")
+  core.__set("myUid", uid)
   const cacheId = role === "teacher" ? uid + ":coach" : uid
   const c = cacheRead(cacheId)
   let state: Any = c ? core.normalize(c.state) : core.emptyState()
@@ -239,4 +240,133 @@ export async function declareBelt(uid: string, ctx: UzuContext | null, nb: { ran
     const synced = await commit(uid, L)
     return { ok: true, synced, item: direct ? state.belt : state.request, direct }
   } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
+}
+
+
+// ---------- Modification et suppression (boutons « Modifier » / « Supprimer » de l'ancienne application) ----------
+/** Formulaire prérempli à partir d'une séance enregistrée (port de renderLogForm en mode modification). */
+export function formFromSession(C: Core, es: Any): { form: SessionForm; note: string; exos: string } {
+  const f = C.blankForm(), pp = C.isPrepa(es)
+  f.cat = pp ? "prepa" : "jjb"; f.kind = pp ? "cours" : C.kindOf(es); f.sys = es.sys || C.sysOfTech(es.theme); f.flow = es.flow || ""; f.tech = C.sysOfTech(es.theme) ? es.theme : ""
+  f.type = es.type || "Gi"; f.dur = es.dur; f.rounds = es.rounds || 0; f.forme = es.forme || ""; f.stars = +es.stars || 0
+  f.subs = C.subsOf(es); f.gm = C.gmOf(es); f.customs = C.normCustoms(es.customs); f.effort = C.EFFORTS[es.effort] ? es.effort : "force"; f.rpe = +es.rpe || 0
+  C.FORM_ACT_KEYS.forEach((k: string) => { f[k] = C.actOf(es, k) })
+  f.blocks = pp ? [] : C.normBlocks(es.blocks); if (f.blocks.length > 1) { f.sys = ""; f.flow = ""; f.tech = "" } else f.blocks = []
+  if (!pp && es.prepa) { f.withPrepa = true; f.effort = C.EFFORTS[es.prepa.effort] ? es.prepa.effort : "force"; f.rpe = +es.prepa.rpe || 0; f.pdur = +es.prepa.dur || 30 }
+  return { form: f, note: es.note || "", exos: ((!pp && es.prepa ? es.prepa.exos : es.exos) || "") as string }
+}
+
+export async function loadEntry(uid: string, ctx: UzuContext | null, kind: "s" | "c", id: string): Promise<{ core: Core; entry: Any } | null> {
+  const L = await prepare(uid, ctx)
+  const st = L.core.__get("state")
+  const entry = (kind === "s" ? st.sessions : st.comps).find((x: Any) => x.id === id)
+  return entry ? { core: L.core, entry } : null
+}
+
+export async function updateSession(uid: string, ctx: UzuContext | null, id: string, form: SessionForm, inp: SessionInputs): Promise<SaveResult> {
+  try {
+    const L = await prepare(uid, ctx)
+    const C = L.core, state = C.__get("state")
+    if (!state.sessions.some((s: Any) => s.id === id)) return { ok: false, msg: "Séance introuvable" }
+    const item = buildSessionItem(C, form, inp, techs => C.skillInfo(C.me(), techs[0]).lvl, state.skills)
+    state.sessions = state.sessions.map((s: Any) => (s.id === id ? Object.assign({}, s, item) : s))
+    const synced = await commit(uid, L)
+    return { ok: true, synced, item }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
+}
+
+export async function updateComp(uid: string, ctx: UzuContext | null, id: string, cform: CompForm, inp: CompInputs): Promise<SaveResult> {
+  if (!inp.event.trim()) return { ok: false, msg: "Indique le nom de la compétition" }
+  try {
+    const L = await prepare(uid, ctx)
+    const C = L.core, state = C.__get("state")
+    const item = buildCompItem(C, cform, inp)
+    state.comps = state.comps.map((c: Any) => (c.id === id ? Object.assign({}, c, item) : c))
+    const synced = await commit(uid, L)
+    return { ok: true, synced, item }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
+}
+
+export async function deleteEntry(uid: string, ctx: UzuContext | null, kind: "s" | "c", id: string): Promise<SaveResult> {
+  try {
+    const L = await prepare(uid, ctx)
+    const C = L.core, state = C.__get("state")
+    if (kind === "s") { state.sessions = state.sessions.filter((s: Any) => s.id !== id); L.deleted.s.push(id) }
+    else { state.comps = state.comps.filter((c: Any) => c.id !== id); L.deleted.c.push(id) }
+    const synced = await commit(uid, L)
+    return { ok: true, synced, item: null }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Suppression impossible" } }
+}
+
+// ---------- Profil ----------
+export async function saveProfileInfo(uid: string, ctx: UzuContext | null, p: { name: string; age: string; sex: string; parental: boolean }): Promise<SaveResult> {
+  const nn = p.name.trim().replace(/\s+/g, " ")
+  if (!nn) return { ok: false, msg: "Indique ton nom et ton prénom" }
+  try {
+    const L = await prepare(uid, ctx)
+    const C = L.core, state = C.__get("state"), t = L.role === "teacher"
+    if (!t && p.age === "lt16" && !p.parental) return { ok: false, msg: "Moins de 16 ans : coche l'accord de ton représentant légal" }
+    state.name = nn.slice(0, 40)
+    if (!t) { state.demo = { age: p.age, sex: p.sex }; if (state.consent) state.consent.parental = p.age === "lt16" }
+    const synced = await commit(uid, L)
+    return { ok: true, synced, item: null }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
+}
+
+// ---------- Fil du club (feed/<uid>) ----------
+export async function loadFeedDocs(): Promise<Record<string, Any>> {
+  const { data, error } = await withTimeout(uzu().from("docs").select("path,data").like("path", "feed/%"))
+  if (error) throw new Error(error.message)
+  const out: Record<string, Any> = {}
+  for (const r of (data ?? []) as { path: string; data: Any }[]) out[r.path.slice(5)] = r.data
+  return out
+}
+
+export async function loadFeed(uid: string, ctx: UzuContext | null): Promise<{ core: Core; role: string; feedOk: boolean }> {
+  const L = await prepare(uid, ctx)
+  let feedOk = true
+  try { L.core.__set("feedDocs", await loadFeedDocs()) } catch { feedOk = false; L.core.__set("feedDocs", {}) }
+  return { core: L.core, role: L.role, feedOk }
+}
+
+/** setFeedShare() de l'ancienne application. */
+export async function setFeedShare(uid: string, ctx: UzuContext | null, on: boolean): Promise<SaveResult> {
+  try {
+    const L = await prepare(uid, ctx)
+    const C = L.core, state = C.__get("state")
+    state.feed = on ? { on: true, at: new Date().toISOString() } : { on: false, at: "" }
+    try { await uzu().rpc("set_share_activity", { on_off: !!on }) } catch { /* le réglage serveur sera repris au prochain envoi */ }
+    if (!on && L.role !== "teacher") { try { await uzu().from("docs").delete().eq("path", `feed/${uid}`) } catch { /* rien */ } }
+    const synced = await commit(uid, L)
+    return { ok: true, synced, item: null }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
+}
+
+/** Encouragement « Check 👊 » (toggleCheck) ou validation ★★ d'un coéquipier (feedValidate). */
+export async function feedReact(uid: string, ctx: UzuContext | null, kind: "check" | "validate", key: string): Promise<SaveResult> {
+  try {
+    const L = await prepare(uid, ctx)
+    const C = L.core, state = C.__get("state")
+    if (kind === "check") { if (state.fx.checks[key]) delete state.fx.checks[key]; else state.fx.checks[key] = { at: new Date().toISOString() } }
+    else { if (L.role === "teacher") return { ok: false, msg: "Réservé aux élèves" }; state.fx.vals[key] = { at: new Date().toISOString() } }
+    const synced = await commit(uid, L)
+    return { ok: true, synced, item: null }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
+}
+
+/** Changement de mot de passe (même vérification que l'ancienne application : mot de passe actuel requis). */
+export async function changePassword(oldPw: string, newPw: string): Promise<string> {
+  const sb = uzu()
+  const { data } = await sb.auth.getUser()
+  const em = data.user?.email
+  if (!em) return "Session expirée : reconnecte-toi."
+  const a = await sb.auth.signInWithPassword({ email: em, password: oldPw })
+  if (a.error) return "Mot de passe actuel incorrect."
+  const u = await sb.auth.updateUser({ password: newPw })
+  if (!u.error) return "Mot de passe modifié."
+  const m = u.error.message || ""
+  if (/weak|should be|at least/i.test(m)) return "Nouveau mot de passe trop faible : 8 caractères minimum."
+  if (/same|different from the old/i.test(m)) return "Choisis un mot de passe différent de l'actuel."
+  if (/reauthenticat|nonce/i.test(m)) return "Supabase demande une vérification par e-mail pour changer de mot de passe."
+  return "Modification impossible : " + m
 }

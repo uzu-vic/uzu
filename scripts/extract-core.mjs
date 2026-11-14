@@ -35,9 +35,11 @@ const ROOTS = [
   // progression (vues Parcours et Progrès)
   "sysStats", "gmSysSum", "skillList", "subStats", "gmStats", "prepaStats", "actStats", "skillMeta", "lvMap",
   "beltLabel", "stripesTxt", "duration", "tw", "tg", "REVIEW_DAYS", "weekStart", "effortName", "isPending", "mat", "frShort", "frDate",
+  // modification d'une séance, fil du club, profil
+  "subsOf", "gmOf", "actOf", "kindOf", "feedItems", "feedStats", "checkCount", "feedWhen", "AGES", "SEXES", "ordFr",
 ]
 // Variables d'exécution réglables depuis la nouvelle application (même rôle que dans l'ancienne)
-const SETTABLE = ["state", "pendingDel", "mode", "role", "myRoll", "myGrade", "priv", "privHydrated", "dirty", "ACCT"]
+const SETTABLE = ["state", "pendingDel", "mode", "role", "myRoll", "myGrade", "priv", "privHydrated", "dirty", "ACCT", "feedDocs", "myUid"]
 // Identifiants interdits dans le code extrait (DOM, stockage, réseau, interface)
 const FORBIDDEN = new Set(["$", "document", "localStorage", "sessionStorage", "fetch", "XMLHttpRequest", "toast", "showModal", "navigator", "location", "history"])
 // Variables d'exécution de l'ancienne application : jamais modifiées par le code extrait

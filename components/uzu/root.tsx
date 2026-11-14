@@ -15,6 +15,7 @@ import { can, isStaff, isSuspended } from "@/lib/uzu/permissions"
 import { AthleteHome, AthleteLog } from "@/components/uzu/athlete"
 import { JournalForm } from "@/components/uzu/journal-form"
 import { AthleteProgress, AthleteTechniques } from "@/components/uzu/progress"
+import { AthleteFeed, AthleteProfile } from "@/components/uzu/social"
 import { syncPending } from "@/lib/uzu/journal"
 import { Check, X } from "lucide-react"
 
@@ -131,6 +132,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
   const [switching, setSwitching] = useState(false)
   const [notice, setNotice] = useState("")
   const [composing, setComposing] = useState(false)
+  const [editing, setEditing] = useState<{ kind: "s" | "c"; id: string } | null>(null)
   const [toast, setToast] = useState("")
   const showToast = (m: string) => { setToast(m); window.setTimeout(() => setToast(""), 4500) }
 
@@ -156,7 +158,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
   const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>
   const name = String(meta.name || meta.full_name || session.user.email || "Utilisateur")
   const memberships = (ctx?.memberships ?? []).filter(m => m.status === "active")
-  const go = (id: string) => { setActive(id); setMenuOpen(false); setComposing(false) }
+  const go = (id: string) => { setActive(id); setMenuOpen(false); setComposing(false); setEditing(null) }
   const changeSpace = (s: Space) => { setSpace(s); setActive("home"); setMenuOpen(false); setComposing(false) }
 
   const onSwitch = async (academyId: string) => {
@@ -197,11 +199,13 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
         {notice && <div className="uzu-banner uzu-banner--error" role="alert">{notice}</div>}
         {ctx && !teamOn(ctx) && <div className="uzu-banner">La base de cet environnement n'a pas la migration « équipe » : affichage en mode simplifié.</div>}
         {space === "club" && isSuspended(ctx) ? <Suspended />
-          : space === "athlete" && composing ? <JournalForm uid={session.user.id} ctx={ctx} onCancel={() => setComposing(false)} onDone={m => { setComposing(false); setActive("log"); showToast(m); window.scrollTo(0, 0) }} />
+          : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={m => { setComposing(false); setEditing(null); setActive("log"); showToast(m); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={name} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick} uid={session.user.id} ctx={ctx} />
           : space === "athlete" && current?.id === "progress" ? <AthleteProgress key={"p" + syncTick} uid={session.user.id} ctx={ctx} />
-          : space === "athlete" && current?.id === "log" ? <AthleteLog key={"l" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
+          : space === "athlete" && current?.id === "log" ? <AthleteLog key={"l" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} onEdit={(kind, id) => { setEditing({ kind, id }); setComposing(true); window.scrollTo(0, 0) }} onToast={showToast} />
+          : space === "athlete" && current?.id === "feed" ? <AthleteFeed key={"f" + syncTick} uid={session.user.id} ctx={ctx} onToast={showToast} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
+          : space === "athlete" && current?.id === "profile" ? <AthleteProfile key={"pr" + syncTick} session={session} ctx={ctx} onToast={showToast} />
           : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
       </div>
     </div>

@@ -17,7 +17,11 @@ with sync_playwright() as p:
         pg.evaluate("__UZU_T.submit()")
         st = pg.evaluate("__UZU_T.state()")
         item = st["sessions"][-1]
-        res["sessions"].append({"label": sc["label"], "item": item, "skills": st["skills"], "count": len(st["sessions"])})
+        ef = pg.evaluate("id=>__UZU_T.editForm(id)", item["id"])
+        pg.evaluate("__UZU_T.submitEdit()")
+        st2 = pg.evaluate("__UZU_T.state()")
+        edited = [x for x in st2["sessions"] if x["id"] == item["id"]][0]
+        res["sessions"].append({"label": sc["label"], "item": item, "skills": st["skills"], "count": len(st["sessions"]), "editForm": ef, "edited": edited, "editedSkills": st2["skills"]})
     for sc in S["comps"]:
         pg.evaluate("s=>__UZU_T.setState(s)", S["baseState"])
         pg.evaluate("([c,i])=>__UZU_T.setComp(c,i)", [sc["form"], sc["inputs"]])
