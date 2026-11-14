@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { Award, CalendarDays, CheckCircle2, ClipboardCheck, Search, Send, TrendingUp, UserPlus, Users } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
 import { can } from "@/lib/uzu/permissions"
-import { nextClasses } from "@/lib/uzu/training"
+import { nextClasses, slotTag } from "@/lib/uzu/training"
 import {
   courseAllowed, decideGrade, getMyCourses, getRollStudents, hasAbs, hasRoll, listProposals, loadClubData, proposeGrade, reqText, rollOptions,
   rollSummary, saveAttendance, type ClubData, type MyCourses, type Proposal, type RollOption, type StudentRow,
@@ -90,7 +90,7 @@ export function ClubHome({ uid, ctx, onNavigate, name }: ClubProps & { name: str
         {C && [tf.focusFrom, tf.focusTo].filter((k: string) => k && C.SYSTEMS[k]).length > 0 && <p className="uzu-text uzu-small">{[tf.focusFrom, tf.focusTo].filter((k: string) => k && C.SYSTEMS[k]).map((k: string) => C.SYSTEMS[k].n).join(" → ")}</p>}
       </section>
       <section className="panel uzu-panel-col"><div className="section-title"><h2>Prochains cours</h2><CalendarDays size={17} /></div>
-        {next.length ? <ul className="uzu-top">{next.map(o => <li key={o.slot.id + o.inDays}><span>{o.slot.t}<small>{o.inDays === 0 ? "Aujourd'hui" : o.inDays === 1 ? "Demain" : DSHORT[o.slot.d - 1] + " " + o.date.getDate()} · {o.slot.s} – {o.slot.e}</small></span>
+        {next.length ? <ul className="uzu-top">{next.map(o => <li key={o.slot.id + o.inDays}><span>{o.slot.t}<small>{o.inDays === 0 ? "Aujourd'hui" : o.inDays === 1 ? "Demain" : DSHORT[o.slot.d - 1] + " " + o.date.getDate()} · {o.slot.s} – {o.slot.e}{slotTag(o.slot) ? " · " + slotTag(o.slot) : ""}</small></span>
           {o.inDays === 0 && can(ctx, "attendance", "create") && <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("attendance")}>Appel</button>}</li>)}</ul>
           : <p className="uzu-text uzu-muted">Aucun cours au planning.</p>}
       </section>

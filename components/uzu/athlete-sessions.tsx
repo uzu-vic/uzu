@@ -5,7 +5,7 @@ import { useMemo, useState } from "react"
 import { ArrowUpRight, Award, CalendarDays, ChevronLeft, ChevronRight, Clock3, Dumbbell, Eye, Flame, MapPin, Pencil, Plus, Trash2, Trophy } from "lucide-react"
 import { deleteEntry } from "@/lib/uzu/journal"
 import type { UzuContext } from "@/lib/uzu/context"
-import { compResult, durTxt, frDate, nextClasses, normSched, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd, type Session } from "@/lib/uzu/training"
+import { compResult, durTxt, frDate, nextClasses, normSched, parseYmd, sessionKind, sessionMeta, sessionTitle, slotTag, ymd, type Session } from "@/lib/uzu/training"
 import { useTraining } from "@/components/uzu/athlete"
 import { SessionDetail } from "@/components/uzu/session-detail"
 import { CombatMapCard, useFullSessions } from "@/components/uzu/combat-map"
@@ -68,7 +68,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
       {tab === "next" && <>
         {upcoming[0] ? (() => { const o = upcoming[0]; return <div className="upcoming-banner">
           <div className="upcoming-date"><strong>{o.date.getDate()}</strong><span>{o.date.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase()}</span></div>
-          <div className="upcoming-copy"><span className="class-tag">{o.inDays === 0 ? "AUJOURD'HUI" : o.inDays === 1 ? "DEMAIN" : o.date.toLocaleDateString("fr-FR", { weekday: "long" }).toUpperCase()} · PROCHAIN COURS</span><h2>{o.slot.t}</h2>
+          <div className="upcoming-copy"><span className="class-tag">{o.inDays === 0 ? "AUJOURD'HUI" : o.inDays === 1 ? "DEMAIN" : o.date.toLocaleDateString("fr-FR", { weekday: "long" }).toUpperCase()} · PROCHAIN COURS{slotTag(o.slot) ? " · " + slotTag(o.slot).toUpperCase() : ""}</span><h2>{o.slot.t}</h2>
             <p><Clock3 size={14} />{o.slot.s} – {o.slot.e} <i /> <MapPin size={14} />{ctx?.club?.name}</p></div>
           <button className="button button--light" onClick={onCompose}>Saisir après le cours<ChevronRight size={15} /></button></div> })()
           : <div className="panel uzu-panel"><p className="uzu-text">Aucun cours au planning du club pour les prochains jours.</p></div>}
@@ -77,7 +77,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
           <div className="session-date"><span>{DSHORT[o.slot.d - 1]}</span><strong>{o.date.getDate()}</strong></div>
           <span className={`session-marker session-marker--${i === 0 ? "wine" : i % 2 ? "sand" : "dark"}`} />
           <div className="session-main"><div className="session-card-top"><h3>{o.slot.t}</h3><span className={`session-label session-label--${o.inDays === 0 ? "soon" : "plain"}`}>{o.inDays === 0 ? "Aujourd'hui" : o.inDays === 1 ? "Demain" : `Dans ${o.inDays} jours`}</span></div>
-            <div className="session-meta"><span><Clock3 size={14} />{o.slot.s} · {durTxt(Math.max(0, slotMin(o.slot.s, o.slot.e)))}</span><span><MapPin size={14} />{ctx?.club?.name}</span></div></div>
+            <div className="session-meta"><span><Clock3 size={14} />{o.slot.s} · {durTxt(Math.max(0, slotMin(o.slot.s, o.slot.e)))}</span>{slotTag(o.slot) && <span>{slotTag(o.slot)}</span>}<span><MapPin size={14} />{ctx?.club?.name}</span></div></div>
         </article>)}</div>
       </>}
 
@@ -124,7 +124,7 @@ function CalendarWeek({ sessions, schedule }: { sessions: Session[]; schedule: u
         const planned = future ? sched.filter(x => x.d === i + 1 && !done.some(s => !isPrepa(s))) : []
         return <div className="calendar-day" key={"d" + i}>
           {done.map(s => <div key={s.id} className={`calendar-event calendar-event--${isPrepa(s) ? "sand" : "wine"}`}><strong>{sessionTitle(s)}</strong><small>{Number(s.dur) ? durTxt(Number(s.dur)) : ""}{s.roll ? " · appel" : ""}</small></div>)}
-          {planned.map(x => <div key={x.id} className="calendar-event calendar-event--dark"><strong>{x.t}</strong><small>{x.s}</small></div>)}
+          {planned.map(x => <div key={x.id} className="calendar-event calendar-event--dark"><strong>{x.t}</strong><small>{x.s}{slotTag(x) ? " · " + slotTag(x) : ""}</small></div>)}
         </div>
       })}
     </div>

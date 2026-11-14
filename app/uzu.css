@@ -426,3 +426,23 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-story-btn { margin-top: 14px; }
 .uzu-story { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .uzu-story img { width: 160px; max-width: 50%; border-radius: 10px; box-shadow: 0 8px 26px #0002; }
+/* Cours et Équipe (design v0, tailles lisibles sur téléphone) */
+.course-list-row { grid-template-columns: 52px 64px 3px minmax(150px,1fr) 110px 30px; font-size: 12.5px; min-height: 62px; }
+.course-list-row b { font-size: 14px; } .course-list-row small { font-size: 12px; }
+.team-member strong { font-size: 14px; } .team-member small { font-size: 12.5px; }
+.role-pill { font-size: 11.5px; } .member-status { font-size: 12px; }
+.member-status.is-off { color: #941b2b; } .member-status.is-off i { background: #941b2b; }
+.permission-row strong { font-size: 13.5px; } .permission-row small, .permission-row > span:last-child { font-size: 12px; }
+.team-invite-card p { font-size: 13px; } .team-invite-card .button { min-height: 40px; font-size: 13px; }
+.uzu-team-row .avatar { width: 38px; height: 38px; font-size: 12px; }
+.uzu-inv-row .team-member .uzu-actions { margin-top: 6px; }
+.uzu-cal-btn { width: 100%; margin-bottom: 4px; border: 0; border-left: 2px solid #941b2b; text-align: left; font: inherit; cursor: pointer; }
+.uzu-cal-btn:disabled { cursor: default; }
+.calendar-event small { font-size: 11px; } .calendar-event strong { font-size: 12px; }
+.calendar-event--wine { border-left-color: #941b2b; background: #f7eeec; }
+@media (max-width: 680px) {
+  .course-list-row { grid-template-columns: 46px 52px 3px minmax(100px,1fr) 28px; font-size: 12px; }
+  .course-list-row b { font-size: 13px; } .course-list-row small { font-size: 11.5px; }
+  .team-member strong { font-size: 13.5px; } .member-status { font-size: 11.5px; }
+  .calendar-event strong { font-size: 10px; } .calendar-event small { font-size: 9.5px; }
+}

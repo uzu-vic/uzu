@@ -3,10 +3,10 @@
 // Contenus (focus tactique, annonce) et Mon académie (informations, code, paramètres, journal d'activité).
 // Toutes les écritures passent par les fonctions serveur ; les droits affichés ici ne servent qu'à l'affichage.
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CalendarPlus, LogOut, Plus, Send, ShieldCheck, UserPlus } from "lucide-react"
+import { ArrowLeft, ArrowRight, CalendarPlus, Check, ChevronLeft, ChevronRight, LogOut, Mail, MoreHorizontal, Plus, Send, ShieldCheck } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
 import { can, scopeOf } from "@/lib/uzu/permissions"
-import { normSched, type Slot } from "@/lib/uzu/training"
+import { COURSE_DISC, COURSE_KIND, discLabel, normSched, slotTag, type Slot } from "@/lib/uzu/training"
 import {
   AUDIT_LBL, DISCIPLINES, PERM_CAT, PRESETS, ROLE_LBL, SCOPE_LBL, SENSITIVE, STAFF_ROLES, STATUS_LBL, TPL_LBL,
   actLabel, bilanCalc, courseAllowed, seasonOf, seasonYear, createInvitation, getAudit, getMyCourses, getTeam, inviteUrl, leaveAcademy, loadClubData, mapToList,
@@ -47,52 +47,97 @@ function useTeam(ctx: UzuContext | null) {
 }
 
 // ================================================================ Cours
+const KIND_TONE: Record<string, string> = { cours: "wine", open: "dark", compet: "sand", prive: "sand" }
+const seasonLbl = () => { const d = new Date(), y = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; return `SAISON ${y}–${String(y + 1).slice(2)}` }
+
 export function ClubCourses({ ctx, onToast, onReloadCtx }: AdminProps) {
   const { team, reload: reloadTeam } = useTeam(ctx)
   const [mc, setMc] = useState<MyCourses>({ assigned: [], section: [], staff: [] })
   const [mcTick, setMcTick] = useState(0)
   const [staffFor, setStaffFor] = useState("")
-  const [form, setForm] = useState({ d: "1", t: "", s: "19:00", e: "20:30" })
+  const [editing, setEditing] = useState<Slot | "new" | null>(null)
+  const [filter, setFilter] = useState("")
+  const [week, setWeek] = useState(0)
   const [busy, setBusy] = useState(false)
   useEffect(() => { let live = true; getMyCourses().then(m => { if (live) setMc(m) }); return () => { live = false } }, [ctx, mcTick])
   const raw: Slot[] = normSched(ctx?.club?.schedule)
   const L = raw.slice().sort((a, b) => a.d - b.d || (a.s < b.s ? -1 : 1))
   const canEdit = canAcademy(ctx, "courses", "update")
+  const canStaff = (id: string) => can(ctx, "courses", "manage") && courseAllowed(ctx, mc, "courses", "manage", id) && can(ctx, "instructors", "view")
+  const staffOf = (id: string) => mc.staff.filter(y => y.course_key === id && !y.date)
   const saveSchedule = async (list: Slot[], msg: string) => {
     setBusy(true); const r = await updateAcademy({ schedule: normSched(list) }); setBusy(false)
-    onToast(r.ok ? msg : r.msg); if (r.ok) onReloadCtx()
-  }
-  const add = () => {
-    const t = form.t.trim()
-    if (!t) { onToast("Indique le nom du cours"); return }
-    if (!form.s || !form.e || form.e <= form.s) { onToast("Vérifie les horaires : la fin doit être après le début"); return }
-    saveSchedule(raw.concat([{ id: "c" + Date.now().toString(36), d: +form.d, s: form.s, e: form.e, t }]), "Cours ajouté au planning").then(() => setForm(f => ({ ...f, t: "" })))
+    onToast(r.ok ? msg : r.msg); if (r.ok) { onReloadCtx(); setEditing(null) }
+    return r.ok
   }
   const slot = L.find(x => x.id === staffFor)
   if (slot && team) return <CourseStaff slot={slot} team={team} onBack={() => setStaffFor("")} onToast={onToast} onDone={() => { setStaffFor(""); reloadTeam(); setMcTick(t => t + 1) }} />
+  const today = new Date(), mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7) + week * 7)
+  const days = [0, 1, 2, 3, 4, 5, 6].map(i => new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i))
+  const shown = L.filter(x => !filter || x.disc === filter)
+  const sub = (x: Slot) => [slotTag(x), staffOf(x.id).map(y => y.name + (y.role === "lead" ? " (principal)" : y.role === "assistant" ? " (assistant)" : "")).join(", ")].filter(Boolean).join(" · ")
   return <>
-    <ClubHeading eyebrow="COURS" title="Planning des cours" sub="Les cours de la semaine, leur encadrement et leur section." />
-    <section className="panel uzu-panel-col">
-      {L.length ? <ul className="uzu-top">{L.map(x => {
-        const st = mc.staff.filter(y => y.course_key === x.id && !y.date), meta = team?.course_meta.find(c => c.course_key === x.id)
-        return <li key={x.id}><span><b>{x.t}{meta && (meta.discipline || meta.level) ? <span className="uzu-muted"> · {[meta.discipline, meta.level].filter(Boolean).join(" · ")}</span> : null}</b>
-          <small>{DAYS[x.d - 1]} · {x.s} – {x.e}</small>{st.length > 0 && <small>{st.map(y => y.name + (y.role === "lead" ? " (principal)" : y.role === "assistant" ? " (assistant)" : "")).join(", ")}</small>}</span>
-          <span className="uzu-actions">
-            {can(ctx, "courses", "manage") && courseAllowed(ctx, mc, "courses", "manage", x.id) && can(ctx, "instructors", "view") && <button className="button button--outline uzu-small-btn" disabled={!team} onClick={() => setStaffFor(x.id)}>Encadrement</button>}
-            {canEdit && <ConfirmButton label="Retirer" confirm="Confirmer" disabled={busy} onConfirm={() => saveSchedule(raw.filter(y => y.id !== x.id), "Cours retiré du planning")} />}
-          </span></li>
-      })}</ul> : <p className="uzu-text uzu-muted">Aucun cours au planning.</p>}
-    </section>
-    {canEdit && <section className="panel uzu-panel-col uzu-grid-gap"><div className="section-title"><h2>Ajouter un cours</h2><CalendarPlus size={17} /></div>
-      <div className="uzu-row2">
-        <div className="uzu-field"><label className="uzu-label" htmlFor="sl-day">Jour</label><select id="sl-day" className="uzu-input" value={form.d} onChange={e => setForm({ ...form, d: e.target.value })}>{DAYS.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}</select></div>
-        <div className="uzu-field"><label className="uzu-label" htmlFor="sl-title">Nom du cours</label><input id="sl-title" className="uzu-input" maxLength={40} placeholder="Ex. : JJB Gi adultes" value={form.t} onChange={e => setForm({ ...form, t: e.target.value })} /></div>
-        <div className="uzu-field"><label className="uzu-label" htmlFor="sl-start">Début</label><input id="sl-start" type="time" className="uzu-input" value={form.s} onChange={e => setForm({ ...form, s: e.target.value })} /></div>
-        <div className="uzu-field"><label className="uzu-label" htmlFor="sl-end">Fin</label><input id="sl-end" type="time" className="uzu-input" value={form.e} onChange={e => setForm({ ...form, e: e.target.value })} /></div>
+    <div className="page-heading"><div><div className="eyebrow">{(ctx?.club?.name || "").toUpperCase()}<span className="eyebrow-dot" />{seasonLbl()}</div><h1>Les cours, en rythme<span className="heading-period">.</span></h1><p>Votre calendrier pédagogique et les rendez-vous de l&apos;académie.</p></div>
+      {canEdit && <button className="button button--dark" onClick={() => { setEditing("new"); window.scrollTo(0, 0) }}><Plus size={16} />Créer un cours</button>}</div>
+    {editing && <CourseEditor slot={editing === "new" ? null : editing} busy={busy} canStaff={editing !== "new" && canStaff(editing.id) && !!team}
+      onCancel={() => setEditing(null)} onStaff={() => { if (editing !== "new") { setStaffFor(editing.id); setEditing(null) } }}
+      onSave={x => editing === "new" ? saveSchedule(raw.concat([x]), "Cours ajouté au planning") : saveSchedule(raw.map(y => (y.id === x.id ? x : y)), "Cours modifié")}
+      onRemove={editing === "new" ? undefined : () => saveSchedule(raw.filter(y => y.id !== (editing as Slot).id), "Cours retiré du planning")} />}
+    <section className="panel calendar-panel">
+      <div className="calendar-toolbar"><div><div className="eyebrow">PLANNING DE LA SEMAINE</div><h2>{(() => { const t = mon.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }); return t.charAt(0).toUpperCase() + t.slice(1) })()}</h2></div>
+        <div className="calendar-controls"><button className="icon-button" aria-label="Semaine précédente" onClick={() => setWeek(week - 1)}><ChevronLeft size={17} /></button><button className="panel-select" onClick={() => setWeek(0)}>Aujourd&apos;hui</button><button className="icon-button" aria-label="Semaine suivante" onClick={() => setWeek(week + 1)}><ChevronRight size={17} /></button></div></div>
+      <div className="calendar-grid">
+        {days.map((d, i) => <div key={"h" + i} className={`calendar-day-head ${d.toDateString() === today.toDateString() ? "is-today" : ""}`}>{DSHORT[i].toUpperCase()} <strong>{d.getDate()}</strong></div>)}
+        {days.map((_, i) => <div className="calendar-day" key={"d" + i}>{shown.filter(x => x.d === i + 1).map(x => {
+          const lead = staffOf(x.id).find(y => y.role === "lead")
+          return <button type="button" key={x.id} className={`calendar-event calendar-event--${KIND_TONE[x.kind || "cours"]} uzu-cal-btn`} disabled={!canEdit && !canStaff(x.id)} onClick={() => { if (canEdit) setEditing(x); else if (canStaff(x.id)) setStaffFor(x.id) }}>
+            <strong>{x.t}</strong><small>{x.s}{lead ? " · " + lead.name.split(" ")[0] : ""}</small>{x.disc && <small>{discLabel(x.disc)}</small>}</button>
+        })}</div>)}
       </div>
-      <button className="button button--dark" disabled={busy} onClick={add}><Plus size={15} />Ajouter ce cours au planning</button>
-    </section>}
+    </section>
+    <section className="panel course-list-panel">
+      <div className="panel-header"><div className="section-title"><h2>Les cours de la semaine</h2></div>
+        <label className="panel-select uzu-period"><select aria-label="Filtrer par discipline" value={filter} onChange={e => setFilter(e.target.value)}><option value="">Tous les cours</option>{COURSE_DISC.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label></div>
+      {shown.length ? shown.map(x => <div className="course-list-row" key={x.id}>
+        <strong>{x.s}</strong><span>{DSHORT[x.d - 1].toUpperCase()} {days[x.d - 1].getDate()}</span><i className={`course-line course-line--${KIND_TONE[x.kind || "cours"]}`} />
+        <div><b>{x.t}</b><small>{sub(x) || "Discipline et type à préciser"}</small></div>
+        <span>{x.s} – {x.e}</span>
+        {(canEdit || canStaff(x.id)) ? <button className="row-action" aria-label={`Gérer ${x.t}`} onClick={() => { if (canEdit) { setEditing(x); window.scrollTo(0, 0) } else setStaffFor(x.id) }}><ChevronRight size={16} /></button> : <span />}
+      </div>) : <p className="uzu-text uzu-muted">{L.length ? "Aucun cours pour cette discipline." : "Aucun cours au planning."}</p>}
+    </section>
   </>
+}
+
+function CourseEditor({ slot, busy, canStaff, onSave, onCancel, onRemove, onStaff }: { slot: Slot | null; busy: boolean; canStaff: boolean; onSave: (x: Slot) => Promise<boolean>; onCancel: () => void; onRemove?: () => void; onStaff: () => void }) {
+  const [f, setF] = useState({ d: String(slot?.d || 1), t: slot?.t || "", s: slot?.s || "19:00", e: slot?.e || "20:30", disc: slot?.disc || "jjb", kind: slot?.kind || "cours" })
+  const [err, setErr] = useState("")
+  const save = () => {
+    const t = f.t.trim()
+    if (!t) { setErr("Indique le nom du cours"); return }
+    if (!f.s || !f.e || f.e <= f.s) { setErr("Vérifie les horaires : la fin doit être après le début"); return }
+    setErr("")
+    onSave({ id: slot?.id || "c" + Date.now().toString(36), d: +f.d, s: f.s, e: f.e, t, disc: f.disc as Slot["disc"], kind: f.kind as Slot["kind"] })
+  }
+  return <section className="panel uzu-panel-col uzu-grid-gap">
+    <div className="section-title"><h2>{slot ? "Modifier le cours" : "Créer un cours"}</h2><CalendarPlus size={17} /></div>
+    <span className="uzu-label">Discipline</span>
+    <div className="uzu-seg" role="group" aria-label="Discipline">{COURSE_DISC.map(([k, l]) => <button key={k} type="button" className={f.disc === k ? "on" : ""} aria-pressed={f.disc === k} onClick={() => setF({ ...f, disc: k })}>{l}</button>)}</div>
+    <span className="uzu-label">Type de cours</span>
+    <div className="uzu-seg" role="group" aria-label="Type de cours">{COURSE_KIND.map(([k, l]) => <button key={k} type="button" className={f.kind === k ? "on" : ""} aria-pressed={f.kind === k} onClick={() => setF({ ...f, kind: k })}>{l}</button>)}</div>
+    <div className="uzu-row2">
+      <div className="uzu-field"><label className="uzu-label" htmlFor="sl-title">Nom du cours</label><input id="sl-title" className="uzu-input" maxLength={40} placeholder="Ex. : Adultes tous niveaux" value={f.t} onChange={e => setF({ ...f, t: e.target.value })} /></div>
+      <div className="uzu-field"><label className="uzu-label" htmlFor="sl-day">Jour</label><select id="sl-day" className="uzu-input" value={f.d} onChange={e => setF({ ...f, d: e.target.value })}>{DAYS.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}</select></div>
+      <div className="uzu-field"><label className="uzu-label" htmlFor="sl-start">Début</label><input id="sl-start" type="time" className="uzu-input" value={f.s} onChange={e => setF({ ...f, s: e.target.value })} /></div>
+      <div className="uzu-field"><label className="uzu-label" htmlFor="sl-end">Fin</label><input id="sl-end" type="time" className="uzu-input" value={f.e} onChange={e => setF({ ...f, e: e.target.value })} /></div>
+    </div>
+    {err && <p className="uzu-note wait" role="alert">{err}</p>}
+    <div className="uzu-actions uzu-actions--start">
+      <button className="button button--dark" disabled={busy} onClick={save}><Check size={15} />{slot ? "Enregistrer le cours" : "Ajouter ce cours au planning"}</button>
+      <button className="button button--outline" onClick={onCancel}>Annuler</button>
+      {canStaff && <button className="button button--outline" onClick={onStaff}>Encadrement</button>}
+      {onRemove && <ConfirmButton className="button button--outline uzu-danger" label="Retirer du planning" confirm="Confirmer le retrait" disabled={busy} onConfirm={onRemove} />}
+    </div>
+  </section>
 }
 
 function CourseStaff({ slot, team, onBack, onToast, onDone }: { slot: Slot; team: Team; onBack: () => void; onToast: (m: string) => void; onDone: () => void }) {
@@ -129,6 +174,7 @@ function CourseStaff({ slot, team, onBack, onToast, onDone }: { slot: Slot; team
 }
 
 // ================================================================ Équipe
+const TONES = ["peach", "lavender", "sage", "rose", "light"]
 export function ClubTeam({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
   const { team, error, allowed, reload } = useTeam(ctx)
   const [inviting, setInviting] = useState(false)
@@ -136,33 +182,56 @@ export function ClubTeam({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
   const [open, setOpen] = useState("")
   const [students, setStudents] = useState<StudentRow[]>([])
   useEffect(() => { let live = true; loadClubData(uid).then(d => { if (live) setStudents(d.rows) }, () => {}); return () => { live = false } }, [uid, ctx])
-  if (!allowed) return <><ClubHeading eyebrow="ÉQUIPE" title="Équipe pédagogique" sub="" /><p className="uzu-note">Tu n'as pas accès à l'équipe pédagogique.</p></>
-  if (!team) return <><ClubHeading eyebrow="ÉQUIPE" title="Équipe pédagogique" sub="Chargement…" /><ClubLoading error={error} onRetry={reload} /></>
+  const club = (ctx?.club?.name || "").toUpperCase()
+  if (!allowed) return <><ClubHeading eyebrow="ÉQUIPE" title="Une équipe, un tatami" sub="" /><p className="uzu-note">Tu n'as pas accès à l'équipe pédagogique.</p></>
+  if (!team) return <><ClubHeading eyebrow={club} title="Une équipe, un tatami" sub="Chargement…" /><ClubLoading error={error} onRetry={reload} /></>
   const m = open ? team.members.find(x => x.id === open) : null
   if (m) return <MemberSheet ctx={ctx} team={team} m={m} students={students} onBack={() => setOpen("")} onToast={onToast} onChanged={() => { reload() }} onReloadCtx={onReloadCtx} />
   const sec = (id: string | null) => team.sections.find(s => s.id === id)?.name || ""
-  const active = team.members.filter(x => x.status === "active").length
+  const active = team.members.filter(x => x.status === "active")
+  const canInvite = can(ctx, "instructors", "create")
   const showLink = (email: string, d: Any) => setLink({ email, url: inviteUrl(d.token) })
+  const startInvite = () => { setInviting(true); setLink(null); window.scrollTo(0, 0) }
+  // Résumé des droits par rôle (à partir des droits réels de chaque membre)
+  const roles = [...new Set(team.members.filter(x => x.status !== "removed").map(x => x.role))]
+  const roleSummary = (r: string) => {
+    const ms = team.members.filter(x => x.role === r && x.status !== "removed")
+    if (r === "owner") return { acts: "Tous les droits de l'académie", scopes: "Toute l'académie", n: ms.length }
+    const acts = new Set<string>(), scopes = new Set<string>()
+    ms.forEach(x => mapToList(x.perms || {}).forEach(p => { acts.add(PERM_CAT.find(c => c[0] === p.r)?.[1] || p.r); scopes.add(SCOPE_LBL[p.s] || p.s) }))
+    return { acts: acts.size ? [...acts].slice(0, 6).join(" · ") + (acts.size > 6 ? ` · +${acts.size - 6}` : "") : "Aucun droit", scopes: [...scopes].join(" · "), n: ms.length }
+  }
   return <>
-    <ClubHeading eyebrow="ÉQUIPE" title="Équipe pédagogique" sub={`${active} membre${team.members.length > 1 ? "s" : ""}${team.invitations.length ? ` · ${team.invitations.length} invitation${team.invitations.length > 1 ? "s" : ""} en attente` : ""}`}>
-      {can(ctx, "instructors", "create") && <button className="button button--dark" onClick={() => { setInviting(v => !v); setLink(null) }}><UserPlus size={15} />Inviter un membre</button>}
-    </ClubHeading>
+    <div className="page-heading"><div><div className="eyebrow">{club}<span className="eyebrow-dot" />{active.length} MEMBRE{active.length > 1 ? "S" : ""}</div><h1>Une équipe, un tatami<span className="heading-period">.</span></h1><p>Les personnes qui transmettent, encadrent et font progresser.</p></div>
+      {canInvite && <button className="button button--dark" onClick={startInvite}><Plus size={16} />Inviter un membre</button>}</div>
     {link && <InviteLink email={link.email} url={link.url} clubName={ctx?.club?.name || ""} onClose={() => setLink(null)} />}
     {inviting && !link && <InviteForm ctx={ctx} onToast={onToast} onCancel={() => setInviting(false)} onCreated={(email, d) => { setInviting(false); showLink(email, d); reload() }} />}
-    <div className="uzu-plist uzu-grid-gap">
-      {team.members.map(x => <button key={x.id} className="uzu-pcard" onClick={() => { setOpen(x.id); window.scrollTo(0, 0) }}>
-        <span className="uzu-av" aria-hidden="true">{initialsOf(x.name)}</span>
-        <span className="uzu-pc-main"><b>{x.name}{x.is_me && <span className="uzu-muted"> (toi)</span>}</b><small>{x.email}</small>
-          <small>{ROLE_LBL[x.role] || x.role}{x.section_id && sec(x.section_id) ? " · " + sec(x.section_id) : ""} · {x.courses || 0} cours · depuis le {frDT(x.joined_at)}</small></span>
-        <span className={`uzu-pill ${x.status === "active" ? "done" : "now"}`}>{STATUS_LBL[x.status] || x.status}</span></button>)}
-      {team.invitations.map(i => <div key={i.id} className="uzu-pcard uzu-pcard--static">
-        <span className="uzu-av" aria-hidden="true">@</span>
-        <span className="uzu-pc-main"><b>{i.email}</b><small>{ROLE_LBL[i.role] || i.role} · {i.status === "expired" ? "expirée" : "valable jusqu'au " + frDT(i.expires_at)}</small>
-          {can(ctx, "instructors", "create") && <span className="uzu-actions uzu-actions--start">
-            <button className="button button--outline uzu-small-btn" onClick={async () => { const r = await resendInvitation(i.id); if (!r.ok) { onToast(r.msg); return } showLink(i.email || r.data?.email || "", r.data); reload() }}>Nouveau lien</button>
-            <ConfirmButton label="Annuler" confirm="Confirmer" onConfirm={async () => { const r = await revokeInvitation(i.id); onToast(r.ok ? "Invitation annulée" : r.msg); reload() }} /></span>}</span>
-        <span className="uzu-pill">{STATUS_LBL[i.status] || i.status}</span></div>)}
+    <section className="panel team-panel">
+      <div className="panel-header"><div className="section-title"><h2>Équipe pédagogique</h2></div><span className="panel-select">{active.length} membre{active.length > 1 ? "s" : ""} actif{active.length > 1 ? "s" : ""}</span></div>
+      {team.members.map((x, i) => <div className="team-row uzu-team-row" key={x.id}>
+        <span className={`avatar avatar--${TONES[i % TONES.length]}`} aria-hidden="true">{initialsOf(x.name)}</span>
+        <div className="team-member"><strong>{x.name}{x.is_me && <span className="uzu-muted"> (toi)</span>}</strong><small>{ROLE_LBL[x.role] || x.role}{x.section_id && sec(x.section_id) ? " · " + sec(x.section_id) : ""} · {x.courses || 0} cours · depuis le {frDT(x.joined_at)}</small></div>
+        <span className="role-pill">{ROLE_LBL[x.role] || x.role}</span>
+        <span className={`member-status ${x.status !== "active" ? "is-off" : ""}`}><i />{STATUS_LBL[x.status] || x.status}</span>
+        <button className="icon-button" aria-label={`Options de ${x.name}`} aria-haspopup="dialog" onClick={() => { setOpen(x.id); window.scrollTo(0, 0) }}><MoreHorizontal size={18} /></button>
+      </div>)}
+      {team.invitations.map(inv => <div className="team-row uzu-team-row uzu-inv-row" key={inv.id}>
+        <span className="avatar avatar--light" aria-hidden="true">@</span>
+        <div className="team-member"><strong>{inv.email}</strong><small>{ROLE_LBL[inv.role] || inv.role} · {inv.status === "expired" ? "invitation expirée" : "valable jusqu'au " + frDT(inv.expires_at)}</small>
+          {canInvite && <span className="uzu-actions uzu-actions--start">
+            <button className="button button--outline uzu-small-btn" onClick={async () => { const r = await resendInvitation(inv.id); if (!r.ok) { onToast(r.msg); return } showLink(inv.email || r.data?.email || "", r.data); reload() }}>Nouveau lien</button>
+            <ConfirmButton label="Annuler" confirm="Confirmer" onConfirm={async () => { const r = await revokeInvitation(inv.id); onToast(r.ok ? "Invitation annulée" : r.msg); reload() }} /></span>}</div>
+        <span className="role-pill">{STATUS_LBL[inv.status] || inv.status}</span>
+      </div>)}
       {!team.members.length && !team.invitations.length && <p className="uzu-text uzu-muted">Aucun membre pour l'instant.</p>}
+    </section>
+    <div className="content-grid team-lower">
+      <section className="panel"><div className="panel-header"><div className="section-title"><h2>Rôles &amp; permissions</h2></div></div>
+        {roles.map(r => { const x = roleSummary(r); return <div className="permission-row" key={r}><span className="permission-shield"><ShieldCheck size={15} /></span>
+          <div><strong>{ROLE_LBL[r] || r}</strong><small>{x.acts} {x.scopes && <span>· {x.scopes}</span>}</small></div><span>{x.n} membre{x.n > 1 ? "s" : ""}</span></div> })}
+      </section>
+      <section className="team-invite-card"><span className="invite-illustration"><Mail size={21} /></span><div className="eyebrow">AGRANDIR L&apos;ÉQUIPE</div><h2>Le club se construit<br />ensemble.</h2><p>Invitez les professeurs et assistants à rejoindre l&apos;académie, avec des droits réglés au plus juste.</p>
+        {canInvite && <button className="button button--light" onClick={startInvite}>Envoyer une invitation<ArrowRight size={15} /></button>}</section>
     </div>
   </>
 }

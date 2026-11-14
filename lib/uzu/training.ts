@@ -167,10 +167,23 @@ export const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${p
 export const parseYmd = (s: string) => { const p = String(s || "").split("-"); return new Date(+p[0], +p[1] - 1, +p[2]) }
 export const frDate = (s: string, opt: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" }) => parseYmd(s).toLocaleDateString("fr-FR", opt)
 
-export type Slot = { id: string; d: number; s: string; e: string; t: string }
+export type Slot = { id: string; d: number; s: string; e: string; t: string; disc?: CourseDisc; kind?: CourseKind }
+export type CourseDisc = "jjb" | "grappling"
+export type CourseKind = "cours" | "open" | "compet" | "prive"
+export const COURSE_DISC: [CourseDisc, string][] = [["jjb", "JJB"], ["grappling", "Grappling"]]
+export const COURSE_KIND: [CourseKind, string][] = [["cours", "Cours collectif"], ["open", "Open mat"], ["compet", "Compétition / Prépa"], ["prive", "Cours privé"]]
+export const discLabel = (d?: string) => COURSE_DISC.find(x => x[0] === d)?.[1] || ""
+export const kindLabel = (k?: string) => COURSE_KIND.find(x => x[0] === k)?.[1] || ""
+/** Discipline et type d'un cours en une ligne (« JJB · Open mat »), vide si non renseignés. */
+export const slotTag = (x: Slot) => [discLabel(x.disc), kindLabel(x.kind)].filter(Boolean).join(" · ")
 export function normSched(a: unknown): Slot[] {
   return Array.isArray(a) ? a.filter((x): x is Slot => !!x && !!x.id && x.d >= 1 && x.d <= 7 && /^\d\d:\d\d$/.test(x.s) && /^\d\d:\d\d$/.test(x.e)).slice(0, 30)
-    .map(x => ({ id: String(x.id).slice(0, 20), d: +x.d, s: x.s, e: x.e, t: String(x.t || "Cours").slice(0, 40) })) : []
+    .map(x => {
+      const o: Slot = { id: String(x.id).slice(0, 20), d: +x.d, s: x.s, e: x.e, t: String(x.t || "Cours").slice(0, 40) }
+      if (COURSE_DISC.some(c => c[0] === x.disc)) o.disc = x.disc
+      if (COURSE_KIND.some(c => c[0] === x.kind)) o.kind = x.kind
+      return o
+    }) : []
 }
 const isoDay = (d: Date) => ((d.getDay() + 6) % 7) + 1
 /** Prochains cours du planning du club (même calcul que l'ancienne application). */
