@@ -31,6 +31,7 @@ const target = process.env.VERCEL_ENV || "local";
 if (!url || !key) fail("NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY doivent être définies pour l'environnement « " + target + " ».");
 if (!/^https:\/\/[a-z0-9]+\.supabase\.co\/?$/.test(url)) fail("NEXT_PUBLIC_SUPABASE_URL n'a pas la forme https://xxxx.supabase.co");
 if (/service_role|sb_secret_/.test(key)) fail("la clé fournie est une clé secrète : seule la clé publique (anon / publishable) est autorisée.");
+if (target === "production" && !url.includes(PROD_PROJECT_REF)) fail("la mise en ligne de PRODUCTION vise une autre base que celle de production (" + url + "). Corrige NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY pour l'environnement Production dans Vercel : la version actuellement en ligne reste inchangée.");
 if (url.includes(PROD_PROJECT_REF) && target !== "production") fail("l'environnement « " + target + " » vise la base de PRODUCTION. Les aperçus et le développement doivent utiliser le projet Supabase de test.");
 
 const full = fs.readFileSync(path.join(SRC, "index.html"), "utf8");
