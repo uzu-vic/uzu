@@ -9,12 +9,13 @@ import { can, scopeOf } from "@/lib/uzu/permissions"
 import { normSched, type Slot } from "@/lib/uzu/training"
 import {
   AUDIT_LBL, DISCIPLINES, PERM_CAT, PRESETS, ROLE_LBL, SCOPE_LBL, SENSITIVE, STAFF_ROLES, STATUS_LBL, TPL_LBL,
-  actLabel, courseAllowed, createInvitation, getAudit, getMyCourses, getTeam, inviteUrl, leaveAcademy, loadClubData, mapToList,
+  actLabel, bilanCalc, courseAllowed, seasonOf, seasonYear, createInvitation, getAudit, getMyCourses, getTeam, inviteUrl, leaveAcademy, loadClubData, mapToList,
   resendInvitation, revokeInvitation, setCourseMeta, setCourseStaff, setMemberPermissions, setMemberRole, setMemberStatus, setStudentAccess,
   tplMap, transferOwnership, updateAcademy, updateInviteCode, upsertSection,
   type MyCourses, type PermDraft, type StudentRow, type Team, type TeamMember,
 } from "@/lib/uzu/club"
 import { ClubHeading, ClubLoading, InvitePanel, initialsOf } from "@/components/uzu/club"
+import { checkVideo, loadVideos, removeVideo, uploadVideo, videoSlots, type VideoMap } from "@/lib/uzu/videos"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -352,7 +353,7 @@ function AssignTab({ ctx, team, m, canU, students, sched, onToast, onChanged }: 
 }
 
 // ================================================================ Contenus
-export function ClubContents({ ctx, onToast, onReloadCtx }: AdminProps) {
+export function ClubContents({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
   const club = ctx?.club, tf = (club?.tactical_focus || {}) as Any
   const [C, setC] = useState<Any>(null)
   useEffect(() => { import("@/lib/uzu/journal").then(j => setC(j.newCore())) }, [])
@@ -387,11 +388,7 @@ export function ClubContents({ ctx, onToast, onReloadCtx }: AdminProps) {
         {club?.news && can(ctx, "communications", "delete") && <ConfirmButton label="Retirer" confirm="Confirmer : retirer" onConfirm={() => { setNews(""); save("nc", { news: "" }, "Annonce retirée") }} />}
       </div>
     </section>}
-    {(can(ctx, "contents", "create") || can(ctx, "contents", "view")) && <section className="panel uzu-panel-col">
-      <div className="section-title"><h2>Vidéos pédagogiques</h2></div>
-      <p className="uzu-text">L'envoi des vidéos (focus tactique, systèmes) se fait encore dans l'application actuelle, sur le même compte.</p>
-      <a className="button button--outline" href="/legacy/">Ouvrir l'application actuelle</a>
-    </section>}
+    {(can(ctx, "contents", "create") || can(ctx, "contents", "view")) && C && club && <VideosCard C={C} clubId={club.id} uid={uid} canEdit={ctx?.role === "coach" && can(ctx, "contents", "create")} onToast={onToast} />}
   </>
 }
 
@@ -444,8 +441,8 @@ export function ClubAcademy({ uid, ctx, onToast, onReloadCtx, onNavigate }: Admi
         <a className="button button--outline uzu-small-btn" href="/legacy/">Notifications (application actuelle)</a>
         {ctx?.academy_role !== "owner" && <ConfirmButton className="button button--outline uzu-small-btn uzu-danger" label={<><LogOut size={14} />Quitter cette académie</>} confirm="Confirmer : quitter" onConfirm={async () => { const r = await leaveAcademy(); if (!r.ok) { onToast(r.msg); return } window.location.reload() }} />}
       </div>
-      {can(ctx, "academy_statistics", "view") && <p className="uzu-text uzu-small uzu-muted">Le bilan d'activité pour les dossiers de subvention reste disponible dans l'application actuelle, rubrique Mon académie.</p>}
     </section>
+    {can(ctx, "academy_statistics", "view") && <BilanCard uid={uid} clubName={club?.name || "Club"} />}
 
     {can(ctx, "academy_audit_logs", "view") && <section className="panel uzu-panel-col uzu-grid-gap"><div className="section-title"><h2>Journal d'activité</h2></div>
       {audit === null ? <p className="uzu-text uzu-muted">Chargement…</p> : audit.length ? <ul className="uzu-top">{audit.map(a => <li key={a.id}><span><b>{AUDIT_LBL[a.action] || a.action}</b><small>{a.actor || ""}{audLine(a) ? " · " + audLine(a) : ""}</small></span><small>{frDT(a.at)}</small></li>)}</ul>
@@ -454,3 +451,111 @@ export function ClubAcademy({ uid, ctx, onToast, onReloadCtx, onNavigate }: Admi
   </>
 }
 
+
+// Vidéos pédagogiques : une par emplacement (focus tactique, chaque système), même stockage que l'ancienne application
+function VideosCard({ C, clubId, uid, canEdit, onToast }: { C: Any; clubId: string; uid: string; canEdit: boolean; onToast: (m: string) => void }) {
+  const slots = videoSlots(C)
+  const [vids, setVids] = useState<VideoMap>({})
+  const [slot, setSlot] = useState(slots[0].k)
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [tick, setTick] = useState(0)
+  const [inputKey, setInputKey] = useState(0)
+  useEffect(() => { let live = true; loadVideos(clubId).then(v => { if (live) setVids(v) }); return () => { live = false } }, [clubId, tick])
+  const send = async () => {
+    if (!file) { onToast("Choisis d'abord une vidéo"); return }
+    const c = checkVideo(file); if ("msg" in c) { onToast(c.msg); return }
+    setBusy(true); const r = await uploadVideo(clubId, slot, file, uid, vids[slot]?.id); setBusy(false)
+    onToast(r.ok ? "Vidéo ajoutée" : r.msg); if (r.ok) { setFile(null); setInputKey(k => k + 1); setTick(t => t + 1) }
+  }
+  const have = slots.filter(x => vids[x.k]?.id)
+  return <section className="panel uzu-panel-col uzu-grid-gap">
+    <div className="section-title"><h2>Vidéos pédagogiques</h2></div>
+    <p className="uzu-text uzu-small uzu-muted">{canEdit ? "Une vidéo courte (30 à 60 s filmées au téléphone, MP4 ou WebM, 50 Mo maximum) pour le focus tactique ou pour chaque système. Les élèves la voient sur leur Accueil ou dans Techniques." : "L'envoi de vidéos est réservé au responsable de l'académie."}</p>
+    {canEdit && <>
+      <label className="uzu-label" htmlFor="v-slot">Pour</label>
+      <select id="v-slot" className="uzu-input" value={slot} onChange={e => setSlot(e.target.value)}>{slots.map(x => <option key={x.k} value={x.k}>{x.label}{vids[x.k]?.id ? " (vidéo en ligne)" : ""}</option>)}</select>
+      <label className="uzu-label" htmlFor="v-file">Vidéo</label>
+      <input key={inputKey} id="v-file" type="file" className="uzu-input" accept="video/mp4,video/webm,video/quicktime" onChange={e => setFile(e.target.files?.[0] || null)} />
+      <button className="button button--dark" disabled={busy} onClick={send}>{busy ? "Envoi en cours…" : "Envoyer la vidéo"}</button></>}
+    {have.length ? <ul className="uzu-top">{have.map(x => <li key={x.k}><span>{x.label}</span>
+      {canEdit && <ConfirmButton label="Retirer" confirm="Confirmer" onConfirm={async () => { const r = await removeVideo(clubId, x.k, vids[x.k].id); onToast(r.ok ? "Vidéo retirée" : r.msg); if (r.ok) setTick(t => t + 1) }} />}</li>)}</ul>
+      : <p className="uzu-text uzu-muted">Aucune vidéo pour l'instant.</p>}
+  </section>
+}
+
+// Bilan d'activité et subventions : statistiques agrégées et anonymes de la saison, imprimables en PDF
+function BilanCard({ uid, clubName }: { uid: string; clubName: string }) {
+  const [rows, setRows] = useState<StudentRow[] | null>(null)
+  const [C, setC] = useState<Any>(null)
+  const [show, setShow] = useState(false)
+  const [season, setSeason] = useState(() => seasonYear(new Date()))
+  useEffect(() => { let live = true; loadClubData(uid).then(d => { if (live) { setRows(d.rows); setC(d.C) } }, () => { if (live) setRows([]) }); return () => { live = false } }, [uid])
+  const cur = seasonYear(new Date()), opts = [cur, cur - 1, cur - 2, cur - 3]
+  const print = () => {
+    setShow(true)
+    window.setTimeout(() => {
+      document.body.classList.add("uzu-print-bilan")
+      const done = () => { document.body.classList.remove("uzu-print-bilan"); window.removeEventListener("afterprint", done) }
+      window.addEventListener("afterprint", done)
+      try { window.print() } catch { /* impression indisponible */ }
+      window.setTimeout(done, 60000)
+    }, 50)
+  }
+  return <section className="panel uzu-panel-col uzu-grid-gap">
+    <div className="section-title"><h2>Bilan d'activité et subventions</h2></div>
+    <p className="uzu-text uzu-small uzu-muted">Statistiques agrégées et anonymes de la saison, prêtes à annexer à un dossier ANS, mairie ou département. Aucun nom, aucune donnée de santé.</p>
+    <label className="uzu-label" htmlFor="b-season">Saison sportive</label>
+    <select id="b-season" className="uzu-input" value={season} onChange={e => setSeason(+e.target.value)}>{opts.map(y => <option key={y} value={y}>Saison {y}-{y + 1}{y === cur ? " (en cours)" : ""}</option>)}</select>
+    <div className="uzu-actions uzu-actions--start"><button className="button button--dark" onClick={print}>Imprimer / Exporter (PDF)</button><button className="button button--outline" onClick={() => setShow(v => !v)}>{show ? "Masquer l'aperçu" : "Voir l'aperçu du bilan"}</button></div>
+    <p className="uzu-text uzu-small uzu-muted">Sur téléphone, choisis « Enregistrer en PDF » ou « Partager » dans la fenêtre d'impression.</p>
+    {show && (rows === null || !C ? <p className="uzu-text uzu-muted">Chargement des données du club…</p> : <BilanSheet C={C} rows={rows} season={season} clubName={clubName} />)}
+  </section>
+}
+
+function BilanSheet({ C, rows, season, clubName }: { C: Any; rows: StudentRow[]; season: number; clubName: string }) {
+  const se = seasonOf(C, season), o = bilanCalc(C, rows, se)
+  const pct = (n: number, t: number) => (t ? Math.round(n / t * 100) : 0), nfr = (n: number) => String(n).replace(".", ",")
+  const head = <div className="uzu-bl-head"><div className="eyebrow">BILAN D'ACTIVITÉ · SAISON {se.label}</div><h3>{clubName}</h3>
+    <span className="uzu-text uzu-small uzu-muted">Période : du {C.frDate(se.from)} au {C.frDate(se.closed ? se.to : se.until)}{se.closed ? "" : " (saison en cours)"} · Document généré le {C.frDate(C.ymd(C.TODAY))}</span></div>
+  if (!o.inscrits) return <div className="uzu-bilan">{head}<p className="uzu-text uzu-muted">Aucun adhérent inscrit dans UZU pour l'instant. Le bilan se remplit dès que tes élèves saisissent leurs séances.</p></div>
+  if (!o.actifs) return <div className="uzu-bilan">{head}<p className="uzu-text uzu-muted">Aucune séance enregistrée sur cette saison. Choisis une autre saison ou reviens quand tes élèves auront saisi leurs séances.</p></div>
+  const tm = o.medals.or + o.medals.argent + o.medals.bronze, gr = o.ceintures + o.barrettes, s = (n: number, w: string) => w + (n > 1 ? "s" : "")
+  const sx: [string, string][] = ([["h", "Hommes"], ["f", "Femmes"], ["a", "Autre"], ["n", "Non renseigné"]] as [string, string][]).filter(x => o.sex[x[0]])
+  const prow: [string, string][] = (C.AGES as Any[]).slice().reverse().map(a => [a.k, a.n] as [string, string]); if (o.pyr.nr.h + o.pyr.nr.f + o.pyr.nr.a + o.pyr.nr.n) prow.push(["nr", "Non renseigné"])
+  let mx = 1; prow.forEach(x => { const p = o.pyr[x[0]]; mx = Math.max(mx, p.h, p.f) })
+  const bk = (C.BELTS as Any[]).filter(b => o.byBelt[b.k])
+  return <div className="uzu-bilan">{head}
+    <div className="uzu-bl-kpis">
+      <div><b>{o.actifs}</b><span>{s(o.actifs, "adhérent")} {s(o.actifs, "actif")}<br />sur {o.inscrits} inscrits</span></div>
+      <div><b>{pct(o.sex.f, o.actifs)} %</b><span>de femmes<br />({o.sex.f} sur {o.actifs})</span></div>
+      <div><b>{o.hours.toLocaleString("fr-FR")} h</b><span>heures de tapis<br />({o.sessions.toLocaleString("fr-FR")} séances)</span></div>
+      <div><b>{nfr(o.perWeek)}</b><span>séances par adhérent<br />et par semaine</span></div>
+      <div><b>{gr}</b><span>{s(gr, "grade")} {s(gr, "délivré")}<br />({o.ceintures} {s(o.ceintures, "ceinture")}, {o.barrettes} {s(o.barrettes, "barrette")})</span></div>
+      <div><b>{tm}</b><span>{s(tm, "médaille")}<br />({o.medals.or} or, {o.medals.argent} argent, {o.medals.bronze} bronze)</span></div>
+    </div>
+    <h4>Répartition par sexe (adhérents actifs)</h4>
+    <div className="uzu-sexbar" role="img" aria-label="Répartition par sexe">{sx.map(x => <span key={x[0]} className={`sx-${x[0]}`} style={{ width: `${o.sex[x[0]] / o.actifs * 100}%` }} />)}</div>
+    <div className="uzu-sexleg">{sx.map(x => <span key={x[0]}><i className={`sx-${x[0]}`} />{x[1]} : <b>{o.sex[x[0]]}</b> ({pct(o.sex[x[0]], o.actifs)} %)</span>)}</div>
+    <h4>Pyramide des âges</h4>
+    <div className="uzu-pyr"><div className="uzu-pyr-row uzu-pyr-head"><span>Hommes</span><span>Âge</span><span>Femmes</span></div>
+      {prow.map(x => { const p = o.pyr[x[0]]; return <div key={x[0]} className="uzu-pyr-row"><div className="uzu-pyr-l"><b>{p.h}</b><span className="sx-h" style={{ width: `${p.h / mx * 100}%` }} /></div><div className="uzu-pyr-c">{x[1]}</div><div className="uzu-pyr-r"><span className="sx-f" style={{ width: `${p.f / mx * 100}%` }} /><b>{p.f}</b></div></div> })}</div>
+    <table className="uzu-bl-table"><thead><tr><th>Tranche d'âge</th><th>Hommes</th><th>Femmes</th><th>Autre / NR</th><th>Total</th></tr></thead>
+      <tbody>{prow.map(x => { const p = o.pyr[x[0]]; return <tr key={x[0]}><td>{x[1]}</td><td>{p.h}</td><td>{p.f}</td><td>{p.a + p.n}</td><td>{p.h + p.f + p.a + p.n}</td></tr> })}</tbody>
+      <tfoot><tr><td>Total</td><td>{o.sex.h}</td><td>{o.sex.f}</td><td>{o.sex.a + o.sex.n}</td><td>{o.actifs}</td></tr></tfoot></table>
+    <h4>Activité sur le tapis</h4>
+    <table className="uzu-bl-table"><tbody>
+      <tr><td>Séances enregistrées</td><td>{o.sessions.toLocaleString("fr-FR")}</td></tr><tr><td>Volume d'heures de tapis</td><td>{o.hours.toLocaleString("fr-FR")} h</td></tr>
+      <tr><td>Assiduité moyenne (séances par adhérent actif et par semaine)</td><td>{nfr(o.perWeek)}</td></tr><tr><td>Assiduité moyenne (séances par adhérent actif et par mois)</td><td>{nfr(o.perMonth)}</td></tr>
+      <tr><td>Semaines couvertes par la période</td><td>{se.weeks}</td></tr></tbody></table>
+    <h4>Grades délivrés par l'encadrement</h4>
+    {bk.length ? <table className="uzu-bl-table"><thead><tr><th>Ceinture</th><th>Passages de ceinture</th><th>Barrettes</th></tr></thead>
+      <tbody>{bk.map(b => <tr key={b.k}><td>Ceinture {b.n}</td><td>{o.byBelt[b.k].c}</td><td>{o.byBelt[b.k].b}</td></tr>)}</tbody><tfoot><tr><td>Total</td><td>{o.ceintures}</td><td>{o.barrettes}</td></tr></tfoot></table>
+      : <p className="uzu-text uzu-muted">Aucun grade délivré sur la période.</p>}
+    <h4>Compétitions</h4>
+    {o.parts ? <table className="uzu-bl-table"><tbody><tr><td>Compétiteurs engagés</td><td>{o.competiteurs}</td></tr><tr><td>Participations</td><td>{o.parts}</td></tr><tr><td>Médailles d'or</td><td>{o.medals.or}</td></tr><tr><td>Médailles d'argent</td><td>{o.medals.argent}</td></tr><tr><td>Médailles de bronze</td><td>{o.medals.bronze}</td></tr><tr><td>Combats gagnés / perdus</td><td>{o.wins} / {o.losses}</td></tr></tbody></table>
+      : <p className="uzu-text uzu-muted">Aucune compétition saisie sur la période.</p>}
+    <p className="uzu-text uzu-small uzu-muted">Méthode : adhérent actif = au moins une séance de tapis enregistrée sur la période (la préparation physique n'est pas comptée). Séances et compétitions saisies par les adhérents dans UZU ou notées à l'appel ; grades validés par l'encadrement. Données agrégées et anonymes : aucune donnée nominative ni de santé.</p>
+    <div className="uzu-bl-sign"><div>Fait à ………………………, le ……………</div><div>Signature du président ou de la présidente et cachet du club</div></div>
+  </div>
+}

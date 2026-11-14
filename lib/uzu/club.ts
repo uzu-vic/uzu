@@ -26,7 +26,7 @@ async function docsLike(prefix: string): Promise<Record<string, Any>> {
   const { data, error } = await uzu().from("docs").select("path,data").like("path", prefix + "%")
   if (error) throw new Error(error.message)
   const out: Record<string, Any> = {}
-  for (const r of (data ?? []) as { path: string; data: Any }[]) out[r.path.slice(prefix.length)] = r.data
+  for (const r of (Array.isArray(data) ? data : []) as { path: string; data: Any }[]) out[r.path.slice(prefix.length)] = r.data
   return out
 }
 
@@ -81,7 +81,7 @@ export async function saveAttendance(ctx: UzuContext | null, o: RollOption, mark
 export type StudentRow = {
   id: string; name: string; belt: { rank: string; stripes: number; since: string }; req: Any | null
   n30: number; days: number; sess: Any[]; P: Any; joined: string; comps: Any[]; hist: Any[]; hours: number
-  ver: Record<string, Any>; mast: number; stars3: number; medals: { or: number; argent: number; bronze: number }; grade: Any | null; att: Any
+  ver: Record<string, Any>; mast: number; stars3: number; medals: { or: number; argent: number; bronze: number }; grade: Any | null; att: Any; demo: Any
 }
 export type ClubData = { rows: StudentRow[]; roll: Record<string, { s?: Any[]; a?: string[] }>; grades: Record<string, Any>; C: Any }
 
@@ -100,7 +100,7 @@ export async function loadClubData(myUid: string): Promise<ClubData> {
       id, name: String(x.name || "Élève"), belt: g ? C.normBelt(g) : { rank: "blanche", stripes: 0, since: "" }, req: C.isPending(x.request, g) ? x.request : null,
       n30: S.filter((s: Any) => s.date > lim).length, days, sess: S, P, joined: (x.consent && x.consent.at) || "", comps: x.comps || [], hist: C.gradeHist(g),
       hours: Math.round(C.mat(S).reduce((a: number, s: Any) => a + (+s.dur || 0), 0) / 60), ver: vr, mast: C.sysStats(P).avg, stars3: C.count3(P),
-      medals: C.medalsOf(x.comps), grade: g, att: x.att,
+      medals: C.medalsOf(x.comps), grade: g, att: x.att, demo: x.demo || {},
     }
   })
   return { rows: rows.sort((a, b) => a.days - b.days), roll: roll as Any, grades: grades as Any, C }
@@ -142,7 +142,7 @@ export async function listNotes(academyId: string, studentId: string): Promise<N
   const { data, error } = await uzu().from("pedagogical_notes").select("id,author_user_id,visibility,body,legacy,created_at,updated_at")
     .eq("student_id", studentId).eq("academy_id", academyId).is("deleted_at", null).order("created_at", { ascending: false })
   if (error) throw new Error(error.message)
-  return (data ?? []) as Note[]
+  return Array.isArray(data) ? (data as Note[]) : []
 }
 export async function addNote(academyId: string, studentId: string, myUid: string, body: string, vis: "private" | "team"): Promise<RpcResult<null>> {
   const { error } = await uzu().from("pedagogical_notes").insert({ academy_id: academyId, student_id: studentId, author_user_id: myUid, visibility: vis, body: body.trim().slice(0, 2000) })
@@ -159,7 +159,7 @@ export async function listProposals(academyId: string): Promise<Proposal[]> {
   const { data, error } = await uzu().from("belt_history").select("id,student_id,rank,stripes,since,comment,proposed_by,created_at")
     .eq("academy_id", academyId).eq("status", "proposed").order("created_at", { ascending: false })
   if (error) return []
-  return (data ?? []) as Proposal[]
+  return Array.isArray(data) ? (data as Proposal[]) : []
 }
 export const decideGrade = (student: string, rank: string, stripes: number, since: string, status: "validé" | "refusé", comment = "") =>
   call("decide_grade", { p_student: student, p_rank: rank, p_stripes: stripes, p_since: since, p_status: status, p_comment: comment })
@@ -252,3 +252,40 @@ export const updateAcademy = (patch: Record<string, unknown>) => call<Any>("upda
 export const updateInviteCode = (code: string) => call<string>("update_invite_code", { new_code: code })
 export const leaveAcademy = () => call("leave_academy", {})
 export const inviteUrl = (token: string) => window.location.origin + "/?invite=" + encodeURIComponent(token)
+
+// ---------- Bilan d'activité (subventions) : même calcul que l'ancienne application ----------
+export const seasonYear = (d: Date) => (d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1)
+export function seasonOf(C: Any, y: number) {
+  const a = new Date(y, 8, 1), b = new Date(y + 1, 7, 31), e = b < C.TODAY ? b : C.TODAY
+  return { y, label: y + "-" + (y + 1), from: C.ymd(a), to: C.ymd(b), until: C.ymd(e), weeks: Math.max(1, Math.round((+e - +a) / (7 * 864e5) + 1 / 7)), closed: b < C.TODAY }
+}
+export function bilanCalc(C: Any, rows: StudentRow[], se: ReturnType<typeof seasonOf>) {
+  const R = rows.map(r => ({ demo: r.demo || {}, sessions: C.mat(r.sess || []).filter((x: Any) => x.date >= se.from && x.date <= se.to), comps: (r.comps || []).filter((c: Any) => c.date >= se.from && c.date <= se.to), hist: r.hist || [] }))
+  const act = R.filter(r => r.sessions.length > 0)
+  const z = () => ({ h: 0, f: 0, a: 0, n: 0 })
+  const o: Any = { inscrits: R.length, actifs: act.length, sex: z(), pyr: {}, sessions: 0, minutes: 0, ceintures: 0, barrettes: 0, byBelt: {}, medals: { or: 0, argent: 0, bronze: 0 }, podiums: 0, parts: 0, competiteurs: 0, wins: 0, losses: 0 }
+  ;(C.AGES as Any[]).forEach(a => { o.pyr[a.k] = z() }); o.pyr.nr = z()
+  act.forEach(r => {
+    const sx = C.SEXES[r.demo && r.demo.sex] ? r.demo.sex : "n", ag = C.ageIdx(r.demo && r.demo.age) > -1 ? r.demo.age : "nr"
+    o.sex[sx]++; o.pyr[ag][sx]++
+    r.sessions.forEach((x: Any) => { o.sessions++; o.minutes += +x.dur || 0 })
+  })
+  R.forEach(r => {
+    if (r.comps.length) { o.competiteurs++; o.parts += r.comps.length }
+    r.comps.forEach((c: Any) => { if (o.medals[c.result] !== undefined) { o.medals[c.result]++; o.podiums++ } o.wins += +c.wins || 0; o.losses += +c.losses || 0 })
+    const H = r.hist.filter((h: Any) => h.status !== "refusé").slice().sort((a: Any, b: Any) => (a.at < b.at ? -1 : 1))
+    let prev: Any = { rank: "blanche", stripes: 0 }
+    H.forEach((h: Any) => {
+      const d = C.day10(h.at)
+      if (d >= se.from && d <= se.to) {
+        const bk = C.BELTS[C.beltIdx(h.rank)].k; o.byBelt[bk] = o.byBelt[bk] || { c: 0, b: 0 }
+        if (h.rank !== prev.rank) { o.ceintures++; o.byBelt[bk].c++ } else if (+h.stripes > +prev.stripes) { o.barrettes += (+h.stripes - +prev.stripes); o.byBelt[bk].b += (+h.stripes - +prev.stripes) }
+      }
+      prev = h
+    })
+  })
+  o.hours = Math.round(o.minutes / 60)
+  o.perWeek = o.actifs ? Math.round(o.sessions / o.actifs / se.weeks * 10) / 10 : 0
+  o.perMonth = o.actifs ? Math.round(o.sessions / o.actifs / (se.weeks / 4.345) * 10) / 10 : 0
+  return o
+}

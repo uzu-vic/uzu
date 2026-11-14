@@ -20,6 +20,7 @@ import { syncPending } from "@/lib/uzu/journal"
 import { ClubAttendance, ClubHome, ClubProgress } from "@/components/uzu/club"
 import { ClubStudents } from "@/components/uzu/club-students"
 import { ClubAcademy, ClubContents, ClubCourses, ClubTeam } from "@/components/uzu/club-admin"
+import { BellButton, NotifCenter, useNotifs } from "@/components/uzu/notifications"
 import { Check, X } from "lucide-react"
 
 type Space = "athlete" | "club"
@@ -70,7 +71,7 @@ export function UzuRoot() {
   // Liens existants de l'ancienne application (invitation, notification) : transmis tels quels.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search)
-    if (q.has("invite") || q.has("go")) window.location.replace(LEGACY + window.location.search)
+    if (q.has("invite")) window.location.replace(LEGACY + window.location.search)
   }, [])
 
   useEffect(() => {
@@ -167,6 +168,26 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
   const go = (id: string, arg = "") => { setActive(id); setNavArg(arg); setMenuOpen(false); setComposing(false); setEditing(null); window.scrollTo(0, 0) }
   const changeSpace = (s: Space) => { setSpace(s); setActive("home"); setMenuOpen(false); setComposing(false) }
 
+  // Ouverture depuis une notification : ?go=vue (appli fermée) ou message du service worker (appli ouverte)
+  const openGo = useCallback((g: string) => {
+    const map: Record<string, [Space, string]> = { today: ["athlete", "home"], path: ["athlete", "path"], prog: ["athlete", "progress"], feed: ["athlete", "feed"], log: ["athlete", "log"], prof: ["club", "home"] }
+    const t = map[g]; if (!t) return
+    if (t[0] === "club" && !staff) return
+    setSpace(t[0]); setMenuOpen(false); setEditing(null)
+    if (g === "log") { setActive("log"); setComposing(true) } else { setActive(t[1]); setComposing(false) }
+    window.scrollTo(0, 0)
+  }, [staff])
+  useEffect(() => {
+    if (!ctx) return
+    try { const g = new URLSearchParams(window.location.search).get("go"); if (g) { window.history.replaceState(null, "", window.location.pathname); openGo(g) } } catch { /* rien */ }
+    const onMsg = (e: MessageEvent) => { if (e.data && e.data.type === "uzu-go") openGo(String(e.data.go || "")) }
+    if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", onMsg)
+    return () => { if ("serviceWorker" in navigator) navigator.serviceWorker.removeEventListener("message", onMsg) }
+  }, [!!ctx, openGo]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifs = useNotifs(session.user.id, ctx, n => showToast(n.title))
+  const openNotifs = () => { setNotifOpen(true); window.setTimeout(notifs.readAll, 800) }
+
   const onSwitch = async (academyId: string) => {
     if (!academyId || academyId === ctx?.club?.id) return
     setSwitching(true)
@@ -198,8 +219,8 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
       <div className="sidebar-bottom"><div className="profile-switch"><span className="avatar avatar--light" aria-hidden="true">{initials(name)}</span><span><strong>{name}</strong><small>{session.user.email}</small></span><button className="icon-button uzu-logout" aria-label="Se déconnecter" onClick={logout}><LogOut size={16} /></button></div></div>
     </aside>
     <div className="workspace">
-      <header className="topbar"><div className="topbar-crumb"><span>UZU</span><span className="crumb-slash">/</span><span>{space === "athlete" ? "ATHLETE" : "CLUB"}</span><span className="crumb-slash">/</span><strong>{current?.label.toUpperCase()}</strong></div></header>
-      <div className="mobile-space-bar"><button className="mobile-menu-trigger" aria-label="Ouvrir la navigation" onClick={() => setMenuOpen(true)}><Menu size={19} /></button><div className="brand-mark brand-mark--compact"><span className="brand-glyph">U</span><span className="brand-word">UZU</span></div>{staff && <div className="mobile-switcher"><button onClick={() => changeSpace(space === "athlete" ? "club" : "athlete")}>{space === "athlete" ? "Athlete" : "Club"}<ChevronDown size={13} /></button></div>}</div>
+      <header className="topbar"><div className="topbar-crumb"><span>UZU</span><span className="crumb-slash">/</span><span>{space === "athlete" ? "ATHLETE" : "CLUB"}</span><span className="crumb-slash">/</span><strong>{current?.label.toUpperCase()}</strong></div><div className="topbar-actions"><BellButton unread={notifs.unread} onClick={openNotifs} /></div></header>
+      <div className="mobile-space-bar"><button className="mobile-menu-trigger" aria-label="Ouvrir la navigation" onClick={() => setMenuOpen(true)}><Menu size={19} /></button><div className="brand-mark brand-mark--compact"><span className="brand-glyph">U</span><span className="brand-word">UZU</span></div><span className="uzu-mobile-bell"><BellButton unread={notifs.unread} onClick={openNotifs} /></span>{staff && <div className="mobile-switcher"><button onClick={() => changeSpace(space === "athlete" ? "club" : "athlete")}>{space === "athlete" ? "Athlete" : "Club"}<ChevronDown size={13} /></button></div>}</div>
       <div className="page-content">
         {ctxError && <div className="uzu-banner uzu-banner--error" role="alert">Impossible de lire votre contexte : {ctxError} <button className="text-link" onClick={onReload}>Réessayer</button></div>}
         {notice && <div className="uzu-banner uzu-banner--error" role="alert">{notice}</div>}
@@ -223,6 +244,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx }: { session: Session; 
           : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
       </div>
     </div>
+    {notifOpen && <NotifCenter uid={session.user.id} ctx={ctx} list={notifs.list} ready={notifs.ready} onClose={() => setNotifOpen(false)} onOpen={openGo} onToast={showToast} />}
     {toast && <div className="toast-message" role="status"><span><Check size={15} /></span>{toast}<button onClick={() => setToast("")} aria-label="Fermer le message"><X size={15} /></button></div>}
     <nav className="mobile-bottom-nav" aria-label="Navigation mobile">
       {bottom.map(item => { const Icon = item.icon; return <button key={item.id} className={current?.id === item.id ? "active" : ""} onClick={() => go(item.id)} aria-current={current?.id === item.id ? "page" : undefined}><Icon size={18} /><span>{item.label}</span></button> })}

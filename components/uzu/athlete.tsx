@@ -2,7 +2,9 @@
 // Espace Athlete — Accueil et Carnet (lecture) ; la saisie passe par components/uzu/journal-form.tsx.
 import { useEffect, useMemo, useState } from "react"
 import { ArrowRight, ArrowUpRight, Award, CalendarDays, Clock3, Dumbbell, Flame, MapPin, Pencil, Plus, Trash2, Trophy } from "lucide-react"
-import { deleteEntry } from "@/lib/uzu/journal"
+import { deleteEntry, loadCore } from "@/lib/uzu/journal"
+import { loadVideos, videoUrl } from "@/lib/uzu/videos"
+import { Stars } from "@/components/uzu/progress"
 import type { UzuContext } from "@/lib/uzu/context"
 import {
   beltColor, beltName, compResult, durTxt, frDate, loadTraining, nextClasses, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd,
@@ -104,6 +106,7 @@ export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: st
 
     {!data ? <Loading error={error} onRetry={reload} /> : <>
       <PendingNote data={data} />
+      <HomeExtras uid={uid} ctx={ctx} solo={data.role === "solo"} sessions={data.sessions} onNavigate={onNavigate} onCompose={onCompose} />
       <div className="metric-grid">
         <Metric label="Séances ce mois" value={String(stats!.count)} unit={stats!.count > 1 ? "séances" : "séance"} icon={Dumbbell}
           trend={stats!.diff > 0 ? "up" : "flat"} note={stats!.diff > 0 ? `+${stats!.diff} vs mois dernier` : stats!.diff < 0 ? `${stats!.diff} vs mois dernier` : "comme le mois dernier"} />
@@ -120,6 +123,57 @@ export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: st
           : <div className="recent-list">{data.sessions.slice(0, 5).map(s => <SessionRow key={s.id} s={s} />)}</div>}
       </section>
     </>}
+  </>
+}
+
+// Focus tactique, actualités, vidéo, techniques à réviser, rappel de fin de cours, carnet solo (repris de l'accueil de l'ancienne application)
+function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: string; ctx: UzuContext | null; solo: boolean; sessions: Session[]; onNavigate: (id: string) => void; onCompose: () => void }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [core, setCore] = useState<any>(null)
+  const [vid, setVid] = useState("")
+  const [badVid, setBadVid] = useState(false)
+  const [endKey, setEndKey] = useState("")
+  const club = ctx?.club, tf = (club?.tactical_focus || {}) as Record<string, string>
+  useEffect(() => { let live = true; loadCore(uid, ctx).then(r => { if (live) setCore(r.core) }, () => {}); return () => { live = false } }, [uid, ctx])
+  useEffect(() => { if (!club?.id || solo) return; let live = true; loadVideos(club.id).then(v => { if (live && v["club-semaine"]) setVid(v["club-semaine"].id) }); return () => { live = false } }, [club?.id, solo])
+  // « Fin du cours ! » : dans les 3 h qui suivent la fin d'un cours du jour, si aucune séance n'est saisie pour aujourd'hui
+  useEffect(() => {
+    if (solo || !club) { setEndKey(""); return }
+    const now = new Date(), today = ymd(now), dn = ((now.getDay() + 6) % 7) + 1, mins = now.getHours() * 60 + now.getMinutes()
+    let best: { id: string; em: number } | null = null
+    const S = Array.isArray(club.schedule) ? club.schedule as { id: string; d: number; e: string }[] : []
+    S.forEach(x => { if (x.d !== dn || !/^\d\d:\d\d$/.test(String(x.e))) return; const e = x.e.split(":"), em = +e[0] * 60 + +e[1]; if (mins >= em && mins - em <= 180 && (!best || em > best.em)) best = { id: x.id, em } })
+    let dis: Record<string, number> = {}; try { dis = JSON.parse(localStorage.getItem("uzu-endbar") || "{}") || {} } catch { /* rien */ }
+    const b = best as { id: string; em: number } | null, key = b ? today + "|" + b.id : ""
+    setEndKey(b && !sessions.some(s => s.date === today && s.cat !== "prepa") && !dis[key] ? key : "")
+  }, [club, solo, sessions])
+  const later = () => { try { const d = JSON.parse(localStorage.getItem("uzu-endbar") || "{}") || {}; d[endKey] = 1; localStorage.setItem("uzu-endbar", JSON.stringify(d)) } catch { /* rien */ } setEndKey("") }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const review: any[] = core ? core.reviewList(core.me()) : []
+  const sys = (k: string) => (core && k && core.SYSTEMS[k] ? core.SYSTEMS[k].n : "")
+  return <>
+    {endKey && <div className="uzu-banner uzu-endbar" role="status"><span>🥋 Fin du cours ! As-tu pensé à saisir ta séance pour ne rien oublier ? (10 secondes chrono)</span>
+      <span className="uzu-actions uzu-actions--start"><button className="button button--dark uzu-small-btn" onClick={onCompose}>Saisir ma séance</button><button className="button button--outline uzu-small-btn" onClick={later}>Plus tard</button></span></div>}
+    {!solo && club && <div className="content-grid uzu-grid-gap">
+      <section className="panel uzu-panel-col">
+        <div className="eyebrow">FOCUS TACTIQUE DU MOMENT</div>
+        <h2 className="uzu-h2">{tf.weekTheme || "Pas encore de focus publié"}</h2>
+        {(tf.focusFrom || tf.focusTo) && <p className="uzu-text uzu-small">{[sys(tf.focusFrom), sys(tf.focusTo)].filter(Boolean).join(" → ")}</p>}
+        <p className="uzu-text">{tf.focusDetails || (tf.weekTheme ? "" : "Ton prof n'a pas encore publié de focus. En attendant, travaille tes fondamentaux et les connexions entre tes 3 systèmes.")}</p>
+        {vid && !badVid && <video className="uzu-video" controls playsInline preload="metadata" src={videoUrl(vid)} onError={() => setBadVid(true)} />}
+      </section>
+      {club.news ? <section className="panel uzu-panel-col"><div className="eyebrow">ACTUALITÉS · {(club.name || "club").toUpperCase()}</div><p className="uzu-text uzu-pre">{club.news}</p></section>
+        : <section className="panel uzu-panel-col"><div className="eyebrow">ACTUALITÉS</div><p className="uzu-text uzu-muted">Aucune annonce du club pour l'instant.</p></section>}
+    </div>}
+    {review.length > 0 && <section className="panel uzu-panel-col uzu-grid-gap">
+      <div className="eyebrow">À RÉVISER</div>
+      <p className="uzu-text">{review.length} technique{review.length > 1 ? "s" : ""} non travaillée{review.length > 1 ? "s" : ""} depuis plus de {core.REVIEW_DAYS} jours. Remets-{review.length > 1 ? "les" : "la"} au programme de ton prochain entraînement.</p>
+      <ul className="uzu-skill-list">{review.slice(0, 3).map(i => <li key={i.name}><span><b>{i.name}</b><small>{core.agoTxt(i.days)}</small></span><Stars lvl={i.lvl} /></li>)}</ul>
+      <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("progress")}>Voir mes techniques</button>
+    </section>}
+    {solo && <section className="panel uzu-panel-col uzu-grid-gap"><div className="eyebrow">CARNET SOLO</div>
+      <p className="uzu-text">Tu t'entraînes dans un club ? Relie ton carnet : ton prof validera tes ceintures et tes techniques ★★★. Tout ton historique te suit.</p>
+      <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("profile")}>J'ai un code d'invitation</button></section>}
   </>
 }
 

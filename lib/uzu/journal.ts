@@ -370,3 +370,45 @@ export async function changePassword(oldPw: string, newPw: string): Promise<stri
   if (/reauthenticat|nonce/i.test(m)) return "Supabase demande une vérification par e-mail pour changer de mot de passe."
   return "Modification impossible : " + m
 }
+
+// ---------- Mes données (profil) : mêmes effets que l'ancienne application ----------
+function cacheClear(id: string) {
+  try { const m = cacheAll(); delete m[id]; if (Object.keys(m).length) localStorage.setItem(CACHE_KEY, JSON.stringify(m)); else localStorage.removeItem(CACHE_KEY) } catch { /* rien */ }
+}
+async function delDoc(path: string): Promise<void> {
+  const { error } = await withTimeout(uzu().from("docs").delete().eq("path", path))
+  if (error) throw new Error(error.message)
+}
+/** Texte d'avertissement avant suppression, selon le type de compte (repris de l'ancienne application). */
+export function deleteAllText(ctx: UzuContext | null): string {
+  const role = legacyRole(ctx)
+  return role === "teacher" ? "Ton entraînement perso (séances, compétitions, progression) sera effacé définitivement. Ton club, tes élèves et leurs données ne sont pas touchés."
+    : role === "solo" ? "Ton carnet solo (séances, compétitions, techniques, progression) sera effacé définitivement. Aucun club ni prof n'y a accès."
+    : "Tes séances, tes compétitions, ta progression et ton accord seront effacés définitivement, ainsi que ta présence dans le fil Tatami. Ta ceinture et tes ★★★ validées restent enregistrées par ton prof : demande-lui de les retirer si tu quittes le club."
+}
+/** Supprime toutes les données d'entraînement de l'utilisateur (le compte reste ouvert). */
+export async function deleteAllData(uid: string, ctx: UzuContext | null): Promise<{ ok: true } | { ok: false; msg: string }> {
+  const role = legacyRole(ctx)
+  try {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return { ok: false, msg: "Suppression impossible hors connexion : réessaie avec du réseau" }
+    if (role === "teacher") { await delDoc(`data/users/${uid}/training`); cacheClear(uid + ":coach"); return { ok: true } }
+    await delDoc(`members/${uid}`)
+    await delDoc(`feed/${uid}`).catch(() => {})
+    if (role !== "solo") await delDoc(`roll/${uid}`).catch(() => {})
+    await delDoc(`data/users/${uid}/private`).catch(() => {})
+    cacheClear(uid)
+    return { ok: true }
+  } catch { return { ok: false, msg: "Suppression impossible pour l'instant, réessaie plus tard" } }
+}
+/** Carnet solo → club : rattachement par code ; l'historique du carnet suit (accord de partage enregistré à la prochaine ouverture). */
+export async function joinClubByCode(code: string): Promise<{ ok: true } | { ok: false; msg: string }> {
+  const { error } = await uzu().rpc("join_club_by_code", { invite_code_input: code })
+  if (error) return { ok: false, msg: error.message }
+  try { localStorage.removeItem("uzu-solo"); localStorage.setItem("uzu-owner", "solo-migrate") } catch { /* rien */ }
+  return { ok: true }
+}
+export async function createClubFromSolo(name: string, code: string): Promise<{ ok: true; code: string } | { ok: false; msg: string }> {
+  const { data, error } = await uzu().rpc("create_new_club", { club_name: name, invite_code_input: code })
+  if (error) return { ok: false, msg: error.message }
+  return { ok: true, code: String((data as Any)?.invite_code || code) }
+}

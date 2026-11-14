@@ -3,11 +3,11 @@
 // Même contenu et mêmes règles que l'ancienne application : le fil ne montre jamais les soumissions
 // subies, l'état physique ni les notes privées ; on n'y apparaît que si on l'a choisi.
 import { useEffect, useState } from "react"
-import { Check, KeyRound, LogOut, Plus, Share2, ShieldCheck, Users } from "lucide-react"
+import { Check, KeyRound, LogOut, Plus, Share2, ShieldCheck, Trash2, Users } from "lucide-react"
 import type { Session } from "@supabase/supabase-js"
 import { uzu } from "@/lib/uzu/client"
 import type { UzuContext } from "@/lib/uzu/context"
-import { changePassword, feedReact, loadCore, loadFeed, saveProfileInfo, setFeedShare } from "@/lib/uzu/journal"
+import { changePassword, createClubFromSolo, deleteAllData, deleteAllText, feedReact, joinClubByCode, loadCore, loadFeed, saveProfileInfo, setFeedShare } from "@/lib/uzu/journal"
 import { BeltMark } from "@/components/uzu/progress"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -190,7 +190,7 @@ export function AthleteProfile({ session, ctx, onToast }: { session: Session; ct
       <div className="uzu-stack">
         <section className="panel uzu-panel-col"><h2 className="uzu-h3"><Users size={16} /> Mon club</h2>
           {t ? <><p className="uzu-text">Académie : <b>{ctx?.club?.name || "ton académie"}</b></p>{ctx?.club?.invite_code && <p className="uzu-text">Code d'invitation élèves : <span className="uzu-code">{ctx.club.invite_code}</span></p>}<p className="uzu-text uzu-small uzu-muted">Le nom et le code se modifient dans l'espace Club, rubrique Mon académie.</p></>
-            : solo ? <><p className="uzu-text">Ton carnet n'est relié à aucun club : personne d'autre que toi n'y a accès.</p><a className="button button--outline uzu-small-btn" href={LEGACY}><Plus size={14} />Rejoindre un club ou créer mon académie</a><p className="uzu-text uzu-small uzu-muted">Cette étape se fait encore dans l'application actuelle ; ton historique est transféré au club.</p></>
+            : solo ? <JoinClub hasName={!!name.trim()} onToast={onToast} />
             : <><p className="uzu-text">Club actuel : <b>{ctx?.club?.name || "ton club"}</b></p><p className="uzu-text uzu-small uzu-muted">Ton rattachement au club est géré par ton prof.</p></>}
         </section>
         {!t && !solo && <section className="panel uzu-panel-col"><h2 className="uzu-h3">Fil du club</h2>
@@ -213,13 +213,96 @@ export function AthleteProfile({ session, ctx, onToast }: { session: Session; ct
       </form>
       <section className="panel uzu-panel-col"><h2 className="uzu-h3"><ShieldCheck size={16} /> Compte et confidentialité</h2>
         <p className="uzu-text uzu-small">Connecté avec {session.user.email}. Ton état physique et tes notes privées ne sont jamais visibles par ton prof ni par le club.</p>
-        <p className="uzu-text uzu-small uzu-muted">Notifications, mentions légales et suppression des données : dans l'application actuelle pour l'instant.</p>
-        <a className="button button--outline uzu-small-btn" href={LEGACY}>Ouvrir l'application actuelle</a>
+        <details className="uzu-legal"><summary>Mentions légales et confidentialité</summary><Legal clubName={ctx?.club?.name || ""} /></details>
         <button className="button button--dark" onClick={logout} disabled={busy === "out"}><LogOut size={15} />Se déconnecter</button>
       </section>
     </div>
+    <DeleteAll uid={uid} ctx={ctx} onToast={onToast} onDone={() => setTick(x => x + 1)} />
   </>
 }
 function ProfileHeading() {
   return <div className="page-heading"><div><Eyebrow>TON ESPACE PERSONNEL</Eyebrow><h1>Mon profil<span className="heading-period">.</span></h1><p>Tes informations, ton club et ta confidentialité.</p></div></div>
+}
+
+// ---------------------------------------------------------------- Carnet solo : rejoindre ou créer un club
+function JoinClub({ hasName, onToast }: { hasName: boolean; onToast: (m: string) => void }) {
+  const [code, setCode] = useState("")
+  const [share, setShare] = useState(false)
+  const [err, setErr] = useState("")
+  const [busy, setBusy] = useState("")
+  const [cName, setCName] = useState("")
+  const [cCode, setCCode] = useState("")
+  const [cErr, setCErr] = useState("")
+  const join = async () => {
+    setErr("")
+    const c = code.trim().toUpperCase()
+    if (!c) { setErr("Indique le code invitation de ton club."); return }
+    if (!hasName) { setErr("Enregistre d'abord ton prénom dans ton profil, juste à côté."); return }
+    if (!share) { setErr("Coche l'accord de partage avec les profs du club."); return }
+    setBusy("join"); const r = await joinClubByCode(c)
+    if (!r.ok) { setBusy(""); setErr(r.msg); return }
+    onToast("Connexion au club…"); window.location.reload()
+  }
+  const create = async () => {
+    setCErr("")
+    const nm = cName.trim().replace(/\s+/g, " "), cd = cCode.trim().replace(/\s+/g, "").toUpperCase()
+    if (nm.length < 2) { setCErr("Indique le nom du club."); return }
+    if (!/^[A-Z0-9-]{6,20}$/.test(cd)) { setCErr("Code invitation : 6 à 20 lettres, chiffres ou tirets (ex. : TEAM2026)."); return }
+    setBusy("create"); const r = await createClubFromSolo(nm, cd)
+    if (!r.ok) { setBusy(""); setCErr(r.msg); return }
+    onToast(`Ton club est prêt. Code invitation : ${r.code}`); window.setTimeout(() => window.location.reload(), 1200)
+  }
+  return <>
+    <p className="uzu-text">Ton carnet n'est relié à aucun club : personne d'autre que toi n'y a accès.</p>
+    <span className="uzu-sublabel">Rejoindre un club avec un code d'invitation</span>
+    <input className="uzu-input" aria-label="Code invitation club" autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="Demande-le à ton prof sur le tatami" value={code} onChange={e => setCode(e.target.value)} />
+    <label className="uzu-check-row"><input type="checkbox" checked={share} onChange={e => setShare(e.target.checked)} /><span>J'accepte que mes séances, compétitions, ceinture, techniques, tranche d'âge et sexe soient visibles par les profs de ce club. Mon état physique et mes notes restent visibles par moi seul.</span></label>
+    {err && <p className="uzu-note wait" role="alert">{err}</p>}
+    <button className="button button--dark uzu-small-btn" disabled={busy === "join"} onClick={join}><Plus size={14} />{busy === "join" ? "Connexion au club…" : "Rejoindre le club avec mon historique"}</button>
+    <details className="uzu-legal"><summary>Tu es prof ? Crée ton club</summary>
+      <div className="uzu-panel-col">
+        <label className="uzu-label" htmlFor="jc-name">Nom du club</label><input id="jc-name" className="uzu-input" maxLength={60} value={cName} onChange={e => setCName(e.target.value)} />
+        <label className="uzu-label" htmlFor="jc-code">Code invitation pour tes élèves</label><input id="jc-code" className="uzu-input" maxLength={20} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="Ex. : TEAM2026" value={cCode} onChange={e => setCCode(e.target.value)} />
+        <p className="uzu-text uzu-small uzu-muted">Ton compte devient responsable de ce club : tu accèdes à l'espace Club. Ton entraînement perso reste visible par toi seul.</p>
+        {cErr && <p className="uzu-note wait" role="alert">{cErr}</p>}
+        <button className="button button--outline uzu-small-btn" disabled={busy === "create"} onClick={create}>{busy === "create" ? "Création du club…" : "Créer mon club"}</button>
+      </div></details>
+  </>
+}
+
+// ---------------------------------------------------------------- Suppression de toutes les données d'entraînement
+function DeleteAll({ uid, ctx, onToast, onDone }: { uid: string; ctx: UzuContext | null; onToast: (m: string) => void; onDone: () => void }) {
+  const [step, setStep] = useState(0)
+  const [busy, setBusy] = useState(false)
+  return <section className="panel uzu-panel-col uzu-grid-gap">
+    <h2 className="uzu-h3"><Trash2 size={16} /> Supprimer toutes mes données</h2>
+    {step === 0 ? <button className="button button--outline uzu-small-btn uzu-danger" onClick={() => setStep(1)}>Supprimer toutes mes données</button> : <>
+      <p className="uzu-text">{deleteAllText(ctx)}</p>
+      <p className="uzu-text">Ton compte reste ouvert et tu restes connecté : ce n'est ni une déconnexion ni une fermeture de compte.</p>
+      <p className="uzu-text"><b>Cette action est irréversible.</b></p>
+      <div className="uzu-actions uzu-actions--start">
+        <button className="button button--dark uzu-small-btn uzu-danger-solid" disabled={busy} onClick={async () => { setBusy(true); const r = await deleteAllData(uid, ctx); setBusy(false); onToast(r.ok ? (ctx?.role === "coach" ? "Ton entraînement perso a été effacé" : "Toutes tes données ont été supprimées") : r.msg); if (r.ok) { setStep(0); onDone() } }}>Oui, tout supprimer définitivement</button>
+        <button className="button button--outline uzu-small-btn" onClick={() => setStep(0)}>Annuler</button></div></>}
+  </section>
+}
+
+function Legal({ clubName }: { clubName: string }) {
+  return <div className="uzu-text uzu-small">
+    <p><b>Conformément au RGPD, UZU collecte vos données d'entraînement pour votre suivi pédagogique. Vos données de santé (état physique, fatigue) restent strictement privées et invisibles par les professeurs.</b></p>
+    <ul>
+      <li><b>Responsable du traitement</b> : {clubName || "le club"}. UZU — The mat doesn't lie.</li>
+      <li><b>Données collectées</b> : prénom, e-mail de connexion, séances de JJB et de préparation physique (dont soumissions, passages de garde et renversements placés ou subis, intensité ressentie, exercices), présences, compétitions, ceinture et barrettes, niveau de confort sur les techniques.</li>
+      <li><b>Données de santé</b> : état physique et notes privées, enregistrés dans un espace que seul l'élève peut lire.</li>
+      <li><b>Finalité</b> : suivi pédagogique et organisation des cours du club. Aucune revente, aucune publicité.</li>
+      <li><b>Base légale</b> : ton consentement, donné à la première ouverture et retirable à tout moment.</li>
+      <li><b>Destinataires</b> : toi et les professeurs du club (sans les données de santé). Si tu rejoins le fil Tatami, les membres du club voient tes séances (durée, tenue, système), tes étapes, tes podiums et tes grades, jamais tes soumissions, ton état physique ni tes notes.</li>
+      <li><b>Carnet solo</b> : ton compte n'est rattaché à aucun club ; aucun prof n'y a accès.</li>
+      <li><b>Âge et sexe</b> : facultatifs, utilisés uniquement dans les statistiques anonymes du club (bilan d'activité).</li>
+      <li><b>Conservation</b> : tant que ton compte existe. Tu peux tout supprimer depuis ton profil, en bas de page.</li>
+      <li><b>Tes droits</b> : accès, rectification, effacement, opposition. Contact : depuis ton club, ou en écrivant à l'éditeur de l'application. Tu peux aussi saisir la CNIL (cnil.fr).</li>
+      <li><b>Hébergement</b> : Vercel (page de l'application) et Supabase (données, hébergées dans l'Union européenne).</li>
+      <li><b>Mineurs</b> : en dessous de 16 ans, l'accord du représentant légal est requis.</li>
+    </ul>
+    <p className="uzu-muted">Mentions légales. Éditeur : UZU — The mat doesn't lie. Directeur de la publication : l'éditeur de l'application.</p>
+  </div>
 }

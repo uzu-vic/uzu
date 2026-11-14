@@ -6,6 +6,7 @@ import { Award, ChevronDown, Dumbbell, Flame, Medal, Scale, Target, TrendingUp }
 import type { UzuContext } from "@/lib/uzu/context"
 import { declareBelt, loadCore } from "@/lib/uzu/journal"
 import { beltColor, normSched } from "@/lib/uzu/training"
+import { loadVideos, videoUrl, type VideoMap } from "@/lib/uzu/videos"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -58,6 +59,8 @@ export function TopList({ rows, empty }: { rows: [string, number][]; empty: stri
 export function AthleteTechniques({ uid, ctx }: { uid: string; ctx: UzuContext | null }) {
   const { data, error, reload } = useCore(uid, ctx)
   const [beltForm, setBeltForm] = useState(false)
+  const [vids, setVids] = useState<VideoMap>({})
+  useEffect(() => { const id = ctx?.club?.id; if (!id || ctx?.role === "solo") return; let live = true; loadVideos(id).then(v => { if (live) setVids(v) }); return () => { live = false } }, [ctx?.club?.id, ctx?.role])
   if (!data) return <><Heading kind="path" /><Loading error={error} onRetry={reload} /></>
   const C = data.core, st = data.state, b = st.belt, ci = C.BELTS.findIndex((x: Any) => x.k === b.rank)
   const ss = C.sysStats(data.P)
@@ -95,6 +98,7 @@ export function AthleteTechniques({ uid, ctx }: { uid: string; ctx: UzuContext |
         <div className="progress-track"><i style={{ width: `${x.pct}%` }} /></div>
         <p className="uzu-text uzu-small">En sparring sur 30 jours : imposé <b>{x.imp}</b> · subi <b>{x.sub}</b><br />Passages et renversements sur 30 jours : placés <b>{gsy[k].placed}</b> · subis <b>{gsy[k].suffered}</b></p>
         <ul className="uzu-skill-list">{it.map(t => { const i = C.skillInfo(data.P, t); return <li key={t}><span>{t}</span><Stars lvl={i.lvl} review={i.review} /></li> })}</ul>
+        {vids["sys-" + k] && <video className="uzu-video" controls playsInline preload="metadata" src={videoUrl(vids["sys-" + k].id)} aria-label={`Vidéo du système ${C.SYSTEMS[k].n}`} />}
       </details>
     })}</div>
 

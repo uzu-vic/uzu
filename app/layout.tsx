@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: "UZU — Athlete & Club",
   description: "Progresser, transmettre et faire grandir votre académie de sports de combat.",
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "UZU", statusBarStyle: "default" },
 }
 
 export const viewport: Viewport = {
