@@ -7,13 +7,18 @@ from playwright.sync_api import sync_playwright
 REF = "abcdefghijkltest"; UID = "00000000-0000-0000-0000-0000000000e1"
 T = date.today(); d = lambda n: (T - timedelta(days=n)).isoformat()
 TOM = (T.weekday() + 1) % 7 + 1  # demain (1 = lundi)
+f = lambda n: (T + timedelta(days=n)).isoformat()
+MON = lambda x: x - timedelta(days=x.weekday())
+HOL = T + timedelta(days=8)   # même jour que demain, la semaine suivante : vacances
+WK = (MON(HOL) - MON(T)).days // 7; MO = (HOL.year - T.year) * 12 + HOL.month - T.month
 def jwt():
     e = lambda o: base64.urlsafe_b64encode(json.dumps(o).encode()).decode().rstrip("=")
     return e({"alg": "HS256", "typ": "JWT"}) + "." + e({"sub": UID, "exp": int(time.time()) + 3600, "role": "authenticated"}) + ".sig"
 SESS = {"access_token": jwt(), "token_type": "bearer", "expires_in": 3600, "expires_at": int(time.time()) + 3600, "refresh_token": "r",
         "user": {"id": UID, "aud": "authenticated", "role": "authenticated", "email": "e@test.fr", "user_metadata": {"name": "Yanis B."}, "app_metadata": {}}}
 CTX = {"role": "student", "share_activity": False, "academy_role": "student", "member_status": "active", "perms": {}, "memberships": [{"academy_id": "c1", "name": "Académie de test", "role": "student", "status": "active"}],
-       "club": {"id": "c1", "name": "Académie de test", "schedule": [{"id": "x1", "d": TOM, "s": "19:00", "e": "20:30", "t": "JJB Gi adultes"}], "tactical_focus": {}, "profile": {}}}
+       "club": {"id": "c1", "name": "Académie de test", "schedule": [{"id": "x1", "d": TOM, "s": "19:00", "e": "20:30", "t": "JJB Gi adultes", "off": [f(15)]}], "tactical_focus": {},
+                "profile": {"zone": "C", "closures": [{"id": "v1", "from": f(7), "to": f(9), "label": "Vacances test"}]}}}
 DOCS = {f"members/{UID}": {"consent": {"at": "2026-01-01T00:00:00Z", "share": True}, "name": "Yanis B.",
         "sessions": [{"id": "s1", "date": d(1), "cat": "jjb", "kind": "cours", "type": "Gi", "dur": 90, "theme": "Passage de garde", "sys": "lutte", "tech": "Takedowns", "rounds": 5, "subs": [{"t": "armbar", "d": "placee", "n": 2}], "lucha_takedowns_done": 3},
                      {"id": "s2", "date": d(3), "cat": "jjb", "kind": "cours", "type": "No-gi", "dur": 60, "theme": "Front headlock"},
@@ -54,10 +59,13 @@ with sync_playwright() as p:
         pg.goto("http://127.0.0.1:3100/"); pg.wait_for_timeout(2200)
         nav = (lambda t: pg.locator(".primary-nav .nav-item", has_text=t).first.click()) if name == "bureau" else (lambda t: (pg.locator(".mobile-menu-trigger").click(), pg.wait_for_timeout(300), pg.locator(".primary-nav .nav-item", has_text=t).first.click()))
         home = pg.inner_text(".page-content")
+        check(f"[{name}] Accueil : « Salut » et prénom seul", pg.locator(".page-heading h1").first.inner_text().startswith("Salut Yanis") and "Bonjour" not in home)
         check(f"[{name}] Accueil : rappel des domaines à reprendre", "À REPRENDRE" in home.upper() and "Voir ma carte de combat" in home)
         nav("Entraînements"); pg.wait_for_timeout(1300)
         t = pg.inner_text(".page-content")
         check(f"[{name}] Entraînements : titre et onglets", "Entraînements." in t and all(k in t for k in ["À venir", "Mon journal", "Compétitions (1)", "Calendrier"]))
+        check(f"[{name}] À venir : vacances et date annulée sautées", "Dans 8 jours" not in t and "Dans 15 jours" not in t and "Dans 22 jours" in t)
+        check(f"[{name}] À venir : vacances annoncées", "Bientôt : Vacances test" in t and "Pas de cours au club" in t)
         check(f"[{name}] À venir : prochain cours du planning", "JJB Gi adultes" in t and "DEMAIN · PROCHAIN COURS" in t and "19:00 – 20:30" in t and "Réserver" not in t)
         pg.screenshot(path=f"/tmp/ent_{name}.png", full_page=True)
         pg.locator(".subnav-tabs button", has_text="Mon journal").click(); pg.wait_for_timeout(300)
@@ -86,6 +94,18 @@ with sync_playwright() as p:
         check(f"[{name}] Calendrier : semaine en cours (séances faites et cours prévus)", has_this_week and "Cours prévu au club" in cal)
         pg.locator("button[aria-label='Semaine précédente']").click(); pg.wait_for_timeout(200)
         check(f"[{name}] Calendrier : navigation par semaine", pg.inner_text(".calendar-panel") != cal)
+        pg.get_by_role("button", name="Aujourd'hui").click()
+        for _ in range(WK): pg.locator("button[aria-label='Semaine suivante']").click()
+        pg.wait_for_timeout(200); hol_day = pg.locator(".calendar-day.is-closed")
+        check(f"[{name}] Calendrier semaine : jours de vacances grisés, sans cours", hol_day.count() == sum(1 for k in (7, 8, 9) if MON(T + timedelta(days=k)) == MON(HOL)) and "Vacances test" in hol_day.first.inner_text() and "JJB Gi adultes" not in " ".join(hol_day.all_inner_texts()))
+        pg.get_by_role("button", name="Mois", exact=True).click(); pg.wait_for_timeout(200)
+        check(f"[{name}] Calendrier : affichage mois", pg.locator(".uzu-mgrid-cell:not(.is-out)").count() >= 28 and pg.locator(".uzu-mgrid-cell.is-today").count() == 1 and pg.locator(".uzu-mgrid-head").count() == 7)
+        for _ in range(MO): pg.locator("button[aria-label='Mois suivant']").click()
+        pg.wait_for_timeout(200); pg.locator(".uzu-mgrid-cell.is-closed").first.click(); pg.wait_for_timeout(150)
+        md = pg.inner_text(".uzu-mgrid-day"); pg.locator(".uzu-mgrid").scroll_into_view_if_needed(); pg.screenshot(path=f"/tmp/calmonth_{name}.png")
+        check(f"[{name}] Calendrier mois : jour de vacances détaillé", "Vacances test" in md and "JJB Gi adultes" not in md)
+        pg.get_by_role("button", name="Semaine", exact=True).click(); pg.wait_for_timeout(150)
+        check(f"[{name}] Calendrier : retour à la semaine", pg.locator(".calendar-grid").count() == 1 and pg.locator(".uzu-mgrid").count() == 0)
         pg.screenshot(path=f"/tmp/cal_{name}.png", full_page=True)
         nav("Statistiques"); pg.wait_for_timeout(1300)
         pg.select_option("select[aria-label='Période']", "12m"); pg.wait_for_timeout(300)

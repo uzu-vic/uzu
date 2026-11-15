@@ -446,3 +446,45 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
   .team-member strong { font-size: 13.5px; } .member-status { font-size: 11.5px; }
   .calendar-event strong { font-size: 10px; } .calendar-event small { font-size: 9.5px; }
 }
+/* Calendrier : semaine / mois, vacances et fermetures */
+.uzu-cal-toolbar { flex-wrap: wrap; }
+.uzu-cal-toolbar .calendar-controls { flex-wrap: wrap; }
+.uzu-cal-view { display: inline-flex; padding: 3px; border: 1px solid #e3ddd6; border-radius: 9px; background: #faf8f5; margin-right: 4px; }
+.uzu-cal-view button { min-height: 32px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #6b645e; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.uzu-cal-view button.on { background: #171717; color: #fff; }
+.calendar-day.is-closed, .uzu-mgrid-cell.is-closed { background: repeating-linear-gradient(135deg, #f7f3ee 0 6px, #efe9e1 6px 12px); }
+.calendar-day-head.is-closed { background: #f3eee8; }
+.uzu-cal-hol { margin-bottom: 4px; padding: 4px 6px; border-radius: 4px; background: #e8e1d8; color: #5b5149; font-size: 11px; font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.calendar-event.is-off { opacity: .6; } .calendar-event.is-off strong { text-decoration: line-through; }
+.uzu-cal-offtxt { color: #941b2b !important; font-weight: 650; }
+.uzu-cal-legend .lg-hol { background: repeating-linear-gradient(135deg, #f7f3ee 0 3px, #d9cfc3 3px 6px); border: 1px solid #d9cfc3; }
+.uzu-mgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.uzu-mgrid-head { padding: 4px 0 6px; color: #8b837c; font-size: 11px; font-weight: 600; text-align: center; text-transform: uppercase; }
+.uzu-mgrid-cell { display: flex; min-height: 54px; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; border: 1px solid #eee9e3; border-radius: 7px; background: #fff; color: #302b27; font: inherit; cursor: pointer; }
+.uzu-mgrid-cell.is-out { border-color: transparent; background: transparent; cursor: default; }
+.uzu-mgrid-cell.is-today .uzu-mgrid-num { background: #941b2b; color: #fff; }
+.uzu-mgrid-cell.is-sel { border-color: #171717; box-shadow: inset 0 0 0 1px #171717; }
+.uzu-mgrid-num { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; font-size: 13px; font-weight: 600; }
+.uzu-mgrid-dots { display: flex; align-items: center; gap: 3px; min-height: 7px; }
+.uzu-mgrid-dots i { width: 7px; height: 7px; border-radius: 50%; }
+.uzu-mgrid-dots em, .uzu-mgrid-labels em { color: #777; font-size: 10px; font-style: normal; }
+.dot-wine { background: #941b2b; } .dot-sand { background: #c7a77f; } .dot-dark { background: #2b2724; }
+.uzu-mgrid-labels { display: none; width: 100%; flex-direction: column; gap: 2px; }
+.uzu-mgrid-labels b { overflow: hidden; padding: 2px 4px; border-left: 2px solid; border-radius: 2px; font-size: 10.5px; font-weight: 600; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.lbl-wine { border-color: #941b2b; background: #f7eeec; color: #5a3035; } .lbl-sand { border-color: #b99c72; background: #f6f2ea; color: #65563e; } .lbl-dark { border-color: #44403d; background: #efedeb; color: #403c39; }
+@media (min-width: 900px) { .uzu-mgrid-cell { min-height: 88px; align-items: stretch; } .uzu-mgrid-num { align-self: flex-start; } .uzu-mgrid-dots { display: none; } .uzu-mgrid-labels { display: flex; } }
+.uzu-mgrid-day { margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee9e3; }
+.uzu-mgrid-day-title { margin-bottom: 8px; font-family: Georgia, serif; font-size: 17px; }
+.uzu-mgrid-list { display: grid; gap: 6px; }
+.uzu-mgrid-list .calendar-event { padding: 9px 11px; } .uzu-mgrid-list .calendar-event strong { font-size: 14px; white-space: normal; } .uzu-mgrid-list .calendar-event small { font-size: 12px; }
+.uzu-hol-note { background: #f3eee8; border-color: #e3d9cc; color: #4b4540; }
+.uzu-hol-list { display: grid; gap: 6px; }
+.uzu-hol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid #eee9e3; border-radius: 8px; background: #faf8f5; }
+.uzu-hol-row b { display: block; font-size: 14px; } .uzu-hol-row small { color: #777; font-size: 12.5px; }
+.uzu-mini { min-height: 34px; padding: 0 12px; font-size: 12.5px; }
+.uzu-hol-preset { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.uzu-hol-preset .uzu-field { min-width: 180px; flex: 1 1 180px; }
+.uzu-hol-tag { display: block; color: #941b2b !important; }
+.uzu-off-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.uzu-off-chip { min-height: 32px; padding: 0 10px; border: 1px solid #e3c9c5; border-radius: 16px; background: #f7eeec; color: #941b2b; font: inherit; font-size: 12.5px; text-decoration: line-through; cursor: pointer; }
+@media (max-width: 680px) { .uzu-mgrid-cell { min-height: 50px; } .uzu-cal-view button { padding: 0 10px; } }

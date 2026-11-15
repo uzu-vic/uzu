@@ -167,7 +167,7 @@ export const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${p
 export const parseYmd = (s: string) => { const p = String(s || "").split("-"); return new Date(+p[0], +p[1] - 1, +p[2]) }
 export const frDate = (s: string, opt: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" }) => parseYmd(s).toLocaleDateString("fr-FR", opt)
 
-export type Slot = { id: string; d: number; s: string; e: string; t: string; disc?: CourseDisc; kind?: CourseKind }
+export type Slot = { id: string; d: number; s: string; e: string; t: string; disc?: CourseDisc; kind?: CourseKind; hol?: boolean; off?: string[] }
 export type CourseDisc = "jjb" | "grappling"
 export type CourseKind = "cours" | "open" | "compet" | "prive"
 export const COURSE_DISC: [CourseDisc, string][] = [["jjb", "JJB"], ["grappling", "Grappling"]]
@@ -182,19 +182,67 @@ export function normSched(a: unknown): Slot[] {
       const o: Slot = { id: String(x.id).slice(0, 20), d: +x.d, s: x.s, e: x.e, t: String(x.t || "Cours").slice(0, 40) }
       if (COURSE_DISC.some(c => c[0] === x.disc)) o.disc = x.disc
       if (COURSE_KIND.some(c => c[0] === x.kind)) o.kind = x.kind
+      if (x.hol === true) o.hol = true
+      const off = Array.isArray(x.off) ? [...new Set(x.off.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d))))].sort().slice(-40) : []
+      if (off.length) o.off = off
       return o
     }) : []
 }
 const isoDay = (d: Date) => ((d.getDay() + 6) % 7) + 1
 /** Prochains cours du planning du club (même calcul que l'ancienne application). */
-export function nextClasses(schedule: unknown, n: number, now = new Date()): { slot: Slot; date: Date; inDays: number }[] {
+// ---------- Vacances et fermetures du club ----------
+// Périodes enregistrées dans le profil de l'académie (profile.closures). Pendant une fermeture, un cours
+// n'a pas lieu sauf s'il est « maintenu pendant les vacances » (hol) ; une date peut aussi être annulée
+// cours par cours (off).
+export type Closure = { id: string; from: string; to: string; label: string }
+const DRX = /^\d{4}-\d{2}-\d{2}$/
+export function closuresOf(club: unknown): Closure[] {
+  const c = (club as { profile?: { closures?: unknown } } | null)?.profile?.closures
+  return Array.isArray(c) ? c.filter((x): x is Closure => !!x && DRX.test(x.from) && DRX.test(x.to) && x.from <= x.to)
+    .map(x => ({ id: String(x.id || x.from), from: x.from, to: x.to, label: String(x.label || "Fermeture").slice(0, 60) })).sort((a, b) => (a.from < b.from ? -1 : 1)).slice(0, 60) : []
+}
+export function closureOn(club: unknown, ds: string): Closure | null { return closuresOf(club).find(x => x.from <= ds && ds <= x.to) || null }
+/** Vacances scolaires officielles 2026-2027 (arrêté du 22 octobre 2025), du premier au dernier jour sans école. */
+export type Zone = "A" | "B" | "C"
+export const ZONES: [Zone, string][] = [["A", "Zone A"], ["B", "Zone B"], ["C", "Zone C (Paris, Île-de-France, Occitanie)"]]
+const HOL: { id: string; label: string; z?: Zone; from: string; to: string }[] = [
+  { id: "vs-toussaint-2026", label: "Vacances de la Toussaint", from: "2026-10-17", to: "2026-11-01" },
+  { id: "vs-noel-2026", label: "Vacances de Noël", from: "2026-12-19", to: "2027-01-03" },
+  { id: "vs-hiver-2027", label: "Vacances d'hiver", z: "A", from: "2027-02-13", to: "2027-02-28" },
+  { id: "vs-hiver-2027", label: "Vacances d'hiver", z: "B", from: "2027-02-20", to: "2027-03-07" },
+  { id: "vs-hiver-2027", label: "Vacances d'hiver", z: "C", from: "2027-02-06", to: "2027-02-21" },
+  { id: "vs-printemps-2027", label: "Vacances de printemps", z: "A", from: "2027-04-10", to: "2027-04-25" },
+  { id: "vs-printemps-2027", label: "Vacances de printemps", z: "B", from: "2027-04-17", to: "2027-05-02" },
+  { id: "vs-printemps-2027", label: "Vacances de printemps", z: "C", from: "2027-04-03", to: "2027-04-18" },
+  { id: "vs-ascension-2027", label: "Pont de l'Ascension", from: "2027-05-06", to: "2027-05-09" },
+  { id: "vs-ete-2027", label: "Vacances d'été", from: "2027-07-03", to: "2027-09-01" },
+]
+/** Vacances scolaires à venir pour une zone (celles déjà terminées sont ignorées). */
+export function schoolHolidays(zone: Zone, today = ymd(new Date())): Closure[] {
+  return HOL.filter(h => (!h.z || h.z === zone) && h.to >= today).map(h => ({ id: h.id, from: h.from, to: h.to, label: h.label }))
+}
+export const zoneOf = (club: unknown): Zone => { const z = (club as { profile?: { zone?: unknown } } | null)?.profile?.zone; return z === "A" || z === "B" ? z : "C" }
+export function closureTxt(c: Closure): string {
+  const f = parseYmd(c.from), t = parseYmd(c.to), o: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }
+  return c.from === c.to ? f.toLocaleDateString("fr-FR", { weekday: "short", ...o }) : `du ${f.toLocaleDateString("fr-FR", o)} au ${t.toLocaleDateString("fr-FR", { ...o, year: f.getFullYear() !== t.getFullYear() ? "numeric" : undefined })}`
+}
+
+/** Le cours a-t-il lieu ce jour-là ? (date annulée, ou fermeture du club sauf cours maintenu) */
+export function slotOpenOn(club: unknown, slot: Slot, ds: string): boolean {
+  if (slot.off?.includes(ds)) return false
+  return !!slot.hol || !closureOn(club, ds)
+}
+
+export function nextClasses(schedule: unknown, n: number, now = new Date(), club?: unknown): { slot: Slot; date: Date; inDays: number }[] {
   const sorted = normSched(schedule).sort((a, b) => a.d - b.d || (a.s < b.s ? -1 : 1))
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const hm = `${pad(now.getHours())}:${pad(now.getMinutes())}`
   const out: { slot: Slot; date: Date; inDays: number }[] = []
-  for (let k = 0; k < 14 && out.length < n; k++) {
+  // Jusqu'à 70 jours : on saute les vacances et les dates annulées
+  for (let k = 0; k < 70 && out.length < n; k++) {
     const dd = new Date(today); dd.setDate(dd.getDate() + k)
-    for (const x of sorted) if (x.d === isoDay(dd) && (k > 0 || x.e >= hm) && out.length < n) out.push({ slot: x, date: dd, inDays: k })
+    const ds = ymd(dd)
+    for (const x of sorted) if (x.d === isoDay(dd) && (k > 0 || x.e >= hm) && (!club || slotOpenOn(club, x, ds)) && out.length < n) out.push({ slot: x, date: dd, inDays: k })
   }
   return out
 }

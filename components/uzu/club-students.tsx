@@ -129,7 +129,7 @@ function StudentSheet({ uid, ctx, data, st, onBack, onToast, onChanged }: { uid:
 
     {tab === 1 && <ProgressTab C={C} st={st} canVerify={can(ctx, "progression", "update")} busy={busy} onVerify={verify} />}
 
-    {tab === 2 && (() => { const as = assidOf(C, ctx?.club?.schedule, st.att, sess), lim = C.ymd(C.addDays(C.TODAY, -30)), mix: Record<string, number> = {}; let n = 0
+    {tab === 2 && (() => { const as = assidOf(C, ctx?.club?.schedule, st.att, sess, ctx?.club), lim = C.ymd(C.addDays(C.TODAY, -30)), mix: Record<string, number> = {}; let n = 0
       sess.forEach(x => { if (x.date > lim) { const kk = C.kindOf(x); mix[kk] = (mix[kk] || 0) + 1; n++ } })
       return <section className="panel uzu-panel-col uzu-grid-gap">
         <p className="uzu-text">Dernière séance : <b>{last ? C.frDate(last.date) : "aucune"}</b> {st.days > 14 && <span className="uzu-pill now">À relancer</span>}</p>

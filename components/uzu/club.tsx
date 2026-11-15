@@ -58,14 +58,13 @@ export function ClubHome({ uid, ctx, onNavigate, name }: ClubProps & { name: str
   const { data, error, reload } = useClub(uid, ctx)
   const [invite, setInvite] = useState(false)
   const club = ctx?.club, tf = (club?.tactical_focus || {}) as Any
-  const first = name.split(/[\s@]/)[0]
   const rows = data?.rows ?? null
   const act = rows ? rows.filter(r => r.days <= 14).length : null, rq = rows ? rows.filter(r => r.req).length : null
-  const next = useMemo(() => nextClasses(club?.schedule, 3), [club])
+  const next = useMemo(() => nextClasses(club?.schedule, 3, new Date(), club), [club])
   const events = useMemo(() => (data ? activity(data, club?.schedule) : []), [data, club])
   const C = data?.C
   return <>
-    <ClubHeading eyebrow={`ESPACE CLUB · ${(club?.name || "").toUpperCase()}`} title={<>Bonjour {first}</>} sub="Voici l'activité de ton académie." />
+    <ClubHeading eyebrow={`ESPACE CLUB · ${(club?.name || "").toUpperCase()}`} title={name ? `Salut ${name}` : "Salut"} sub="Voici l'activité de ton académie." />
     {error && <ClubLoading error={error} onRetry={reload} />}
     <div className="metric-grid">
       {can(ctx, "students", "view") && <button className="metric-card uzu-metric-btn" onClick={() => onNavigate("students")}><div className="metric-top"><span>Élèves au total</span><span className="metric-icon"><Users size={16} /></span></div><div className="metric-main"><strong>{rows ? rows.length : "…"}</strong></div><div className="metric-footer"><span className="uzu-caption">rattachés à l'académie</span></div></button>}

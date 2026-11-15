@@ -3,10 +3,11 @@
 // Contenus (focus tactique, annonce) et Mon académie (informations, code, paramètres, journal d'activité).
 // Toutes les écritures passent par les fonctions serveur ; les droits affichés ici ne servent qu'à l'affichage.
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, ArrowRight, CalendarPlus, Check, ChevronLeft, ChevronRight, LogOut, Mail, MoreHorizontal, Plus, Send, ShieldCheck } from "lucide-react"
+import { ArrowLeft, ArrowRight, CalendarOff, CalendarPlus, Check, ChevronRight, LogOut, Mail, MoreHorizontal, Plus, Send, ShieldCheck } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
 import { can, scopeOf } from "@/lib/uzu/permissions"
-import { COURSE_DISC, COURSE_KIND, discLabel, normSched, slotTag, type Slot } from "@/lib/uzu/training"
+import { COURSE_DISC, COURSE_KIND, ZONES, closureOn, closureTxt, closuresOf, discLabel, normSched, schoolHolidays, slotOpenOn, slotTag, ymd, zoneOf, type Closure, type Slot, type Zone } from "@/lib/uzu/training"
+import { Calendar, type CalItem } from "@/components/uzu/calendar"
 import {
   AUDIT_LBL, DISCIPLINES, PERM_CAT, PRESETS, ROLE_LBL, SCOPE_LBL, SENSITIVE, STAFF_ROLES, STATUS_LBL, TPL_LBL,
   actLabel, bilanCalc, courseAllowed, seasonOf, seasonYear, createInvitation, getAudit, getMyCourses, getTeam, inviteUrl, leaveAcademy, loadClubData, mapToList,
@@ -57,7 +58,6 @@ export function ClubCourses({ ctx, onToast, onReloadCtx }: AdminProps) {
   const [staffFor, setStaffFor] = useState("")
   const [editing, setEditing] = useState<Slot | "new" | null>(null)
   const [filter, setFilter] = useState("")
-  const [week, setWeek] = useState(0)
   const [busy, setBusy] = useState(false)
   useEffect(() => { let live = true; getMyCourses().then(m => { if (live) setMc(m) }); return () => { live = false } }, [ctx, mcTick])
   const raw: Slot[] = normSched(ctx?.club?.schedule)
@@ -72,9 +72,15 @@ export function ClubCourses({ ctx, onToast, onReloadCtx }: AdminProps) {
   }
   const slot = L.find(x => x.id === staffFor)
   if (slot && team) return <CourseStaff slot={slot} team={team} onBack={() => setStaffFor("")} onToast={onToast} onDone={() => { setStaffFor(""); reloadTeam(); setMcTick(t => t + 1) }} />
-  const today = new Date(), mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7) + week * 7)
+  const today = new Date(), mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7))
   const days = [0, 1, 2, 3, 4, 5, 6].map(i => new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i))
   const shown = L.filter(x => !filter || x.disc === filter)
+  const open = (x: Slot) => { if (canEdit) { setEditing(x); window.scrollTo(0, 0) } else if (canStaff(x.id)) setStaffFor(x.id) }
+  const itemsOn = (d: Date, ds: string): CalItem[] => shown.filter(x => x.d === ((d.getDay() + 6) % 7) + 1).map(x => {
+    const lead = staffOf(x.id).find(y => y.role === "lead")
+    return { key: x.id, title: x.t, sub: [x.s + (lead ? " · " + lead.name.split(" ")[0] : ""), x.disc ? discLabel(x.disc) : ""].filter(Boolean).join(" · "), tone: KIND_TONE[x.kind || "cours"] as CalItem["tone"],
+      off: slotOpenOn(ctx?.club, x, ds) ? undefined : x.off?.includes(ds) ? "Annulé" : "Vacances", onClick: canEdit || canStaff(x.id) ? () => open(x) : undefined }
+  })
   const sub = (x: Slot) => [slotTag(x), staffOf(x.id).map(y => y.name + (y.role === "lead" ? " (principal)" : y.role === "assistant" ? " (assistant)" : "")).join(", ")].filter(Boolean).join(" · ")
   return <>
     <div className="page-heading"><div><div className="eyebrow">{(ctx?.club?.name || "").toUpperCase()}<span className="eyebrow-dot" />{seasonLbl()}</div><h1>Les cours, en rythme<span className="heading-period">.</span></h1><p>Votre calendrier pédagogique et les rendez-vous de l&apos;académie.</p></div>
@@ -83,40 +89,97 @@ export function ClubCourses({ ctx, onToast, onReloadCtx }: AdminProps) {
       onCancel={() => setEditing(null)} onStaff={() => { if (editing !== "new") { setStaffFor(editing.id); setEditing(null) } }}
       onSave={x => editing === "new" ? saveSchedule(raw.concat([x]), "Cours ajouté au planning") : saveSchedule(raw.map(y => (y.id === x.id ? x : y)), "Cours modifié")}
       onRemove={editing === "new" ? undefined : () => saveSchedule(raw.filter(y => y.id !== (editing as Slot).id), "Cours retiré du planning")} />}
-    <section className="panel calendar-panel">
-      <div className="calendar-toolbar"><div><div className="eyebrow">PLANNING DE LA SEMAINE</div><h2>{(() => { const t = mon.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }); return t.charAt(0).toUpperCase() + t.slice(1) })()}</h2></div>
-        <div className="calendar-controls"><button className="icon-button" aria-label="Semaine précédente" onClick={() => setWeek(week - 1)}><ChevronLeft size={17} /></button><button className="panel-select" onClick={() => setWeek(0)}>Aujourd&apos;hui</button><button className="icon-button" aria-label="Semaine suivante" onClick={() => setWeek(week + 1)}><ChevronRight size={17} /></button></div></div>
-      <div className="calendar-grid">
-        {days.map((d, i) => <div key={"h" + i} className={`calendar-day-head ${d.toDateString() === today.toDateString() ? "is-today" : ""}`}>{DSHORT[i].toUpperCase()} <strong>{d.getDate()}</strong></div>)}
-        {days.map((_, i) => <div className="calendar-day" key={"d" + i}>{shown.filter(x => x.d === i + 1).map(x => {
-          const lead = staffOf(x.id).find(y => y.role === "lead")
-          return <button type="button" key={x.id} className={`calendar-event calendar-event--${KIND_TONE[x.kind || "cours"]} uzu-cal-btn`} disabled={!canEdit && !canStaff(x.id)} onClick={() => { if (canEdit) setEditing(x); else if (canStaff(x.id)) setStaffFor(x.id) }}>
-            <strong>{x.t}</strong><small>{x.s}{lead ? " · " + lead.name.split(" ")[0] : ""}</small>{x.disc && <small>{discLabel(x.disc)}</small>}</button>
-        })}</div>)}
-      </div>
-    </section>
+    <Calendar eyebrow="PLANNING DU CLUB" storeKey="uzu-cal-club" itemsOn={itemsOn} closedOn={ds => closureOn(ctx?.club, ds)?.label || null}
+      legend={<div className="chart-legend uzu-cal-legend"><span><i className="lg-wine" />Cours collectif</span><span><i className="lg-dark" />Open mat</span><span><i className="lg-sand" />Compétition, cours privé</span>{closuresOf(ctx?.club).length > 0 && <span><i className="lg-hol" />Vacances, fermeture</span>}</div>} />
     <section className="panel course-list-panel">
       <div className="panel-header"><div className="section-title"><h2>Les cours de la semaine</h2></div>
         <label className="panel-select uzu-period"><select aria-label="Filtrer par discipline" value={filter} onChange={e => setFilter(e.target.value)}><option value="">Tous les cours</option>{COURSE_DISC.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label></div>
       {shown.length ? shown.map(x => <div className="course-list-row" key={x.id}>
         <strong>{x.s}</strong><span>{DSHORT[x.d - 1].toUpperCase()} {days[x.d - 1].getDate()}</span><i className={`course-line course-line--${KIND_TONE[x.kind || "cours"]}`} />
-        <div><b>{x.t}</b><small>{sub(x) || "Discipline et type à préciser"}</small></div>
+        <div><b>{x.t}</b><small>{sub(x) || "Discipline et type à préciser"}</small>{(x.hol || (x.off || []).some(o => o >= ymd(today))) && <small className="uzu-hol-tag">{[x.hol ? "Maintenu pendant les vacances" : "", (() => { const n = (x.off || []).filter(o => o >= ymd(today)).length; return n ? n + " date" + (n > 1 ? "s" : "") + " annulée" + (n > 1 ? "s" : "") : "" })()].filter(Boolean).join(" · ")}</small>}</div>
         <span>{x.s} – {x.e}</span>
-        {(canEdit || canStaff(x.id)) ? <button className="row-action" aria-label={`Gérer ${x.t}`} onClick={() => { if (canEdit) { setEditing(x); window.scrollTo(0, 0) } else setStaffFor(x.id) }}><ChevronRight size={16} /></button> : <span />}
+        {(canEdit || canStaff(x.id)) ? <button className="row-action" aria-label={`Gérer ${x.t}`} onClick={() => open(x)}><ChevronRight size={16} /></button> : <span />}
       </div>) : <p className="uzu-text uzu-muted">{L.length ? "Aucun cours pour cette discipline." : "Aucun cours au planning."}</p>}
     </section>
+    <ClubClosures ctx={ctx} onToast={onToast} onReloadCtx={onReloadCtx} />
   </>
 }
 
-function CourseEditor({ slot, busy, canStaff, onSave, onCancel, onRemove, onStaff }: { slot: Slot | null; busy: boolean; canStaff: boolean; onSave: (x: Slot) => Promise<boolean>; onCancel: () => void; onRemove?: () => void; onStaff: () => void }) {
-  const [f, setF] = useState({ d: String(slot?.d || 1), t: slot?.t || "", s: slot?.s || "19:00", e: slot?.e || "20:30", disc: slot?.disc || "jjb", kind: slot?.kind || "cours" })
+/** Vacances scolaires et fermetures du club : les cours n'ont pas lieu pendant ces périodes (sauf cours maintenus). */
+function ClubClosures({ ctx, onToast, onReloadCtx }: Pick<AdminProps, "ctx" | "onToast" | "onReloadCtx">) {
+  const canEdit = can(ctx, "academy_settings", "update")
+  const all = closuresOf(ctx?.club), t = ymd(new Date())
+  const list = all.filter(c => c.to >= t)
+  const [zone, setZone] = useState<Zone>(zoneOf(ctx?.club))
+  const [f, setF] = useState({ label: "", from: "", to: "" })
   const [err, setErr] = useState("")
+  const [busy, setBusy] = useState(false)
+  if (!canEdit && !list.length) return null
+  const save = async (next: Closure[], msg: string, z: Zone = zoneOf(ctx?.club)) => {
+    const lim = ymd(new Date(Date.now() - 400 * 864e5))
+    const keep = next.filter(c => c.to >= lim).sort((a, b) => (a.from < b.from ? -1 : 1)).slice(-60)
+    setBusy(true)
+    const r = await updateAcademy({ profile: { ...((ctx?.club?.profile || {}) as Record<string, unknown>), zone: z, closures: keep } })
+    setBusy(false); onToast(r.ok ? msg : r.msg); if (r.ok) onReloadCtx()
+    return r.ok
+  }
+  const addHolidays = () => {
+    const pre = schoolHolidays(zone, t), ids = new Set(pre.map(p => p.id))
+    if (!pre.length) { onToast("Aucune période de vacances connue à venir"); return }
+    save(all.filter(c => !ids.has(c.id)).concat(pre), `Vacances scolaires ajoutées (zone ${zone})`, zone)
+  }
+  const add = async () => {
+    const label = f.label.trim() || "Fermeture du club"
+    if (!f.from) { setErr("Indique la date de début"); return }
+    const to = f.to || f.from
+    if (to < f.from) { setErr("La date de fin doit être après la date de début"); return }
+    if (to < t) { setErr("Cette période est déjà passée"); return }
+    setErr("")
+    if (await save(all.concat([{ id: "f" + Date.now().toString(36), from: f.from, to, label: label.slice(0, 60) }]), "Fermeture ajoutée")) setF({ label: "", from: "", to: "" })
+  }
+  return <section className="panel uzu-panel-col uzu-grid-gap" aria-label="Vacances et fermetures">
+    <div className="section-title"><h2>Vacances et fermetures</h2><CalendarOff size={17} /></div>
+    <p className="uzu-text uzu-muted">Pendant ces périodes, les cours n&apos;ont pas lieu : ils disparaissent de l&apos;accueil, des prochains cours et de l&apos;appel, et le calendrier affiche « Vacances ». Un cours peut être maintenu depuis sa fiche.</p>
+    {list.length ? <div className="uzu-hol-list">{list.map(c => <div className="uzu-hol-row" key={c.id + c.from}>
+      <div><b>{c.label}</b><small>{closureTxt(c)}{c.from <= t ? " · en cours" : ""}</small></div>
+      {canEdit && <button className="button button--outline uzu-mini" disabled={busy} aria-label={`Retirer ${c.label}`} onClick={() => save(all.filter(y => !(y.id === c.id && y.from === c.from)), "Période retirée : les cours reprennent ces jours-là")}>Retirer</button>}
+    </div>)}</div> : <p className="uzu-text">Aucune période de fermeture : les cours ont lieu toutes les semaines.</p>}
+    {canEdit && <>
+      <div className="uzu-hol-preset">
+        <div className="uzu-field"><label className="uzu-label" htmlFor="hol-zone">Zone scolaire</label><select id="hol-zone" className="uzu-input" value={zone} onChange={e => setZone(e.target.value as Zone)}>{ZONES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+        <button className="button button--dark" disabled={busy} onClick={addHolidays}><CalendarOff size={15} />Ajouter les vacances scolaires 2026-2027</button>
+      </div>
+      <span className="uzu-label">Autre fermeture (jour férié, stage, travaux…)</span>
+      <div className="uzu-row2">
+        <div className="uzu-field"><label className="uzu-label" htmlFor="hol-label">Motif</label><input id="hol-label" className="uzu-input" maxLength={60} placeholder="Ex. : Fermeture estivale" value={f.label} onChange={e => setF({ ...f, label: e.target.value })} /></div>
+        <div className="uzu-field"><label className="uzu-label" htmlFor="hol-from">Du</label><input id="hol-from" type="date" min={t} className="uzu-input" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></div>
+        <div className="uzu-field"><label className="uzu-label" htmlFor="hol-to">Au (inclus)</label><input id="hol-to" type="date" min={f.from || t} className="uzu-input" value={f.to} onChange={e => setF({ ...f, to: e.target.value })} /></div>
+      </div>
+      {err && <p className="uzu-note wait" role="alert">{err}</p>}
+      <div className="uzu-actions uzu-actions--start"><button className="button button--outline" disabled={busy} onClick={add}><Plus size={15} />Ajouter cette fermeture</button></div>
+    </>}
+  </section>
+}
+
+function CourseEditor({ slot, busy, canStaff, onSave, onCancel, onRemove, onStaff }: { slot: Slot | null; busy: boolean; canStaff: boolean; onSave: (x: Slot) => Promise<boolean>; onCancel: () => void; onRemove?: () => void; onStaff: () => void }) {
+  const [f, setF] = useState({ d: String(slot?.d || 1), t: slot?.t || "", s: slot?.s || "19:00", e: slot?.e || "20:30", disc: slot?.disc || "jjb", kind: slot?.kind || "cours", hol: !!slot?.hol, off: slot?.off || [] })
+  const [offIn, setOffIn] = useState("")
+  const [err, setErr] = useState("")
+  const today = ymd(new Date())
+  const cancelDate = () => {
+    if (!offIn) { setErr("Choisis la date à annuler"); return }
+    const wd = new Date(offIn + "T12:00:00"), iso = ((wd.getDay() + 6) % 7) + 1
+    if (iso !== +f.d) { setErr(`Ce cours a lieu le ${DAYS[+f.d - 1].toLowerCase()} : choisis un ${DAYS[+f.d - 1].toLowerCase()}`); return }
+    setErr(""); setF({ ...f, off: [...new Set(f.off.concat([offIn]))].sort() }); setOffIn("")
+  }
   const save = () => {
     const t = f.t.trim()
     if (!t) { setErr("Indique le nom du cours"); return }
     if (!f.s || !f.e || f.e <= f.s) { setErr("Vérifie les horaires : la fin doit être après le début"); return }
     setErr("")
-    onSave({ id: slot?.id || "c" + Date.now().toString(36), d: +f.d, s: f.s, e: f.e, t, disc: f.disc as Slot["disc"], kind: f.kind as Slot["kind"] })
+    const lim = ymd(new Date(Date.now() - 60 * 864e5))
+    const off = slot && +f.d === slot.d ? f.off.filter(o => o >= lim) : []
+    onSave({ id: slot?.id || "c" + Date.now().toString(36), d: +f.d, s: f.s, e: f.e, t, disc: f.disc as Slot["disc"], kind: f.kind as Slot["kind"], ...(f.hol ? { hol: true } : {}), ...(off.length ? { off } : {}) })
   }
   return <section className="panel uzu-panel-col uzu-grid-gap">
     <div className="section-title"><h2>{slot ? "Modifier le cours" : "Créer un cours"}</h2><CalendarPlus size={17} /></div>
@@ -130,6 +193,13 @@ function CourseEditor({ slot, busy, canStaff, onSave, onCancel, onRemove, onStaf
       <div className="uzu-field"><label className="uzu-label" htmlFor="sl-start">Début</label><input id="sl-start" type="time" className="uzu-input" value={f.s} onChange={e => setF({ ...f, s: e.target.value })} /></div>
       <div className="uzu-field"><label className="uzu-label" htmlFor="sl-end">Fin</label><input id="sl-end" type="time" className="uzu-input" value={f.e} onChange={e => setF({ ...f, e: e.target.value })} /></div>
     </div>
+    <label className="uzu-check-row"><input type="checkbox" checked={f.hol} onChange={e => setF({ ...f, hol: e.target.checked })} />Cours maintenu pendant les vacances et fermetures du club</label>
+    <span className="uzu-label">Annuler une date précise</span>
+    <div className="uzu-hol-preset">
+      <div className="uzu-field"><label className="uzu-label" htmlFor="sl-off">Date</label><input id="sl-off" type="date" min={today} className="uzu-input" value={offIn} onChange={e => setOffIn(e.target.value)} /></div>
+      <button type="button" className="button button--outline" onClick={cancelDate}>Annuler cette date</button>
+    </div>
+    {f.off.filter(o => o >= today).length > 0 && <div className="uzu-off-chips">{f.off.filter(o => o >= today).map(o => <button type="button" key={o} className="uzu-off-chip" aria-label={`Rétablir le cours du ${new Date(o + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`} onClick={() => setF({ ...f, off: f.off.filter(y => y !== o) })}>{new Date(o + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })} ×</button>)}</div>}
     {err && <p className="uzu-note wait" role="alert">{err}</p>}
     <div className="uzu-actions uzu-actions--start">
       <button className="button button--dark" disabled={busy} onClick={save}><Check size={15} />{slot ? "Enregistrer le cours" : "Ajouter ce cours au planning"}</button>
@@ -477,7 +547,7 @@ export function ClubAcademy({ uid, ctx, onToast, onReloadCtx, onNavigate }: Admi
     if (f.name.trim().length < 2) { onToast("Nom du club trop court"); return }
     setBusy(true)
     if (ncode && ncode !== (club?.invite_code || "")) { const r = await updateInviteCode(ncode); onToast(r.ok ? "Nouveau code invitation : " + ncode : r.msg) }
-    const r = await updateAcademy({ name: f.name.trim().slice(0, 60), accent_color: f.accent, profile: { desc: f.desc.trim().slice(0, 300), addr: f.addr.trim().slice(0, 120), contact: f.contact.trim().slice(0, 80), disc: disc.slice(0, 12) } })
+    const r = await updateAcademy({ name: f.name.trim().slice(0, 60), accent_color: f.accent, profile: { ...((ctx?.club?.profile || {}) as Record<string, unknown>), desc: f.desc.trim().slice(0, 300), addr: f.addr.trim().slice(0, 120), contact: f.contact.trim().slice(0, 80), disc: disc.slice(0, 12) } })
     setBusy(false); onToast(r.ok ? "Informations du club enregistrées" : r.msg); onReloadCtx()
   }
   const audLine = (a: Any) => { const d = a.details || {}; return a.action === "attendance.saved" ? `${d.present || 0} présent(s), ${d.absent || 0} absent(s)` : a.action === "invitation.created" ? String(d.email || "") : a.action === "member.role_changed" ? `${ROLE_LBL[d.from] || ""} → ${ROLE_LBL[d.to] || ""}` : a.action.indexOf("grade.") === 0 ? String(d.rank || "") : "" }

@@ -7,7 +7,7 @@
 import { uzu } from "./client"
 import type { UzuContext } from "./context"
 import { can, scopeOf } from "./permissions"
-import { normSched, type Slot } from "./training"
+import { normSched, slotOpenOn, type Slot } from "./training"
 import { newCore } from "./journal"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,7 +60,7 @@ export function rollOptions(ctx: UzuContext | null, mc: MyCourses, now = new Dat
   for (let k = 0; k < 8; k++) {
     const dd = new Date(today); dd.setDate(dd.getDate() - k)
     const ds = ymdOf(dd), dn = isoDay(dd)
-    S.filter(x => x.d === dn).sort((a, b) => (a.s < b.s ? 1 : -1)).forEach(x => out.push({ key: ds + "|" + x.id, course: x.id, date: ds, title: x.t, dur: Math.max(30, slotMin(x)), label: (k === 0 ? "Aujourd'hui" : DSHORT[dn - 1] + " " + dd.getDate()) + " · " + x.s + " · " + x.t }))
+    S.filter(x => x.d === dn && slotOpenOn(ctx?.club, x, ds)).sort((a, b) => (a.s < b.s ? 1 : -1)).forEach(x => out.push({ key: ds + "|" + x.id, course: x.id, date: ds, title: x.t, dur: Math.max(30, slotMin(x)), label: (k === 0 ? "Aujourd'hui" : DSHORT[dn - 1] + " " + dd.getDate()) + " · " + x.s + " · " + x.t }))
   }
   if (!out.length || out[0].date !== t) out.unshift({ key: t + "|libre", course: "libre", date: t, title: "Cours du jour", dur: 90, label: "Aujourd'hui · cours hors planning" })
   return out.filter(o => o.course === "libre" ? scopeOf(ctx, "attendance", "create") === "academy" : (courseAllowed(ctx, mc, "attendance", "view", o.course) || courseAllowed(ctx, mc, "attendance", "create", o.course)))
@@ -126,11 +126,11 @@ export function reqText(C: Any, a: Any, b: Any): string {
 }
 
 /** Assiduité aux cours du planning sur 30 jours. */
-export function assidOf(C: Any, schedule: unknown, att: Any, sessions: Any[]) {
+export function assidOf(C: Any, schedule: unknown, att: Any, sessions: Any[], club?: unknown) {
   const sch = normSched(schedule); let tot = 0, pr = 0
   for (let k = 0; k < 30; k++) {
     const dd = C.addDays(C.TODAY, -k), dS = C.ymd(dd), dn = isoDay(dd)
-    sch.forEach(x => { if (x.d !== dn) return; tot++; const a = (att || {})[dS + "|" + x.id]; if (a === "oui" || (a !== "non" && sessions.some(s => s.date === dS && !C.isPrepa(s)))) pr++ })
+    sch.forEach(x => { if (x.d !== dn || (club && !slotOpenOn(club, x, dS))) return; tot++; const a = (att || {})[dS + "|" + x.id]; if (a === "oui" || (a !== "non" && sessions.some(s => s.date === dS && !C.isPrepa(s)))) pr++ })
   }
   return { pr, tot }
 }

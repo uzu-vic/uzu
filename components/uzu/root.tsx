@@ -25,7 +25,7 @@ import { ClubAcademy, ClubContents, ClubCourses, ClubTeam } from "@/components/u
 import { BellButton, NotifCenter, useNotifs } from "@/components/uzu/notifications"
 import { Login, Recovery, Welcome } from "@/components/uzu/auth-screens"
 import { PENDING, acceptInvitation, captureInviteToken, cleanInviteUrl, dropInviteToken, inviteToken } from "@/lib/uzu/auth"
-import { createClubFromSolo, ensureConsent, giveConsent } from "@/lib/uzu/journal"
+import { createClubFromSolo, ensureConsent, giveConsent, loadCore } from "@/lib/uzu/journal"
 import { Check, X } from "lucide-react"
 
 type Space = "athlete" | "club"
@@ -174,6 +174,18 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
   const current = items.find(i => i.id === active) ?? items[0]
   const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>
   const name = String(meta.name || meta.full_name || session.user.email || "Utilisateur")
+  // Prénom pour l'accueil : jamais tiré de l'adresse e-mail (nom du compte, puis profil, puis carnet)
+  const [storedName, setStoredName] = useState("")
+  useEffect(() => {
+    if (!ctx || String(meta.name || meta.full_name || "").trim()) return
+    let live = true
+    ;(async () => {
+      try { const { data } = await uzu().from("profiles").select("display_name").eq("user_id", session.user.id).maybeSingle(); const n = String((data as { display_name?: string } | null)?.display_name || "").trim(); if (n) { if (live) setStoredName(n); return } } catch { /* colonne absente */ }
+      try { const r = await loadCore(session.user.id, ctx); const n = String(r.core.__get("state").name || "").trim(); if (live && n) setStoredName(n) } catch { /* hors ligne */ }
+    })()
+    return () => { live = false }
+  }, [ctx?.club?.id, session.user.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const greet = firstName(String(meta.name || meta.full_name || "") || storedName)
   const memberships = (ctx?.memberships ?? []).filter(m => m.status === "active")
   const [navArg, setNavArg] = useState("")
   const go = (id: string, arg = "") => { setActive(id); setNavArg(arg); setMenuOpen(false); setComposing(false); setEditing(null); window.scrollTo(0, 0) }
@@ -239,14 +251,14 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
         {ctx && !teamOn(ctx) && <div className="uzu-banner">La base de cet environnement n'a pas la migration « équipe » : affichage en mode simplifié.</div>}
         {space === "club" && isSuspended(ctx) ? <Suspended />
           : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={(m, sid) => { setComposing(false); setEditing(null); setActive("log"); setNavArg(sid ? "journal:" + sid : "journal"); showToast(m); window.scrollTo(0, 0) }} />
-          : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={name} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
+          : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={greet} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick} uid={session.user.id} ctx={ctx} />
           : space === "athlete" && current?.id === "progress" ? <AthleteProgress key={"p" + syncTick} uid={session.user.id} ctx={ctx} />
           : space === "athlete" && current?.id === "log" ? <AthleteSessions key={"l" + syncTick + navArg} initialTab={navArg} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} onEdit={(kind, id) => { setEditing({ kind, id }); setComposing(true); window.scrollTo(0, 0) }} onToast={showToast} />
           : space === "athlete" && current?.id === "stats" ? <AthleteStats key={"st" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "feed" ? <AthleteFeed key={"f" + syncTick} uid={session.user.id} ctx={ctx} onToast={showToast} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "profile" ? <AthleteProfile key={"pr" + syncTick} session={session} ctx={ctx} onToast={showToast} />
-          : space === "club" && teamOn(ctx) && current?.id === "home" ? <ClubHome key={"ch" + ctx?.club?.id} uid={session.user.id} ctx={ctx} name={name} onToast={showToast} onNavigate={go} />
+          : space === "club" && teamOn(ctx) && current?.id === "home" ? <ClubHome key={"ch" + ctx?.club?.id} uid={session.user.id} ctx={ctx} name={greet} onToast={showToast} onNavigate={go} />
           : space === "club" && teamOn(ctx) && current?.id === "attendance" ? <ClubAttendance key={"ca" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} />
           : space === "club" && teamOn(ctx) && current?.id === "students" ? <ClubStudents key={"cs" + ctx?.club?.id + navArg} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} initialFilter={navArg} />
           : space === "club" && teamOn(ctx) && current?.id === "progress" ? <ClubProgress key={"cp" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} />
@@ -254,7 +266,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
           : space === "club" && teamOn(ctx) && current?.id === "courses" ? <ClubCourses key={"co" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
           : space === "club" && teamOn(ctx) && current?.id === "team" ? <ClubTeam key={"ct" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
           : space === "club" && teamOn(ctx) && current?.id === "academy" ? <ClubAcademy key={"ac" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
-          : current && <MigrationPage item={current} space={space} ctx={ctx} name={name} />}
+          : current && <MigrationPage item={current} space={space} ctx={ctx} name={greet} />}
       </div>
     </div>
     {notifOpen && <NotifCenter uid={session.user.id} ctx={ctx} list={notifs.list} ready={notifs.ready} onClose={() => setNotifOpen(false)} onOpen={openGo} onToast={showToast} />}
@@ -271,9 +283,8 @@ function Suspended() {
 }
 
 function MigrationPage({ item, space, ctx, name }: { item: NavItem; space: Space; ctx: UzuContext | null; name: string }) {
-  const first = name.split(/[\s@]/)[0]
   return <>
-    <div className="page-heading"><div><div className="eyebrow">{space === "athlete" ? "ESPACE ATHLETE" : "ESPACE CLUB"}{ctx?.club && <><span className="eyebrow-dot" />{ctx.club.name.toUpperCase()}</>}</div><h1>{item.id === "home" ? <>Bonjour {first}</> : item.label}<span className="heading-period">.</span></h1><p>{item.id === "home" ? "Votre espace UZU, sur la même base et le même compte." : "Cet écran est en cours de migration vers le nouveau design."}</p></div></div>
+    <div className="page-heading"><div><div className="eyebrow">{space === "athlete" ? "ESPACE ATHLETE" : "ESPACE CLUB"}{ctx?.club && <><span className="eyebrow-dot" />{ctx.club.name.toUpperCase()}</>}</div><h1>{item.id === "home" ? (name ? `Salut ${name}` : "Salut") : item.label}<span className="heading-period">.</span></h1><p>{item.id === "home" ? "Votre espace UZU, sur la même base et le même compte." : "Cet écran est en cours de migration vers le nouveau design."}</p></div></div>
     <section className="panel uzu-panel">
       <div className="eyebrow">EN COURS DE MIGRATION</div>
       <h2 className="uzu-h2">« {item.label} » fonctionne dans l'application actuelle</h2>
@@ -281,4 +292,11 @@ function MigrationPage({ item, space, ctx, name }: { item: NavItem; space: Space
       <a className="button button--dark" href={LEGACY}>Ouvrir l'application actuelle<ArrowRight size={16} /></a>
     </section>
   </>
+}
+
+/** Premier prénom affichable (« ali gherbi » → « Ali ») ; vide si ce n'est qu'une adresse e-mail. */
+function firstName(n: string): string {
+  const w = n.trim().split(/\s+/)[0] || ""
+  if (!w || w.includes("@")) return ""
+  return w.charAt(0).toUpperCase() + w.slice(1)
 }

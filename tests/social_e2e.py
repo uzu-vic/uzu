@@ -16,6 +16,11 @@ DOCS={f"members/{UID}":{"consent":{"at":"2026-01-01T00:00:00Z","share":True},"na
 WR=[]; RPC=[]; DEL=[]
 def handle(route):
     r=route.request; u=r.url
+    if "/auth/v1/user" in u:
+        usr=dict(SESS["user"])
+        if r.method=="PUT":
+            d=json.loads(r.post_data or "{}").get("data") or {}; usr["user_metadata"]={**usr["user_metadata"],**d}; SESS["user"]=usr; RPC.append(("auth.updateUser", r.post_data))
+        return route.fulfill(status=200, content_type="application/json", body=json.dumps(usr))
     if "/rpc/get_my_context" in u: return route.fulfill(status=200, content_type="application/json", body=json.dumps(CTX))
     if "/rpc/" in u: RPC.append((u.split("/rpc/")[1], r.post_data)); return route.fulfill(status=200, content_type="application/json", body="true")
     if "/rest/v1/docs" in u:
@@ -74,6 +79,7 @@ with sync_playwright() as pw:
     nav("Mon profil"); pg.screenshot(path="/tmp/profile_mob.png", full_page=True)
     pg.get_by_label("Nom et prénom").fill("Yanis B."); pg.get_by_label("Âge (tranche)").select_option("18-25"); pg.get_by_role("button", name="Enregistrer", exact=True).click(); pg.wait_for_timeout(1800)
     m=DOCS[f"members/{UID}"]; check("nom et tranche d'âge enregistrés", m.get("name")=="Yanis B." and m.get("demo",{}).get("age")=="18-25", (m.get("name"), m.get("demo")))
+    check("prénom aussi enregistré sur le compte (accueil)", any(r0=="auth.updateUser" and "Yanis B." in (body or "") for r0,body in RPC), [r0 for r0,_ in RPC])
     pg.get_by_role("switch", name="Partager mon activité dans le fil").click(); pg.wait_for_timeout(1800)
     check("désactivation du fil : réglage serveur appelé", any(r0=="set_share_activity" and '"on_off":false' in (body or "") for r0,body in RPC), RPC)
     check("désactivation du fil : mon document du fil supprimé", f"feed/{UID}" in DEL, DEL)

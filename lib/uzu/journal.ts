@@ -309,6 +309,8 @@ export async function saveProfileInfo(uid: string, ctx: UzuContext | null, p: { 
     state.name = nn.slice(0, 40)
     if (!t) { state.demo = { age: p.age, sex: p.sex }; if (state.consent) state.consent.parental = p.age === "lt16" }
     const synced = await commit(uid, L)
+    // Le prénom sert aussi à l'accueil (« Salut … ») : on le garde sur le compte (sans bloquer si hors ligne)
+    uzu().auth.updateUser({ data: { name: state.name } }).catch(() => {})
     return { ok: true, synced, item: null }
   } catch (e) { return { ok: false, msg: (e as Error).message || "Enregistrement impossible" } }
 }

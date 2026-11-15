@@ -2,13 +2,14 @@
 // Espace Athlete — Entraînements (à venir, journal, compétitions, calendrier) et Statistiques,
 // au design de la maquette, sur les vraies données du carnet et du planning du club.
 import { useMemo, useState } from "react"
-import { ArrowUpRight, Award, CalendarDays, ChevronLeft, ChevronRight, Clock3, Dumbbell, Eye, Flame, MapPin, Pencil, Plus, Trash2, Trophy } from "lucide-react"
+import { ArrowUpRight, Award, CalendarDays, ChevronRight, Clock3, Dumbbell, Eye, Flame, MapPin, Pencil, Plus, Trash2, Trophy } from "lucide-react"
 import { deleteEntry } from "@/lib/uzu/journal"
 import type { UzuContext } from "@/lib/uzu/context"
-import { compResult, durTxt, frDate, nextClasses, normSched, parseYmd, sessionKind, sessionMeta, sessionTitle, slotTag, ymd, type Session } from "@/lib/uzu/training"
+import { closureOn, closureTxt, closuresOf, compResult, durTxt, frDate, nextClasses, normSched, slotOpenOn, parseYmd, sessionKind, sessionMeta, sessionTitle, slotTag, ymd, type Session } from "@/lib/uzu/training"
 import { useTraining } from "@/components/uzu/athlete"
 import { SessionDetail } from "@/components/uzu/session-detail"
 import { CombatMapCard, useFullSessions } from "@/components/uzu/combat-map"
+import { Calendar, type CalItem } from "@/components/uzu/calendar"
 
 const DSHORT = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"]
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -54,7 +55,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
     for (const s of data?.sessions ?? []) { const k = s.date.slice(0, 7); m.set(k, [...(m.get(k) ?? []), s]) }
     return [...m.entries()]
   }, [data])
-  const upcoming = useMemo(() => (solo ? [] : nextClasses(ctx?.club?.schedule, 8)), [ctx, solo])
+  const upcoming = useMemo(() => (solo ? [] : nextClasses(ctx?.club?.schedule, 8, new Date(), ctx?.club)), [ctx, solo])
   const wk = monday(now), thisWeek = (data?.sessions ?? []).filter(s => s.date >= ymd(wk)).length
   const tabs: [Tab, string][] = [...(solo ? [] : [["next", "À venir"] as [Tab, string]]), ["journal", "Mon journal"], ["comps", `Compétitions${data?.comps.length ? ` (${data.comps.length})` : ""}`], ["calendar", "Calendrier"]]
 
@@ -72,6 +73,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
             <p><Clock3 size={14} />{o.slot.s} – {o.slot.e} <i /> <MapPin size={14} />{ctx?.club?.name}</p></div>
           <button className="button button--light" onClick={onCompose}>Saisir après le cours<ChevronRight size={15} /></button></div> })()
           : <div className="panel uzu-panel"><p className="uzu-text">Aucun cours au planning du club pour les prochains jours.</p></div>}
+        {!solo && (() => { const t = ymd(new Date()), lim = ymd(addDays(new Date(), 21)), c = closuresOf(ctx?.club).find(x => x.to >= t && x.from <= lim); return c ? <div className="uzu-banner uzu-hol-note" role="note">{c.from <= t ? "En ce moment" : "Bientôt"} : {c.label} {closureTxt(c)}. Pas de cours au club, sauf ceux maintenus.</div> : null })()}
         <div className="timeline-title"><h2>Vos prochains cours</h2><span>{thisWeek} séance{thisWeek > 1 ? "s" : ""} cette semaine</span></div>
         <div className="session-list">{upcoming.map((o, i) => <article className="session-card" key={o.slot.id + o.inDays}>
           <div className="session-date"><span>{DSHORT[o.slot.d - 1]}</span><strong>{o.date.getDate()}</strong></div>
@@ -102,34 +104,26 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
             <Acts kind="c" id={c.id} /></div>
         </article>)}</div>)}
 
-      {tab === "calendar" && <CalendarWeek sessions={data.sessions} schedule={solo ? [] : ctx?.club?.schedule} />}
+      {tab === "calendar" && <CalendarWeek sessions={data.sessions} schedule={solo ? [] : ctx?.club?.schedule} club={solo ? null : ctx?.club} />}
     </>}
     {view && <SessionDetail uid={uid} ctx={ctx} id={view} saved={saved} onClose={() => { setView(""); setSaved(false) }} onEdit={id => { setView(""); onEdit("s", id) }} onComplete={() => { setView(""); onCompose() }} />}
   </>
 }
 
 /** Semaine : cours du planning du club (à venir) et séances saisies (faites). */
-function CalendarWeek({ sessions, schedule }: { sessions: Session[]; schedule: unknown }) {
-  const [week, setWeek] = useState(0)
-  const today = dayOf(new Date()), start = addDays(monday(today), week * 7), sched = normSched(schedule)
-  const days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(start, i))
-  const title = cap(start.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }))
-  return <section className="panel calendar-panel">
-    <div className="calendar-toolbar"><div><Eyebrow>VOTRE PLANNING</Eyebrow><h2>{title}</h2></div>
-      <div className="calendar-controls"><button className="icon-button" aria-label="Semaine précédente" onClick={() => setWeek(week - 1)}><ChevronLeft size={17} /></button><button className="panel-select" onClick={() => setWeek(0)}>Aujourd'hui</button><button className="icon-button" aria-label="Semaine suivante" onClick={() => setWeek(week + 1)}><ChevronRight size={17} /></button></div></div>
-    <div className="calendar-grid">
-      {days.map((d, i) => <div key={"h" + i} className={`calendar-day-head ${+d === +today ? "is-today" : ""}`}>{DSHORT[i]} <strong>{d.getDate()}</strong></div>)}
-      {days.map((d, i) => {
-        const ds = ymd(d), done = sessions.filter(s => s.date === ds), future = d >= today
-        const planned = future ? sched.filter(x => x.d === i + 1 && !done.some(s => !isPrepa(s))) : []
-        return <div className="calendar-day" key={"d" + i}>
-          {done.map(s => <div key={s.id} className={`calendar-event calendar-event--${isPrepa(s) ? "sand" : "wine"}`}><strong>{sessionTitle(s)}</strong><small>{Number(s.dur) ? durTxt(Number(s.dur)) : ""}{s.roll ? " · appel" : ""}</small></div>)}
-          {planned.map(x => <div key={x.id} className="calendar-event calendar-event--dark"><strong>{x.t}</strong><small>{x.s}{slotTag(x) ? " · " + slotTag(x) : ""}</small></div>)}
-        </div>
-      })}
-    </div>
-    <div className="chart-legend uzu-cal-legend"><span><i className="lg-wine" />Séance saisie</span><span><i className="lg-sand" />Prépa physique</span>{sched.length > 0 && <span><i className="lg-dark" />Cours prévu au club</span>}</div>
-  </section>
+function CalendarWeek({ sessions, schedule, club }: { sessions: Session[]; schedule: unknown; club: unknown }) {
+  const today = dayOf(new Date()), sched = useMemo(() => normSched(schedule), [schedule])
+  const itemsOn = (d: Date, ds: string): CalItem[] => {
+    const done = sessions.filter(s => s.date === ds), iso = ((d.getDay() + 6) % 7) + 1
+    const out: CalItem[] = done.map(s => ({ key: s.id, title: sessionTitle(s), sub: (Number(s.dur) ? durTxt(Number(s.dur)) : "") + (s.roll ? " · appel" : ""), tone: isPrepa(s) ? "sand" : "wine" }))
+    if (d >= today && !done.some(s => !isPrepa(s))) sched.filter(x => x.d === iso).forEach(x => {
+      if (slotOpenOn(club, x, ds)) out.push({ key: x.id, title: x.t, sub: x.s + (slotTag(x) ? " · " + slotTag(x) : ""), tone: "dark" })
+      else if (!closureOn(club, ds)) out.push({ key: x.id, title: x.t, sub: x.s, tone: "dark", off: "Annulé" })
+    })
+    return out
+  }
+  return <Calendar eyebrow="VOTRE PLANNING" storeKey="uzu-cal-athlete" itemsOn={itemsOn} closedOn={ds => (sched.length ? closureOn(club, ds)?.label || null : null)}
+    legend={<div className="chart-legend uzu-cal-legend"><span><i className="lg-wine" />Séance saisie</span><span><i className="lg-sand" />Prépa physique</span>{sched.length > 0 && <span><i className="lg-dark" />Cours prévu au club</span>}{sched.length > 0 && closuresOf(club).length > 0 && <span><i className="lg-hol" />Vacances, pas de cours</span>}</div>} />
 }
 
 // ================================================================ Statistiques

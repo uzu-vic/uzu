@@ -8,7 +8,7 @@ import { Stars } from "@/components/uzu/progress"
 import { ReminderCard } from "@/components/uzu/combat-map"
 import type { UzuContext } from "@/lib/uzu/context"
 import {
-  beltColor, beltName, compResult, durTxt, frDate, loadTraining, nextClasses, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd,
+  beltColor, beltName, compResult, durTxt, frDate, loadTraining, nextClasses, normSched, slotOpenOn, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd,
   type Session, type Training,
 } from "@/lib/uzu/training"
 
@@ -64,8 +64,7 @@ const monthKey = (s: string) => s.slice(0, 7)
 export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: string; ctx: UzuContext | null; name: string; onNavigate: (id: string) => void; onCompose: () => void }) {
   const { data, error, reload } = useTraining(uid, ctx)
   const today = new Date()
-  const first = name.split(/[\s@]/)[0]
-  const next = useMemo(() => (ctx?.club && data?.role !== "solo" ? nextClasses(ctx.club.schedule, 1)[0] : undefined), [ctx, data])
+  const next = useMemo(() => (ctx?.club && data?.role !== "solo" ? nextClasses(ctx.club.schedule, 1, new Date(), ctx.club)[0] : undefined), [ctx, data])
 
   const stats = useMemo(() => {
     if (!data) return null
@@ -88,7 +87,7 @@ export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: st
   }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return <>
-    <div className="page-heading"><div><Eyebrow>{today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase()}</Eyebrow><h1>Bonjour {first}<span className="heading-period">.</span></h1><p>Chaque séance vous rapproche de votre prochain grade.</p></div>
+    <div className="page-heading"><div><Eyebrow>{today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase()}</Eyebrow><h1>{name ? `Salut ${name}` : "Salut"}<span className="heading-period">.</span></h1><p>Chaque séance vous rapproche de votre prochain grade.</p></div>
       <button className="button button--dark" onClick={onCompose}><Plus size={16} />Saisir ma séance</button></div>
 
     <section className="athlete-hero">
@@ -142,8 +141,8 @@ function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: 
     if (solo || !club) { setEndKey(""); return }
     const now = new Date(), today = ymd(now), dn = ((now.getDay() + 6) % 7) + 1, mins = now.getHours() * 60 + now.getMinutes()
     let best: { id: string; em: number } | null = null
-    const S = Array.isArray(club.schedule) ? club.schedule as { id: string; d: number; e: string }[] : []
-    S.forEach(x => { if (x.d !== dn || !/^\d\d:\d\d$/.test(String(x.e))) return; const e = x.e.split(":"), em = +e[0] * 60 + +e[1]; if (mins >= em && mins - em <= 180 && (!best || em > best.em)) best = { id: x.id, em } })
+    const S = normSched(club.schedule)
+    S.forEach(x => { if (x.d !== dn || !/^\d\d:\d\d$/.test(String(x.e)) || !slotOpenOn(club, x, today)) return; const e = x.e.split(":"), em = +e[0] * 60 + +e[1]; if (mins >= em && mins - em <= 180 && (!best || em > best.em)) best = { id: x.id, em } })
     let dis: Record<string, number> = {}; try { dis = JSON.parse(localStorage.getItem("uzu-endbar") || "{}") || {} } catch { /* rien */ }
     const b = best as { id: string; em: number } | null, key = b ? today + "|" + b.id : ""
     setEndKey(b && !sessions.some(s => s.date === today && s.cat !== "prepa") && !dis[key] ? key : "")

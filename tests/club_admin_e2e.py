@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright
 REF = "abcdefghijkltest"; UID = "00000000-0000-0000-0000-0000000000a1"
 S1 = "00000000-0000-0000-0000-0000000000c1"
 T = date.today(); d = lambda n: (T - timedelta(days=n)).isoformat()
+MONW = lambda x: x - timedelta(days=x.weekday())
 def jwt():
     e = lambda o: base64.urlsafe_b64encode(json.dumps(o).encode()).decode().rstrip("=")
     return e({"alg": "HS256", "typ": "JWT"}) + "." + e({"sub": UID, "exp": int(time.time()) + 3600, "role": "authenticated", "email": "prof@test.fr"}) + ".sig"
@@ -77,6 +78,7 @@ def content(pg): return pg.inner_text(".page-content")
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path="/usr/bin/google-chrome")
     m = Mock(ctx("owner")); pg, errs = open_page(b, m)
+    check("Accueil club : « Salut » et prénom seul", pg.locator(".page-heading h1").first.inner_text().startswith("Salut Paul") and "Bonjour" not in content(pg))
 
     # ---- Cours
     nav(pg, "Cours")
@@ -105,6 +107,43 @@ with sync_playwright() as p:
     pg.locator("button", has_text="Confirmer le retrait").click(); pg.wait_for_timeout(1000)
     ua = m.last("update_academy")
     check("Cours : retrait envoyé sans le cours retiré", len(ua) == 3 and len(ua[2]["p_patch"]["schedule"]) == 2 and "x2" not in [x["id"] for x in ua[2]["p_patch"]["schedule"]])
+    # ---- Vacances et fermetures
+    t = content(pg)
+    check("Fermetures : panneau affiché, aucune période au départ", "Vacances et fermetures" in t and "Aucune période de fermeture" in t)
+    pg.select_option("#hol-zone", "C"); pg.locator("button", has_text="Ajouter les vacances scolaires 2026-2027").click(); pg.wait_for_timeout(900)
+    pa = m.last("update_academy")[-1]["p_patch"]; cl = {c["id"]: c for c in pa.get("profile", {}).get("closures", [])}
+    check(f"Fermetures : vacances zone C ajoutées, profil conservé {sorted(cl)}", list(pa.keys()) == ["profile"] and pa["profile"]["zone"] == "C" and pa["profile"]["disc"] == ["jjb"]
+          and cl.get("vs-noel-2026", {}).get("from") == "2026-12-19" and cl.get("vs-hiver-2027", {}).get("from") == "2027-02-06" and cl.get("vs-printemps-2027", {}).get("to") == "2027-04-18" and "vs-ete-2027" in cl and ("vs-toussaint-2026" in cl) == (T.isoformat() <= "2026-11-01"))
+    t = content(pg); pg.locator("section[aria-label='Vacances et fermetures']").screenshot(path="/tmp/closures.png")
+    check("Fermetures : liste relue (Noël, hiver, été)", "Vacances de Noël" in t and "du 19 déc. au 3 janv. 2027" in t and "Vacances d'été" in t)
+    n0 = len(m.last("update_academy"))
+    fr = (T + timedelta(days=10)).isoformat(); to = (T + timedelta(days=12)).isoformat()
+    pg.fill("#hol-label", "Stage d'équipe"); pg.fill("#hol-from", to); pg.fill("#hol-to", fr); pg.locator("button", has_text="Ajouter cette fermeture").click(); pg.wait_for_timeout(300)
+    check("Fermetures : dates incohérentes refusées sans appel", len(m.last("update_academy")) == n0 and "La date de fin doit être après" in content(pg))
+    pg.fill("#hol-from", fr); pg.fill("#hol-to", to); pg.locator("button", has_text="Ajouter cette fermeture").click(); pg.wait_for_timeout(900)
+    cls = m.last("update_academy")[-1]["p_patch"]["profile"]["closures"]
+    check("Fermetures : fermeture manuelle ajoutée aux vacances", len(cls) == len(cl) + 1 and any(c["label"] == "Stage d'équipe" and c["from"] == fr and c["to"] == to for c in cls))
+    pg.get_by_role("button", name="Retirer Stage d'équipe").click(); pg.wait_for_timeout(900)
+    cls = m.last("update_academy")[-1]["p_patch"]["profile"]["closures"]
+    check("Fermetures : retrait d'une période", len(cls) == len(cl) and not any(c["label"] == "Stage d'équipe" for c in cls))
+    nmon = T + timedelta(days=(7 - T.weekday()) % 7 or 7)
+    pg.locator(".course-list-row", has_text="JJB Gi adultes").locator(".row-action").click(); pg.wait_for_timeout(300)
+    pg.get_by_label("Cours maintenu pendant les vacances et fermetures du club").check()
+    pg.fill("#sl-off", (nmon + timedelta(days=1)).isoformat()); pg.locator("button", has_text="Annuler cette date").click(); pg.wait_for_timeout(150)
+    check("Cours : date d'un autre jour refusée", "Ce cours a lieu le lundi" in content(pg) and pg.locator(".uzu-off-chip").count() == 0)
+    pg.fill("#sl-off", nmon.isoformat()); pg.locator("button", has_text="Annuler cette date").click(); pg.wait_for_timeout(150)
+    check("Cours : date annulée affichée", pg.locator(".uzu-off-chip").count() == 1); pg.locator("section", has_text="Modifier le cours").first.screenshot(path="/tmp/editor.png")
+    pg.locator("button", has_text="Enregistrer le cours").click(); pg.wait_for_timeout(1000)
+    x1 = [x for x in m.last("update_academy")[-1]["p_patch"]["schedule"] if x["id"] == "x1"]
+    check(f"Cours : maintenu pendant les vacances et date annulée enregistrés {x1}", x1 and x1[0].get("hol") is True and x1[0].get("off") == [nmon.isoformat()])
+    t = content(pg)
+    check("Cours : options visibles dans la liste", "Maintenu pendant les vacances · 1 date annulée" in t)
+    for _ in range((MONW(nmon) - MONW(T)).days // 7): pg.locator("button[aria-label='Semaine suivante']").click()
+    pg.wait_for_timeout(200)
+    check("Calendrier club : la date annulée apparaît barrée « Annulé »", pg.locator(".calendar-event.is-off", has_text="JJB Gi adultes").count() == 1 and "Annulé" in pg.inner_text(".calendar-grid"))
+    pg.get_by_role("button", name="Mois", exact=True).click(); pg.wait_for_timeout(200)
+    check("Calendrier club : affichage mois", pg.locator(".uzu-mgrid-cell:not(.is-out)").count() >= 28)
+    pg.get_by_role("button", name="Semaine", exact=True).click(); pg.wait_for_timeout(150)
     pg.locator(".course-list-row", has_text="JJB Gi adultes").locator(".row-action").click(); pg.wait_for_timeout(300)
     pg.locator("section button", has_text="Encadrement").click(); pg.wait_for_timeout(500)
     pg.select_option("select[aria-label='Rôle de Inès Prof']", "assistant"); pg.fill("#cs-disc", "JJB"); pg.fill("#cs-level", "Tous niveaux"); pg.select_option("#cs-sec", "s1")
@@ -184,7 +223,7 @@ with sync_playwright() as p:
     pg.locator("button", has_text="Enregistrer les informations du club").click(); pg.wait_for_timeout(800)
     check("Code invitation changé par sa fonction dédiée", m.last("update_invite_code") == [{"new_code": "NOUVEAU-2027"}])
     pa = m.last("update_academy")[-1]["p_patch"]
-    check("Informations : nom, couleur, profil (sans planning ni focus)", sorted(pa.keys()) == ["accent_color", "name", "profile"] and pa["accent_color"] == "vert" and pa["profile"]["disc"] == ["jjb", "mma"] and pa["profile"]["desc"] == "Club de test")
+    check("Informations : nom, couleur, profil (sans planning ni focus)", sorted(pa.keys()) == ["accent_color", "name", "profile"] and pa["accent_color"] == "vert" and pa["profile"]["disc"] == ["jjb", "mma"] and pa["profile"]["desc"] == "Club de test" and len(pa["profile"].get("closures", [])) >= 4)
     check("Responsable : pas de bouton Quitter", "Quitter cette académie" not in content(pg))
     check("Responsable : aucune erreur JavaScript", not errs); print("   ", errs)
     pg.context.close()
@@ -195,6 +234,7 @@ with sync_playwright() as p:
     nav_txt = pg.inner_text(".primary-nav")
     check("Professeur : pas d'onglet Équipe", "Équipe" not in nav_txt and "Cours" in nav_txt and "Contenus" in nav_txt)
     nav(pg, "Cours")
+    check("Professeur : pas de gestion des fermetures", pg.locator("button", has_text="Ajouter les vacances scolaires").count() == 0 and pg.locator("#hol-from").count() == 0)
     check("Professeur : planning en lecture seule", pg.locator("button", has_text="Créer un cours").count() == 0 and pg.locator(".course-list-row .row-action").count() == 0 and pg.locator(".uzu-cal-btn:enabled").count() == 0)
     nav(pg, "Contenus")
     check("Professeur : ni focus ni annonce modifiables", pg.locator("#fe-title").count() == 0 and pg.locator("#club-news").count() == 0)
