@@ -6,7 +6,8 @@ import { Award, ChevronDown, Dumbbell, Flame, Medal, Scale, Target, TrendingUp }
 import type { UzuContext } from "@/lib/uzu/context"
 import { declareBelt, loadCore } from "@/lib/uzu/journal"
 import { beltColor, normSched } from "@/lib/uzu/training"
-import { loadVideos, videoUrl, type VideoMap } from "@/lib/uzu/videos"
+import { loadVideos, type VideoMap } from "@/lib/uzu/videos"
+import { ClubVideo } from "@/components/uzu/club-video"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -98,7 +99,7 @@ export function AthleteTechniques({ uid, ctx }: { uid: string; ctx: UzuContext |
         <div className="progress-track"><i style={{ width: `${x.pct}%` }} /></div>
         <p className="uzu-text uzu-small">En sparring sur 30 jours : imposé <b>{x.imp}</b> · subi <b>{x.sub}</b><br />Passages et renversements sur 30 jours : placés <b>{gsy[k].placed}</b> · subis <b>{gsy[k].suffered}</b></p>
         <ul className="uzu-skill-list">{it.map(t => { const i = C.skillInfo(data.P, t); return <li key={t}><span>{t}</span><Stars lvl={i.lvl} review={i.review} /></li> })}</ul>
-        {vids["sys-" + k] && <video className="uzu-video" controls playsInline preload="metadata" src={videoUrl(vids["sys-" + k].id)} aria-label={`Vidéo du système ${C.SYSTEMS[k].n}`} />}
+        {vids["sys-" + k] && <ClubVideo id={vids["sys-" + k].id} label={`Vidéo du système ${C.SYSTEMS[k].n}`} />}
       </details>
     })}</div>
 

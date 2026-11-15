@@ -374,7 +374,7 @@ export async function changePassword(oldPw: string, newPw: string): Promise<stri
 }
 
 // ---------- Mes données (profil) : mêmes effets que l'ancienne application ----------
-function cacheClear(id: string) {
+export function cacheClear(id: string) {
   try { const m = cacheAll(); delete m[id]; if (Object.keys(m).length) localStorage.setItem(CACHE_KEY, JSON.stringify(m)); else localStorage.removeItem(CACHE_KEY) } catch { /* rien */ }
 }
 async function delDoc(path: string): Promise<void> {

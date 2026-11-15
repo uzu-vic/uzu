@@ -3,12 +3,14 @@
 // Même contenu et mêmes règles que l'ancienne application : le fil ne montre jamais les soumissions
 // subies, l'état physique ni les notes privées ; on n'y apparaît que si on l'a choisi.
 import { useEffect, useState } from "react"
-import { Check, KeyRound, LogOut, Plus, Share2, ShieldCheck, Trash2, Users } from "lucide-react"
+import { Check, EyeOff, Flag, KeyRound, LogOut, Plus, Share2, ShieldCheck, Trash2, UserX, Users } from "lucide-react"
 import type { Session } from "@supabase/supabase-js"
 import { uzu } from "@/lib/uzu/client"
 import type { UzuContext } from "@/lib/uzu/context"
 import { changePassword, createClubFromSolo, deleteAllData, deleteAllText, feedReact, joinClubByCode, loadCore, loadFeed, saveProfileInfo, setFeedShare } from "@/lib/uzu/journal"
 import { BeltMark } from "@/components/uzu/progress"
+import { REPORT_REASONS, deleteMyAccount, listBlocks, reportContent, setBlock, type Blocked } from "@/lib/uzu/safety"
+import { LegalLinks } from "@/components/uzu/legal-pages"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -49,6 +51,7 @@ export function AthleteFeed({ uid, ctx, onCompose, onToast }: { uid: string; ctx
   const [error, setError] = useState("")
   const [tick, setTick] = useState(0)
   const [busy, setBusy] = useState("")
+  const [openFor, setOpenFor] = useState("")
   useEffect(() => {
     if (!ctx) return
     let live = true
@@ -95,8 +98,10 @@ export function AthleteFeed({ uid, ctx, onCompose, onToast }: { uid: string; ctx
         const e = it.e, key = it.uid + "|" + e.id, n = C.checkCount(key), on = !!st.fx.checks[key], tx = evText(C, it)
         const vk = it.uid + "|" + e.tech, done = !!st.fx.vals[vk]
         return <li key={key} className={`panel uzu-fcard ${it.mine ? "mine" : ""}`}>
-          <div className="uzu-fc-head"><BeltMark rank={it.belt.rank} stripes={it.belt.stripes} size={30} /><b>{it.name}{it.mine && <span className="uzu-muted"> (toi)</span>}</b><span className="uzu-muted uzu-small">{C.feedWhen(e.d)}</span></div>
+          <div className="uzu-fc-head"><BeltMark rank={it.belt.rank} stripes={it.belt.stripes} size={30} /><b>{it.name}{it.mine && <span className="uzu-muted"> (toi)</span>}</b><span className="uzu-muted uzu-small">{C.feedWhen(e.d)}</span>
+            {!solo && !it.mine && <button type="button" className="uzu-fc-flag" aria-expanded={openFor === key} aria-label={`Signaler ou masquer ${it.name}`} onClick={() => setOpenFor(openFor === key ? "" : key)}><Flag size={13} />Signaler</button>}</div>
           <p className="uzu-fc-body"><strong>{tx.big}</strong>{tx.rest ? <> · {tx.rest}</> : null}{tx.badge && <span className="uzu-pill">{tx.badge}</span>}</p>
+          {openFor === key && <ReportBox target={it.uid} name={String(it.name)} itemKey={key} itemText={[tx.big, tx.rest].filter(Boolean).join(" · ")} onClose={() => setOpenFor("")} onToast={onToast} onMasked={() => { setOpenFor(""); setTick(t => t + 1) }} />}
           {!solo && <div className="uzu-fc-foot">
             {e.t === "r" && (it.mine ? <span className="uzu-muted uzu-small">En attente d'un coéquipier qui a tourné avec toi</span>
               : done ? <span className="uzu-pill done"><Check size={12} /> Validé par toi</span>
@@ -109,6 +114,43 @@ export function AthleteFeed({ uid, ctx, onCompose, onToast }: { uid: string; ctx
     {items.length > 0 && <p className="uzu-text uzu-small uzu-muted uzu-grid-gap">Activité des 30 derniers jours. Le fil n'affiche jamais les soumissions subies, l'état physique ni les notes privées.</p>}
   </>
 }
+/** Signaler une publication au responsable du club, ou masquer ce membre (des deux côtés). */
+function ReportBox({ target, name, itemKey, itemText, onClose, onToast, onMasked }: { target: string; name: string; itemKey: string; itemText: string; onClose: () => void; onToast: (m: string) => void; onMasked: () => void }) {
+  const [reason, setReason] = useState("")
+  const [details, setDetails] = useState("")
+  const [also, setAlso] = useState(false)
+  const [err, setErr] = useState("")
+  const [busy, setBusy] = useState(false)
+  const first = name.split(" ")[0]
+  const send = async () => {
+    if (!reason) { setErr("Choisis un motif"); return }
+    setErr(""); setBusy(true)
+    const r = await reportContent(target, itemKey, itemText, reason, details)
+    if (!r.ok) { setBusy(false); setErr(r.msg); return }
+    if (also) { const b = await setBlock(target, true); setBusy(false); onToast(b.ok ? `Signalement envoyé au club. ${first} est masqué.` : "Signalement envoyé au club. Masquage impossible : " + b.msg); onMasked(); return }
+    setBusy(false); onToast("Signalement envoyé au responsable du club. Merci."); onClose()
+  }
+  const mask = async () => {
+    setBusy(true); const b = await setBlock(target, true); setBusy(false)
+    if (!b.ok) { setErr(b.msg); return }
+    onToast(`${first} est masqué : vous ne voyez plus l'activité l'un de l'autre. Annulable dans Mon profil.`); onMasked()
+  }
+  return <div className="uzu-report" role="group" aria-label={`Signaler ou masquer ${name}`}>
+    <fieldset className="uzu-report-reasons"><legend className="uzu-label">Pourquoi signales-tu cette publication ?</legend>
+      {REPORT_REASONS.map(([k, l]) => <label key={k} className="uzu-check-row"><input type="radio" name={"rr-" + itemKey} value={k} checked={reason === k} onChange={() => setReason(k)} />{l}</label>)}
+    </fieldset>
+    <label className="uzu-field"><span className="uzu-label">Précisions (facultatif)</span><textarea className="uzu-input" rows={2} maxLength={500} value={details} onChange={e => setDetails(e.target.value)} /></label>
+    <label className="uzu-check-row"><input type="checkbox" checked={also} onChange={e => setAlso(e.target.checked)} />Masquer aussi {first}</label>
+    <p className="uzu-text uzu-small uzu-muted">Le responsable du club reçoit le signalement avec ton nom. {first} n&apos;est pas prévenu.</p>
+    {err && <p className="uzu-note wait" role="alert">{err}</p>}
+    <div className="uzu-actions uzu-actions--start">
+      <button type="button" className="button button--dark uzu-small-btn" disabled={busy} onClick={send}><Flag size={14} />Envoyer le signalement</button>
+      <button type="button" className="button button--outline uzu-small-btn" disabled={busy} onClick={mask}><EyeOff size={14} />Masquer {first} sans signaler</button>
+      <button type="button" className="button button--outline uzu-small-btn" onClick={onClose}>Annuler</button>
+    </div>
+  </div>
+}
+
 function FeedHeading({ solo }: { solo: boolean }) {
   return <div className="page-heading"><div><Eyebrow>TATAMI</Eyebrow><h1>{solo ? "Ton fil" : "Le fil du club"}<span className="heading-period">.</span></h1>
     <p>{solo ? "En carnet solo, ton fil montre ton activité. Rejoins un club pour retrouver tes coéquipiers." : "Les séances, les étapes et les grades de ton club, en direct."}</p></div></div>
@@ -214,10 +256,13 @@ export function AthleteProfile({ session, ctx, onToast }: { session: Session; ct
       <section className="panel uzu-panel-col"><h2 className="uzu-h3"><ShieldCheck size={16} /> Compte et confidentialité</h2>
         <p className="uzu-text uzu-small">Connecté avec {session.user.email}. Ton état physique et tes notes privées ne sont jamais visibles par ton prof ni par le club.</p>
         <details className="uzu-legal"><summary>Mentions légales et confidentialité</summary><Legal clubName={ctx?.club?.name || ""} /></details>
+        <LegalLinks />
         <button className="button button--dark" onClick={logout} disabled={busy === "out"}><LogOut size={15} />Se déconnecter</button>
       </section>
     </div>
+    {!solo && <BlockedList onToast={onToast} />}
     <DeleteAll uid={uid} ctx={ctx} onToast={onToast} onDone={() => setTick(x => x + 1)} />
+    <DeleteAccount uid={uid} owner={ctx?.academy_role === "owner"} onToast={onToast} />
   </>
 }
 function ProfileHeading() {
@@ -275,7 +320,7 @@ function DeleteAll({ uid, ctx, onToast, onDone }: { uid: string; ctx: UzuContext
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
   return <section className="panel uzu-panel-col uzu-grid-gap">
-    <h2 className="uzu-h3"><Trash2 size={16} /> Supprimer toutes mes données</h2>
+    <h2 className="uzu-h3"><Trash2 size={16} /> Effacer toutes mes données</h2>
     {step === 0 ? <button className="button button--outline uzu-small-btn uzu-danger" onClick={() => setStep(1)}>Supprimer toutes mes données</button> : <>
       <p className="uzu-text">{deleteAllText(ctx)}</p>
       <p className="uzu-text">Ton compte reste ouvert et tu restes connecté : ce n'est ni une déconnexion ni une fermeture de compte.</p>
@@ -283,6 +328,51 @@ function DeleteAll({ uid, ctx, onToast, onDone }: { uid: string; ctx: UzuContext
       <div className="uzu-actions uzu-actions--start">
         <button className="button button--dark uzu-small-btn uzu-danger-solid" disabled={busy} onClick={async () => { setBusy(true); const r = await deleteAllData(uid, ctx); setBusy(false); onToast(r.ok ? (ctx?.role === "coach" ? "Ton entraînement perso a été effacé" : "Toutes tes données ont été supprimées") : r.msg); if (r.ok) { setStep(0); onDone() } }}>Oui, tout supprimer définitivement</button>
         <button className="button button--outline uzu-small-btn" onClick={() => setStep(0)}>Annuler</button></div></>}
+  </section>
+}
+
+// ---------------------------------------------------------------- Membres masqués dans le fil
+function BlockedList({ onToast }: { onToast: (m: string) => void }) {
+  const [list, setList] = useState<Blocked[] | null>(null)
+  const [tick, setTick] = useState(0)
+  useEffect(() => { let live = true; listBlocks().then(r => { if (live) setList(r.ok ? r.data : []) }); return () => { live = false } }, [tick])
+  if (!list || !list.length) return null
+  return <section className="panel uzu-panel-col uzu-grid-gap" aria-label="Membres masqués">
+    <h2 className="uzu-h3"><UserX size={16} /> Membres masqués dans le fil</h2>
+    <p className="uzu-text uzu-small uzu-muted">Vous ne voyez plus l&apos;activité l&apos;un de l&apos;autre dans le fil. Ton prof voit toujours vos séances.</p>
+    <ul className="uzu-top">{list.map(b => <li key={b.user_id}><span>{b.name}</span>
+      <button className="button button--outline uzu-small-btn" onClick={async () => { const r = await setBlock(b.user_id, false); onToast(r.ok ? `${b.name.split(" ")[0]} n'est plus masqué` : r.msg); if (r.ok) setTick(t => t + 1) }}>Ne plus masquer</button></li>)}</ul>
+  </section>
+}
+
+// ---------------------------------------------------------------- Suppression définitive du compte
+function DeleteAccount({ uid, owner, onToast }: { uid: string; owner: boolean; onToast: (m: string) => void }) {
+  const [step, setStep] = useState(0)
+  const [word, setWord] = useState("")
+  const [err, setErr] = useState("")
+  const [busy, setBusy] = useState(false)
+  const go = async () => {
+    if (word.trim().toUpperCase() !== "SUPPRIMER") { setErr("Tape SUPPRIMER pour confirmer"); return }
+    setErr(""); setBusy(true)
+    const r = await deleteMyAccount(uid)
+    if (!r.ok) { setBusy(false); setErr(r.msg); return }
+    onToast("Ton compte a été supprimé. À bientôt sur le tatami.")
+    window.setTimeout(() => window.location.replace("/"), 900)
+  }
+  return <section className="panel uzu-panel-col uzu-grid-gap uzu-danger-zone" aria-label="Supprimer mon compte">
+    <h2 className="uzu-h3"><Trash2 size={16} /> Supprimer mon compte</h2>
+    {step === 0 ? <>
+      <p className="uzu-text uzu-small">Ferme définitivement ton compte UZU et efface toutes tes données. <a href="/suppression-compte">Ce qui est effacé</a></p>
+      <button className="button button--outline uzu-small-btn uzu-danger" onClick={() => setStep(1)}>Supprimer mon compte</button>
+    </> : <>
+      <p className="uzu-text">Ton compte, ton carnet, ton état physique, tes notes, tes présences, ton historique de grades et ta place dans le club seront effacés. <b>C&apos;est définitif : rien ne pourra être récupéré.</b></p>
+      {owner && <p className="uzu-text uzu-small">Tu es responsable d&apos;un club : si d&apos;autres membres y sont inscrits, nomme d&apos;abord un autre responsable (Club, puis Équipe).</p>}
+      <label className="uzu-field"><span className="uzu-label">Tape SUPPRIMER pour confirmer</span><input className="uzu-input" autoComplete="off" autoCapitalize="characters" spellCheck={false} value={word} onChange={e => setWord(e.target.value)} /></label>
+      {err && <p className="uzu-note wait" role="alert">{err}</p>}
+      <div className="uzu-actions uzu-actions--start">
+        <button className="button button--dark uzu-small-btn uzu-danger-solid" disabled={busy} onClick={go}>{busy ? "Suppression…" : "Supprimer définitivement mon compte"}</button>
+        <button className="button button--outline uzu-small-btn" disabled={busy} onClick={() => { setStep(0); setWord(""); setErr("") }}>Annuler</button>
+      </div></>}
   </section>
 }
 
@@ -298,8 +388,9 @@ function Legal({ clubName }: { clubName: string }) {
       <li><b>Destinataires</b> : toi et les professeurs du club (sans les données de santé). Si tu rejoins le fil Tatami, les membres du club voient tes séances (durée, tenue, système), tes étapes, tes podiums et tes grades, jamais tes soumissions, ton état physique ni tes notes.</li>
       <li><b>Carnet solo</b> : ton compte n'est rattaché à aucun club ; aucun prof n'y a accès.</li>
       <li><b>Âge et sexe</b> : facultatifs, utilisés uniquement dans les statistiques anonymes du club (bilan d'activité).</li>
-      <li><b>Conservation</b> : tant que ton compte existe. Tu peux tout supprimer depuis ton profil, en bas de page.</li>
+      <li><b>Conservation</b> : tant que ton compte existe. Tu peux effacer tes données ou supprimer ton compte depuis ton profil, en bas de page.</li>
       <li><b>Tes droits</b> : accès, rectification, effacement, opposition. Contact : depuis ton club, ou en écrivant à l'éditeur de l'application. Tu peux aussi saisir la CNIL (cnil.fr).</li>
+      <li><b>Fil du club</b> : tu peux signaler une publication au responsable du club ou masquer un membre.</li>
       <li><b>Hébergement</b> : Vercel (page de l'application) et Supabase (données, hébergées dans l'Union européenne).</li>
       <li><b>Mineurs</b> : en dessous de 16 ans, l'accord du représentant légal est requis.</li>
     </ul>

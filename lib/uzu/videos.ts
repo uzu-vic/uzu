@@ -1,6 +1,7 @@
 "use client"
 // Vidéos pédagogiques du club : même stockage que l'ancienne application.
 // Fichier : stockage « videos », chemin <académie>/<horodatage>-<aléa>.mp4|webm ; référence : document videos/<académie>/<emplacement>.
+import { useEffect, useState } from "react"
 import { uzu } from "./client"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,7 +20,29 @@ export async function loadVideos(clubId: string): Promise<VideoMap> {
   for (const r of (Array.isArray(data) ? data : []) as { path: string; data: Any }[]) { const k = r.path.slice(pre.length); if (k && !k.includes("/") && r.data?.id) out[k] = r.data }
   return out
 }
+/** Ancienne adresse publique : utilisée seulement en repli, tant que le stockage n'est pas passé en privé. */
 export const videoUrl = (id: string) => uzu().storage.from("videos").getPublicUrl(id).data.publicUrl
+
+// Stockage privé : lien signé valable 6 h, réservé aux membres connectés du club (règle serveur).
+const signed = new Map<string, { url: string; exp: number }>()
+export async function videoSignedUrl(id: string): Promise<string> {
+  const c = signed.get(id); if (c && c.exp > Date.now()) return c.url
+  try {
+    const { data, error } = await uzu().storage.from("videos").createSignedUrl(id, 6 * 3600)
+    if (!error && data?.signedUrl) { signed.set(id, { url: data.signedUrl, exp: Date.now() + 5 * 3600e3 }); return data.signedUrl }
+  } catch { /* repli ci-dessous */ }
+  return videoUrl(id)
+}
+export function useVideoUrl(id: string | null | undefined): string {
+  const [url, setUrl] = useState("")
+  useEffect(() => {
+    if (!id) { setUrl(""); return }
+    let live = true
+    videoSignedUrl(id).then(u => { if (live) setUrl(u) })
+    return () => { live = false }
+  }, [id])
+  return url
+}
 
 /** Type accepté (mêmes règles que l'ancienne application) ou message d'erreur. */
 export function checkVideo(f: File): { type: string } | { msg: string } {

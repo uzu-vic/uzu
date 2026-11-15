@@ -193,7 +193,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
 
   // Ouverture depuis une notification : ?go=vue (appli fermée) ou message du service worker (appli ouverte)
   const openGo = useCallback((g: string) => {
-    const map: Record<string, [Space, string]> = { today: ["athlete", "home"], path: ["athlete", "path"], prog: ["athlete", "progress"], feed: ["athlete", "feed"], log: ["athlete", "log"], prof: ["club", "home"] }
+    const map: Record<string, [Space, string]> = { today: ["athlete", "home"], path: ["athlete", "path"], prog: ["athlete", "progress"], feed: ["athlete", "feed"], log: ["athlete", "log"], prof: ["club", "home"], reports: ["club", "academy"] }
     const t = map[g]; if (!t) return
     if (t[0] === "club" && !staff) return
     setSpace(t[0]); setMenuOpen(false); setEditing(null)

@@ -40,6 +40,8 @@ class Mock:
             if name == "create_new_club": return ok({"invite_code": args["invite_code_input"]})
             if name == "get_my_courses": return ok({"assigned": [], "section": [], "staff": []})
             return ok(True)
+        if "/storage/v1/object/sign/" in u and r.method == "POST":
+            k = u.split("/storage/v1/object/sign/")[1]; s.calls.append(("storage.SIGN", k)); return ok({"signedURL": "/object/sign/" + k + "?token=jeton-test"})
         if "/storage/v1/object" in u:
             s.calls.append(("storage." + r.method, u.split("/storage/v1/object/")[1])); return ok({"Key": "videos/x", "Id": "1"})
         if "/rest/v1/notifications" in u:
@@ -90,7 +92,7 @@ with sync_playwright() as p:
     t = content(pg)
     check("Accueil : focus tactique et systèmes", "Front headlock" in t and "Lutte & Scrambles → Contrôle & Dos" in t and "Tête basse" in t)
     check("Accueil : annonce du club", "Stage samedi 28 !" in t)
-    check("Accueil : vidéo du focus chargée depuis le stockage public", any("public/videos/c1/abc-def.mp4" in x for x in m.last("storage.GET")))
+    check("Accueil : vidéo du focus lue par lien signé (stockage privé)", any("videos/c1/abc-def.mp4" in x for x in m.last("storage.SIGN")) and any(x.startswith("sign/videos/c1/abc-def.mp4") and "token=jeton-test" in x for x in m.last("storage.GET")) and not any(x.startswith("public/") for x in m.last("storage.GET")))
     check("Accueil : technique à réviser", "À RÉVISER" in t.upper() and "Takedowns" in t and "il y a 60 jours" in t)
     if SLOT_OK:
         check("Accueil : rappel de fin de cours", "Fin du cours !" in t)

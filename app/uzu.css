@@ -488,3 +488,33 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-off-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .uzu-off-chip { min-height: 32px; padding: 0 10px; border: 1px solid #e3c9c5; border-radius: 16px; background: #f7eeec; color: #941b2b; font: inherit; font-size: 12.5px; text-decoration: line-through; cursor: pointer; }
 @media (max-width: 680px) { .uzu-mgrid-cell { min-height: 50px; } .uzu-cal-view button { padding: 0 10px; } }
+/* Signaler, masquer, modération */
+.uzu-fc-head { position: relative; }
+.uzu-fc-flag { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; margin-left: auto; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #8a817b; font: inherit; font-size: 12px; cursor: pointer; }
+.uzu-fc-flag:hover, .uzu-fc-flag[aria-expanded="true"] { background: #f3eee8; color: #941b2b; }
+.uzu-report { display: grid; gap: 10px; margin-top: 10px; padding: 12px; border: 1px solid #eadfd6; border-radius: 8px; background: #fbf8f4; }
+.uzu-report-reasons { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; }
+.uzu-report-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.uzu-report-row { display: grid; gap: 8px; padding: 12px; border: 1px solid #eee9e3; border-radius: 8px; background: #faf8f5; }
+.uzu-report-row small { display: block; margin-top: 3px; color: #6f6862; font-size: 12.5px; }
+.uzu-danger-zone { border-color: #ecd5d2; }
+.uzu-video--wait { aspect-ratio: 16 / 9; max-height: 220px; }
+/* Liens légaux */
+.uzu-legal-links { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.uzu-legal-links a { color: #6b645e; text-decoration: underline; text-underline-offset: 2px; }
+.uzu-legal-links--login { justify-content: center; max-width: 440px; margin: 18px auto 0; }
+/* Pages publiques */
+.uzu-lp { min-height: 100vh; background: #f5f2ed; color: #171717; }
+.uzu-lp-head { display: flex; align-items: center; justify-content: space-between; max-width: 760px; margin: 0 auto; padding: 18px 20px; }
+.uzu-lp-brand { display: inline-flex; align-items: center; gap: 8px; color: #941b2b; font-weight: 700; letter-spacing: .14em; text-decoration: none; }
+.uzu-lp-brand span { color: #171717; }
+.uzu-lp-body { max-width: 760px; margin: 0 auto; padding: 8px 20px 40px; font-size: 16px; line-height: 1.6; }
+.uzu-lp-body h1 { margin: 10px 0 8px; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 6vw, 44px); font-weight: 400; letter-spacing: -.03em; line-height: 1.1; }
+.uzu-lp-body h2 { margin: 28px 0 8px; font-family: Georgia, serif; font-size: 21px; font-weight: 400; }
+.uzu-lp-body ul, .uzu-lp-body ol { padding-left: 22px; } .uzu-lp-body li { margin: 5px 0; }
+.uzu-lp-body a { color: #941b2b; }
+.uzu-lp-lead { color: #4f4944; font-size: 18px; }
+.uzu-lp-q { margin: 10px 0; padding: 12px 14px; border: 1px solid #e6dfd7; border-radius: 8px; background: #fff; }
+.uzu-lp-q summary { font-weight: 600; cursor: pointer; }
+.uzu-lp-q div { margin-top: 8px; color: #3f3a36; }
+.uzu-lp-foot { max-width: 760px; margin: 0 auto; padding: 20px 20px calc(30px + env(safe-area-inset-bottom)); border-top: 1px solid #e6dfd7; color: #8a817b; font-size: 13px; }

@@ -1,5 +1,6 @@
 "use client"
 import { UzuMark } from "@/components/uzu/mark"
+import { LegalLinks } from "@/components/uzu/legal-pages"
 // Écrans d'accès : connexion, création de compte (carnet solo, rejoindre un club, créer un club),
 // mot de passe oublié, nouveau mot de passe, et écran de bienvenue (accord sur les données).
 import { useEffect, useState } from "react"
@@ -137,6 +138,7 @@ export function Login() {
         {path === "in" && <button type="button" className="text-link uzu-small" disabled={busy} onClick={forgot}>Mot de passe oublié</button>}
       </form>}
     </section>
+    <LegalLinks className="uzu-legal-links--login" />
   </main>
 }
 
@@ -190,6 +192,7 @@ export function Welcome({ initialName, onSubmit, onLogout }: { initialName: stri
       <label className="uzu-check-row"><input type="checkbox" checked={data} onChange={e => setData(e.target.checked)} /><span>J'accepte que mes données d'entraînement soient enregistrées et visibles par les profs de mon club</span></label>
       {msg && <p className="uzu-error" role="alert">{msg}</p>}
       <button className="button button--dark uzu-submit" type="button" disabled={busy} onClick={start}>Commencer<ArrowRight size={16} /></button>
+      <p className="uzu-hint">En continuant, tu acceptes les <a href="/conditions" target="_blank" rel="noopener">conditions d&apos;utilisation</a> et la <a href="/confidentialite" target="_blank" rel="noopener">politique de confidentialité</a>.</p>
       <button className="text-link uzu-small" type="button" onClick={onLogout}>Se déconnecter</button>
     </div>
   </section></main>

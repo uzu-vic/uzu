@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { ArrowRight, ArrowUpRight, Award, CalendarDays, Clock3, Dumbbell, Flame, MapPin, Pencil, Plus, Trash2, Trophy } from "lucide-react"
 import { deleteEntry, loadCore } from "@/lib/uzu/journal"
-import { loadVideos, videoUrl } from "@/lib/uzu/videos"
+import { loadVideos } from "@/lib/uzu/videos"
+import { ClubVideo } from "@/components/uzu/club-video"
 import { Stars } from "@/components/uzu/progress"
 import { ReminderCard } from "@/components/uzu/combat-map"
 import type { UzuContext } from "@/lib/uzu/context"
@@ -131,7 +132,6 @@ function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [core, setCore] = useState<any>(null)
   const [vid, setVid] = useState("")
-  const [badVid, setBadVid] = useState(false)
   const [endKey, setEndKey] = useState("")
   const club = ctx?.club, tf = (club?.tactical_focus || {}) as Record<string, string>
   useEffect(() => { let live = true; loadCore(uid, ctx).then(r => { if (live) setCore(r.core) }, () => {}); return () => { live = false } }, [uid, ctx])
@@ -160,7 +160,7 @@ function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: 
         <h2 className="uzu-h2">{tf.weekTheme || "Pas encore de focus publié"}</h2>
         {(tf.focusFrom || tf.focusTo) && <p className="uzu-text uzu-small">{[sys(tf.focusFrom), sys(tf.focusTo)].filter(Boolean).join(" → ")}</p>}
         <p className="uzu-text">{tf.focusDetails || (tf.weekTheme ? "" : "Ton prof n'a pas encore publié de focus. En attendant, travaille tes fondamentaux et les connexions entre tes 3 systèmes.")}</p>
-        {vid && !badVid && <video className="uzu-video" controls playsInline preload="metadata" src={videoUrl(vid)} onError={() => setBadVid(true)} />}
+        {vid && <ClubVideo id={vid} label="Vidéo du focus tactique" />}
       </section>
       {club.news ? <section className="panel uzu-panel-col"><div className="eyebrow">ACTUALITÉS · {(club.name || "club").toUpperCase()}</div><p className="uzu-text uzu-pre">{club.news}</p></section>
         : <section className="panel uzu-panel-col"><div className="eyebrow">ACTUALITÉS</div><p className="uzu-text uzu-muted">Aucune annonce du club pour l'instant.</p></section>}

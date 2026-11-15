@@ -3,11 +3,12 @@
 // Contenus (focus tactique, annonce) et Mon académie (informations, code, paramètres, journal d'activité).
 // Toutes les écritures passent par les fonctions serveur ; les droits affichés ici ne servent qu'à l'affichage.
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, ArrowRight, CalendarOff, CalendarPlus, Check, ChevronRight, LogOut, Mail, MoreHorizontal, Plus, Send, ShieldCheck } from "lucide-react"
+import { ArrowLeft, ArrowRight, CalendarOff, CalendarPlus, Check, Flag, ChevronRight, LogOut, Mail, MoreHorizontal, Plus, Send, ShieldCheck } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
 import { can, scopeOf } from "@/lib/uzu/permissions"
 import { COURSE_DISC, COURSE_KIND, ZONES, closureOn, closureTxt, closuresOf, discLabel, normSched, schoolHolidays, slotOpenOn, slotTag, ymd, zoneOf, type Closure, type Slot, type Zone } from "@/lib/uzu/training"
 import { Calendar, type CalItem } from "@/components/uzu/calendar"
+import { listReports, reasonLabel, resolveReport, type Report } from "@/lib/uzu/safety"
 import {
   AUDIT_LBL, DISCIPLINES, PERM_CAT, PRESETS, ROLE_LBL, SCOPE_LBL, SENSITIVE, STAFF_ROLES, STATUS_LBL, TPL_LBL,
   actLabel, bilanCalc, courseAllowed, seasonOf, seasonYear, createInvitation, getAudit, getMyCourses, getTeam, inviteUrl, leaveAcademy, loadClubData, mapToList,
@@ -581,6 +582,7 @@ export function ClubAcademy({ uid, ctx, onToast, onReloadCtx, onNavigate }: Admi
         {ctx?.academy_role !== "owner" && <ConfirmButton className="button button--outline uzu-small-btn uzu-danger" label={<><LogOut size={14} />Quitter cette académie</>} confirm="Confirmer : quitter" onConfirm={async () => { const r = await leaveAcademy(); if (!r.ok) { onToast(r.msg); return } window.location.reload() }} />}
       </div>
     </section>
+    {can(ctx, "students", "delete") && <ReportsCard onToast={onToast} onNavigate={onNavigate} />}
     {can(ctx, "academy_statistics", "view") && <BilanCard uid={uid} clubName={club?.name || "Club"} />}
 
     {can(ctx, "academy_audit_logs", "view") && <section className="panel uzu-panel-col uzu-grid-gap"><div className="section-title"><h2>Journal d'activité</h2></div>
@@ -590,6 +592,38 @@ export function ClubAcademy({ uid, ctx, onToast, onReloadCtx, onNavigate }: Admi
   </>
 }
 
+
+// Signalements du fil : examinés par le responsable (ou l'équipe autorisée à retirer un élève)
+function ReportsCard({ onToast, onNavigate }: { onToast: (m: string) => void; onNavigate: (id: string) => void }) {
+  const [list, setList] = useState<Report[] | null>(null)
+  const [err, setErr] = useState("")
+  const [showAll, setShowAll] = useState(false)
+  const [tick, setTick] = useState(0)
+  useEffect(() => { let live = true; listReports().then(r => { if (!live) return; if (r.ok) { setList(r.data); setErr("") } else { setList([]); setErr(r.msg) } }); return () => { live = false } }, [tick])
+  const open = (list || []).filter(r => r.status === "open"), done = (list || []).filter(r => r.status !== "open")
+  const act = async (id: string, st: "resolved" | "dismissed" | "open") => { const r = await resolveReport(id, st); onToast(r.ok ? (st === "resolved" ? "Signalement traité" : st === "dismissed" ? "Signalement classé sans suite" : "Signalement rouvert") : r.msg); if (r.ok) setTick(t => t + 1) }
+  const row = (r: Report) => <li key={r.id} className="uzu-report-row">
+    <div><b>{r.target_name || "Membre"}</b> · {reasonLabel(r.reason)}
+      {r.item_text && <small>Publication : {r.item_text}</small>}
+      {r.details && <small>« {r.details} »</small>}
+      <small>Signalé par {r.reporter} · {frDT(r.at)}{r.status !== "open" ? ` · ${r.status === "resolved" ? "traité" : "sans suite"}` : ""}</small></div>
+    <div className="uzu-actions uzu-actions--start">
+      {r.status === "open" ? <>
+        <button className="button button--dark uzu-small-btn" onClick={() => act(r.id, "resolved")}>Traité</button>
+        <button className="button button--outline uzu-small-btn" onClick={() => act(r.id, "dismissed")}>Sans suite</button>
+        {r.target_id && <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("students")}>Voir les élèves</button>}
+      </> : <button className="button button--outline uzu-small-btn" onClick={() => act(r.id, "open")}>Rouvrir</button>}
+    </div></li>
+  return <section className="panel uzu-panel-col uzu-grid-gap" aria-label="Signalements du fil">
+    <div className="section-title"><h2>Signalements du fil{open.length ? ` (${open.length})` : ""}</h2><Flag size={17} /></div>
+    <p className="uzu-text uzu-small uzu-muted">Les membres peuvent signaler une publication du fil. Examine-la, parles-en avec le membre concerné et, si besoin, retire-le de l&apos;académie depuis la liste des élèves.</p>
+    {err ? <p className="uzu-note wait" role="alert">{err}</p> : list === null ? <p className="uzu-text uzu-muted">Chargement…</p>
+      : open.length ? <ul className="uzu-report-list">{open.map(row)}</ul> : <p className="uzu-text">Aucun signalement en attente.</p>}
+    {done.length > 0 && <>
+      <button className="button button--outline uzu-small-btn" aria-expanded={showAll} onClick={() => setShowAll(v => !v)}>{showAll ? "Masquer les signalements traités" : `Voir les signalements traités (${done.length})`}</button>
+      {showAll && <ul className="uzu-report-list">{done.map(row)}</ul>}</>}
+  </section>
+}
 
 // Vidéos pédagogiques : une par emplacement (focus tactique, chaque système), même stockage que l'ancienne application
 function VideosCard({ C, clubId, uid, canEdit, onToast }: { C: Any; clubId: string; uid: string; canEdit: boolean; onToast: (m: string) => void }) {
