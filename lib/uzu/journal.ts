@@ -9,6 +9,7 @@
 //     puis envoi au serveur ; en cas d'échec, la saisie reste sur le téléphone et repartira
 //     (depuis cette application ou depuis l'ancienne, qui partagent le même cache).
 import { createLegacyCore } from "./legacy-core.generated"
+import { setSessionPartners } from "./partners"
 import { uzu } from "./client"
 import type { UzuContext } from "./context"
 import { legacyRole } from "./training"
@@ -291,9 +292,12 @@ export async function deleteEntry(uid: string, ctx: UzuContext | null, kind: "s"
   try {
     const L = await prepare(uid, ctx)
     const C = L.core, state = C.__get("state")
+    const gone = kind === "s" ? state.sessions.find((s: Any) => s.id === id) : null
     if (kind === "s") { state.sessions = state.sessions.filter((s: Any) => s.id !== id); L.deleted.s.push(id) }
     else { state.comps = state.comps.filter((c: Any) => c.id !== id); L.deleted.c.push(id) }
     const synced = await commit(uid, L)
+    // Séance supprimée : ses partenaires identifiés sont retirés (sans effet s'il n'y en avait pas)
+    if (gone && ctx?.club && /^\d{4}-\d{2}-\d{2}$/.test(String(gone.date))) void setSessionPartners(id, gone.date, "", []).catch(() => undefined)
     return { ok: true, synced, item: null }
   } catch (e) { return { ok: false, msg: (e as Error).message || "Suppression impossible" } }
 }

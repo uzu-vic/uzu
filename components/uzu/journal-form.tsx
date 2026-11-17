@@ -7,6 +7,8 @@ import { Check, Mic, Minus, Plus, Trash2, X } from "lucide-react"
 import { voiceApi, voiceApply, voiceSupport } from "@/lib/uzu/voice"
 import type { UzuContext } from "@/lib/uzu/context"
 import { addComp, addSession, formFromSession, loadEntry, newCore, updateComp, updateSession, type CompForm } from "@/lib/uzu/journal"
+import { mySessionPartners, sessionSummary, setSessionPartners, type Partner } from "@/lib/uzu/partners"
+import { PartnersField } from "@/components/uzu/partners"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -47,6 +49,9 @@ export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string;
   const [cEvent, setCEvent] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [partners, setPartners] = useState<string[]>([])
+  const [existingP, setExistingP] = useState<Partner[]>([])
+  const club = !!ctx?.club
 
   const [loaded, setLoaded] = useState(!edit)
   // Modification : le formulaire reprend l'enregistrement existant (comme l'ancienne application)
@@ -57,7 +62,10 @@ export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string;
     loadEntry(uid, ctx, edit.kind, edit.id).then(r => {
       if (!live) return
       if (!r) { setError("Enregistrement introuvable"); setLoaded(true); return }
-      if (edit.kind === "s") { const p = formFromSession(r.core, r.entry); setF(p.form); setNote(p.note); setExos(p.exos); setDate(r.entry.date) }
+      if (edit.kind === "s") {
+        const p = formFromSession(r.core, r.entry); setF(p.form); setNote(p.note); setExos(p.exos); setDate(r.entry.date)
+        if (ctx?.club) mySessionPartners(r.entry.date).then(m => { if (!live) return; const l = (m[edit.id] || []); setExistingP(l); setPartners(l.filter(x => x.status !== "declined").map(x => x.user_id)) })
+      }
       else { const c = r.entry; setCf({ type: c.type, result: c.result, wins: c.wins || 0, losses: c.losses || 0, subs: c.subs || 0 }); setCEvent(c.event || ""); setCDate(c.date) }
       setLoaded(true)
     }, e => { if (live) { setError((e as Error).message); setLoaded(true) } })
@@ -108,11 +116,19 @@ export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string;
     if (mode === "session") {
       const inp = { date, note, exos, cuName, cuProf }
       const r = edit ? await updateSession(uid, ctx, edit.id, JSON.parse(JSON.stringify(f)), inp) : await addSession(uid, ctx, JSON.parse(JSON.stringify(f)), inp)
-      setBusy(false)
-      if (!r.ok) { setError(r.msg); return }
+      if (!r.ok) { setBusy(false); setError(r.msg); return }
       const hurt = f.forme === "douleur"
-      onDone(!r.synced ? "Séance enregistrée sur ce téléphone. Elle sera synchronisée dès le retour du réseau."
-        : edit ? "Séance modifiée" : hurt ? "Séance enregistrée. Ménage-toi si la douleur persiste." : "Séance enregistrée", edit ? "" : String(r.item?.id || ""))
+      // Partenaires : envoyés au serveur après l'enregistrement (notification et confirmation)
+      let pNote = ""
+      const key = edit ? edit.id : String(r.item?.id || "")
+      if (club && key && (partners.length || existingP.length)) {
+        const pr = await setSessionPartners(key, date, r.item ? sessionSummary(C, r.item) : "", partners)
+        if (!pr.ok) pNote = " Partenaires non envoyés : " + pr.msg
+        else if (pr.data.length < partners.length) pNote = " Certains partenaires n'ont pas pu être identifiés (réglage de leur profil)."
+      }
+      setBusy(false)
+      onDone((!r.synced ? "Séance enregistrée sur ce téléphone. Elle sera synchronisée dès le retour du réseau."
+        : edit ? "Séance modifiée" : hurt ? "Séance enregistrée. Ménage-toi si la douleur persiste." : "Séance enregistrée") + pNote, edit ? "" : key)
     } else {
       const r = edit ? await updateComp(uid, ctx, edit.id, cf, { date: cDate, event: cEvent }) : await addComp(uid, ctx, cf, { date: cDate, event: cEvent })
       setBusy(false)
@@ -207,6 +223,7 @@ export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string;
         </section>}
         {!prepa && <button type="button" className="button button--outline uzu-small-btn uzu-prepa-toggle" aria-pressed={f.withPrepa} onClick={() => up({ withPrepa: !f.withPrepa })}>{f.withPrepa ? <><X size={14} />Retirer le bloc prépa physique</> : <><Plus size={14} />Ajouter un bloc prépa physique</>}</button>}
 
+        {club && <section className="panel uzu-fs"><PartnersField value={partners} onChange={setPartners} existing={existingP} /></section>}
         <section className="panel uzu-fs">
           <Field label="État physique après le cours"><Seg label="État physique" value={f.forme} options={FORMES} onChange={v => up({ forme: f.forme === v ? "" : v })} /></Field>
           <Field label="Note privée (facultatif)" hint="Ton état physique et ta note restent privés : ton prof ne les voit pas.">

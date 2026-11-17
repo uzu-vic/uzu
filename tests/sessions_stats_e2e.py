@@ -75,7 +75,7 @@ with sync_playwright() as p:
         pg.locator(".session-card", has_text="Passage de garde").locator(".session-main h3").click(); pg.wait_for_timeout(800)
         dt = pg.inner_text(".uzu-detail")
         check(f"[{name}] Aperçu : séance complète en lecture seule", "LECTURE SEULE" in dt and "1 h 30 sur le tatami" in dt and "Rounds\n5" in dt.replace("\t", "\n") and "Lutte & Scrambles" in dt and "Clé de bras · placée × 2" in dt and "3 réussies" in dt)
-        check(f"[{name}] Aperçu : état et note privée de l'élève, aucun champ modifiable", "Fatigué" in dt and "Genou un peu sensible" in dt and pg.locator(".uzu-detail input, .uzu-detail textarea, .uzu-detail select").count() == 0)
+        check(f"[{name}] Aperçu : état et note privée de l'élève, aucun champ modifiable", "Fatigué" in dt and "Genou un peu sensible" in dt and pg.locator(".uzu-detail input:not([type=file]), .uzu-detail textarea, .uzu-detail select").count() == 0)
         pg.locator(".uzu-detail button", has_text="Partager (Story)").click(); pg.wait_for_timeout(1200)
         src = pg.locator(".uzu-story img").get_attribute("src") or ""
         size = pg.evaluate("() => { const i = document.querySelector('.uzu-story img'); return [i.naturalWidth, i.naturalHeight] }")

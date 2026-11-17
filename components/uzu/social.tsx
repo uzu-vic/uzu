@@ -11,6 +11,7 @@ import { changePassword, createClubFromSolo, deleteAllData, deleteAllText, feedR
 import { BeltMark } from "@/components/uzu/progress"
 import { REPORT_REASONS, deleteMyAccount, listBlocks, reportContent, setBlock, type Blocked } from "@/lib/uzu/safety"
 import { LegalLinks } from "@/components/uzu/legal-pages"
+import { AllowTagToggle, TagsInbox } from "@/components/uzu/partners"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -75,6 +76,12 @@ export function AthleteFeed({ uid, ctx, onCompose, onToast }: { uid: string; ctx
   const medal = ["🥇", "🥈", "🥉"]
   return <>
     <FeedHeading solo={solo} />
+    {!solo && <TagsInbox onToast={onToast} extra={authorId => {
+      if (team) return null
+      const reqs = items.filter((it: Any) => it.uid === authorId && it.e.t === "r" && !st.fx.vals[it.uid + "|" + it.e.tech])
+      return reqs.length ? <div className="uzu-actions uzu-actions--start">{reqs.map((it: Any) => { const vk = it.uid + "|" + it.e.tech
+        return <button key={vk} className="button button--outline uzu-small-btn" disabled={busy === vk} onClick={() => act("validate", vk)}>Je valide aussi ★★ : {it.e.tech}</button> })}</div> : null
+    }} />}
     {!solo && !team && !C.feedEnabled() && data.feedOk && <section className="panel uzu-panel">
       <Eyebrow>REJOINS LE FIL</Eyebrow><h2 className="uzu-h2">Partage ton activité avec le club</h2>
       <p className="uzu-text">Le fil montre à ton club tes séances (durée, tenue, système travaillé), tes étapes franchies, tes podiums et tes grades validés. Jamais tes soumissions subies, ton état physique ni tes notes.</p>
@@ -237,6 +244,7 @@ export function AthleteProfile({ session, ctx, onToast }: { session: Session; ct
         {!t && !solo && <section className="panel uzu-panel-col"><h2 className="uzu-h3">Fil du club</h2>
           <div className="settings-row uzu-setting"><div><strong>Partager mon activité</strong><small>{C.feedEnabled() ? "Activé : les membres du club voient tes séances, ta ceinture et tes compétitions. Ton état physique et tes notes restent privés." : "Désactivé : tu n'apparais pas dans le fil. Ton prof voit toujours ta progression."}</small></div>
             <button className={`toggle ${C.feedEnabled() ? "is-on" : ""}`} role="switch" aria-checked={C.feedEnabled()} aria-label="Partager mon activité dans le fil" disabled={busy === "feed"} onClick={toggleFeed}><i /></button></div>
+          <AllowTagToggle onToast={onToast} />
         </section>}
       </div>
     </div>

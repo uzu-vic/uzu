@@ -1,8 +1,9 @@
 "use client"
 // Aperçu d'une séance en lecture seule (même contenu que la fiche séance de l'ancienne application).
 import { useEffect, useRef, useState } from "react"
-import { Download, Pencil, Share2, X } from "lucide-react"
-import { storyCanvas } from "@/lib/uzu/story"
+import { Download, ImagePlus, Pencil, Share2, X } from "lucide-react"
+import { storyCanvas, type StoryPhoto } from "@/lib/uzu/story"
+import { mySessionPartners, type Partner } from "@/lib/uzu/partners"
 import type { UzuContext } from "@/lib/uzu/context"
 import { loadSessionDetail } from "@/lib/uzu/journal"
 import { Stars } from "@/components/uzu/progress"
@@ -14,10 +15,15 @@ const pl = (n: number, w: string) => `${n} ${w}${n > 1 ? "s" : ""}`
 
 export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete, saved }: { uid: string; ctx: UzuContext | null; id: string; onClose: () => void; onEdit: (id: string) => void; onComplete: () => void; saved?: boolean }) {
   const [d, setD] = useState<{ core: Any; s: Any } | null | "none">(null)
+  const [partners, setPartners] = useState<Partner[]>([])
   const closeRef = useRef(onClose); closeRef.current = onClose
   useEffect(() => {
     let live = true
-    loadSessionDetail(uid, ctx, id).then(r => { if (live) setD(r || "none") }, () => { if (live) setD("none") })
+    loadSessionDetail(uid, ctx, id).then(r => {
+      if (!live) return
+      setD(r || "none")
+      if (r && ctx?.club) mySessionPartners(r.s.date).then(m => { if (live) setPartners(m[id] || []) })
+    }, () => { if (live) setD("none") })
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") closeRef.current() }
     document.addEventListener("keydown", esc)
     return () => { live = false; document.removeEventListener("keydown", esc) }
@@ -42,6 +48,7 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete, saved
         <dt>Type</dt><dd>{pp ? "Prépa physique" : C.KINDS[C.kindOf(s)]?.n || "Cours collectif"}</dd>
         <dt>Durée</dt><dd>{durTxt(+s.dur || 0)}{pp ? "" : " sur le tatami"}</dd>
         {!pp && <><dt>Tenue</dt><dd>{s.type || "Gi"}</dd><dt>Rounds</dt><dd>{+s.rounds || 0}</dd></>}
+        {partners.length > 0 && <><dt>Partenaires</dt><dd>{partners.map((p, i) => <span key={p.user_id}>{i ? ", " : ""}{p.name}<small className="uzu-muted"> ({p.status === "confirmed" ? "confirmé" : p.status === "declined" ? "pas confirmé" : "en attente"})</small></span>)}</dd></>}
         {C.FORME_TXT[s.forme] && <><dt>État</dt><dd>{C.FORME_TXT[s.forme]} <small className="uzu-muted">(visible par toi seul)</small></dd></>}
       </dl>
       {pp && <><h4>Prépa physique</h4><p className="uzu-text">{C.effortName(s)}{+s.rpe ? ` · RPE ${+s.rpe}/10` : ""}</p>{s.exos && <p className="uzu-text uzu-pre">{s.exos}</p>}</>}
@@ -53,7 +60,7 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete, saved
       {cu.length > 0 && <><h4>Techniques perso</h4><ul className="uzu-det-list">{cu.map((c, i) => <li key={i}><span>{c.n} (profil {String(C.OPP_PROFILES[c.p] || "").toLowerCase()})</span></li>)}</ul></>}
       {!pp && s.prepa && <><h4>Bloc prépa physique</h4><p className="uzu-text">{durTxt(+s.prepa.dur || 0)} · {C.EFFORTS[s.prepa.effort] || C.EFFORTS.force}{+s.prepa.rpe ? ` · RPE ${+s.prepa.rpe}/10` : ""}</p>{s.prepa.exos && <p className="uzu-text uzu-pre">{s.prepa.exos}</p>}</>}
       {s.note && <><h4>Note privée</h4><p className="uzu-text uzu-pre">{s.note}</p></>}
-      {!s.roll && !s.sample && <StoryBox C={C} s={s} />}
+      {!s.roll && !s.sample && <StoryBox C={C} s={s} partners={partners.filter(p => p.status !== "declined").map(p => p.name)} />}
       <div className="uzu-actions uzu-actions--start uzu-det-acts">
         {s.roll ? <button className="button button--dark uzu-small-btn" onClick={onComplete}>Compléter ma séance</button>
           : !s.sample && <button className="button button--outline uzu-small-btn" onClick={() => onEdit(s.id)}><Pencil size={14} />Modifier cette séance</button>}
@@ -71,21 +78,40 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete, saved
   </div>
 }
 
-/** Image à partager en Story (Instagram, WhatsApp…) : partage direct, téléchargement ou copie. */
-function StoryBox({ C, s }: { C: Any; s: Any }) {
+/** Image à partager en Story (Instagram, WhatsApp…) : partage direct, téléchargement ou copie.
+ *  La photo choisie sert seulement à fabriquer l'image, sur le téléphone : elle n'est ni envoyée ni enregistrée. */
+function StoryBox({ C, s, partners }: { C: Any; s: Any; partners: string[] }) {
   const [img, setImg] = useState<{ url: string; blob: Blob; file: File | null } | null>(null)
+  const [photo, setPhoto] = useState<StoryPhoto | null>(null)
   const [msg, setMsg] = useState("")
+  const fileRef = useRef<HTMLInputElement>(null)
   useEffect(() => () => { if (img) URL.revokeObjectURL(img.url) }, [img])
-  const make = () => {
-    const c = storyCanvas(C, s, C.allSessions())
+  const make = (ph: StoryPhoto | null = photo) => {
+    const c = storyCanvas(C, s, C.allSessions(), { photo: ph, partners })
     c.toBlob(blob => {
       if (!blob) { setMsg("Image indisponible sur cet appareil"); return }
       let file: File | null = null
       try { file = new File([blob], `uzu-seance-${s.date}.png`, { type: "image/png" }) } catch { /* ancien navigateur */ }
-      setImg({ url: URL.createObjectURL(blob), blob, file })
+      setImg(old => { if (old) URL.revokeObjectURL(old.url); return { url: URL.createObjectURL(blob), blob, file } })
     }, "image/png")
   }
-  if (!img) return <button type="button" className="button button--outline uzu-small-btn uzu-story-btn" onClick={make}><Share2 size={14} />Partager (Story)</button>
+  const pick = (f: File | undefined) => {
+    if (!f) return
+    if (!/^image\//.test(f.type) && !/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name)) { setMsg("Choisis une photo (JPEG, PNG ou HEIC)"); return }
+    const url = URL.createObjectURL(f), im = new Image()
+    im.onload = () => { const ph = { img: im, w: im.naturalWidth, h: im.naturalHeight }; setPhoto(ph); setMsg(""); make(ph); window.setTimeout(() => URL.revokeObjectURL(url), 2000) }
+    im.onerror = () => { URL.revokeObjectURL(url); setMsg("Cette photo ne peut pas être lue sur cet appareil : essaie une autre photo") }
+    im.src = url
+  }
+  const picker = <>
+    <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { pick(e.target.files?.[0]); e.target.value = "" }} />
+    <button type="button" className="button button--outline uzu-small-btn" onClick={() => fileRef.current?.click()}><ImagePlus size={14} />{photo ? "Changer la photo" : "Ajouter une photo"}</button>
+    {photo && <button type="button" className="button button--outline uzu-small-btn" onClick={() => { setPhoto(null); make(null) }}>Retirer la photo</button>}
+  </>
+  if (!img) return <div className="uzu-actions uzu-actions--start">
+    <button type="button" className="button button--outline uzu-small-btn uzu-story-btn" onClick={() => make()}><Share2 size={14} />Partager (Story)</button>
+    {picker}
+  </div>
   const canShare = !!(img.file && typeof navigator !== "undefined" && navigator.canShare && navigator.canShare({ files: [img.file] }))
   const canCopy = typeof navigator !== "undefined" && !!navigator.clipboard && typeof ClipboardItem !== "undefined"
   return <div className="uzu-story">
@@ -95,7 +121,9 @@ function StoryBox({ C, s }: { C: Any; s: Any }) {
       {canShare && <button type="button" className="button button--dark uzu-small-btn" onClick={() => navigator.share({ files: [img.file!], title: "UZU — The mat doesn't lie" }).catch(() => {})}><Share2 size={14} />Partager en Story</button>}
       <a className="button button--outline uzu-small-btn" href={img.url} download={`uzu-seance-${s.date}.png`}><Download size={14} />Télécharger l&apos;image</a>
       {canCopy && <button type="button" className="button button--outline uzu-small-btn" onClick={() => navigator.clipboard.write([new ClipboardItem({ "image/png": img.blob })]).then(() => setMsg("Image copiée : colle-la dans ta Story"), () => setMsg("Copie impossible : télécharge l'image"))}>Copier l&apos;image</button>}
+      {picker}
     </div>
+    <p className="uzu-text uzu-small uzu-muted">Ta photo reste sur ton téléphone : elle n&apos;est ni envoyée ni enregistrée dans UZU.</p>
     {msg && <p className="uzu-text uzu-small uzu-muted" role="status">{msg}</p>}
   </div>
 }
