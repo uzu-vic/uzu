@@ -30,7 +30,7 @@ export default function Page() {
       <li><b>Les membres de ton club</b> : seulement si tu actives le fil, et seulement tes séances (durée, tenue, système), étapes, podiums et grades.</li>
       <li><b>Nos prestataires techniques</b> : Supabase (base de données, connexion, stockage, hébergés dans l&apos;Union européenne) et Vercel (pages de l&apos;application). Pour les notifications, le service de ton navigateur ou de ton téléphone reçoit le texte de la notification.</li>
     </ul>
-    <p>Aucune donnée n&apos;est vendue ni utilisée pour de la publicité. L&apos;application n&apos;utilise aucun traceur publicitaire : le stockage de ton navigateur sert seulement à garder ta session et ton carnet hors connexion.</p>
+    <p>Aucune donnée n&apos;est vendue ni utilisée pour de la publicité. L&apos;application n&apos;utilise aucun traceur publicitaire ni cookie : le stockage de ton navigateur sert seulement à garder ta session et ton carnet hors connexion. Une mesure d&apos;audience anonyme (Vercel Web Analytics) compte les pages vues, sans cookie et sans identifier les personnes ; les adresses sont transmises sans leurs paramètres.</p>
     <h2>Combien de temps</h2>
     <p>Tant que ton compte existe. Quand tu supprimes ton compte, tes données sont effacées immédiatement. Le journal d&apos;activité de ton club garde la trace des actions passées sans ton identité, et les signalements te concernant sont rendus anonymes. Les sauvegardes techniques de l&apos;hébergeur sont écrasées selon leur cycle normal.</p>
     <h2>Mineurs</h2>

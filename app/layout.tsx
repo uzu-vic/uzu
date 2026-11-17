@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import "./globals.css"
 import "./uzu.css"
+import { Audience } from "@/components/uzu/audience"
 
 export const metadata: Metadata = {
   title: "UZU — The mat doesn't lie",
@@ -18,7 +19,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<Audience /></body>
     </html>
   )
 }
