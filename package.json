@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prepare-legacy": "node scripts/prepare-legacy.mjs",
-    "dev": "node scripts/extract-core.mjs && node scripts/prepare-legacy.mjs && next dev",
-    "prebuild": "node scripts/extract-core.mjs && node scripts/prepare-legacy.mjs",
+    "check-env": "node scripts/check-env.mjs",
+    "dev": "node scripts/extract-core.mjs && node scripts/check-env.mjs && next dev",
+    "prebuild": "node scripts/extract-core.mjs && node scripts/check-env.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

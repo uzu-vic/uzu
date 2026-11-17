@@ -211,11 +211,11 @@ with sync_playwright() as p:
     check("Élève : pas de sélecteur Club", pg.locator(".space-picker").count() == 0)
     pg.context.close()
 
-    # 7. Base sans migration « équipe » : l'espace Club renvoie vers l'application actuelle
+    # 7. Base sans migration « équipe » : l'espace Club affiche un écran indisponible, sans écriture
     m = Mock(ctx("owner", team=False)); pg, errs = open_page(b, m)
     pg.locator(".space-option", has_text="Club").click(); pg.wait_for_timeout(1000)
     t = pg.inner_text(".page-content")
-    check("Sans migration équipe : aucune écriture possible, renvoi vers l'application actuelle", "Ouvrir l'application actuelle" in t and not m.last("set_attendance"))
+    check("Sans migration équipe : écran indisponible, aucune écriture, aucun lien vers l'ancienne application", "Écran indisponible pour le moment" in t and "/legacy" not in pg.content() and not m.last("set_attendance"))
     pg.context.close()
     b.close()
 

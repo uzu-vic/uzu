@@ -14,7 +14,6 @@ import { LegalLinks } from "@/components/uzu/legal-pages"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
-const LEGACY = "/legacy/"
 
 function Eyebrow({ children }: { children: React.ReactNode }) { return <div className="eyebrow">{children}</div> }
 

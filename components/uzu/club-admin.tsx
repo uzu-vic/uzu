@@ -578,7 +578,6 @@ export function ClubAcademy({ uid, ctx, onToast, onReloadCtx, onNavigate }: Admi
 
     <section className="panel uzu-panel-col uzu-grid-gap"><div className="section-title"><h2>Paramètres</h2></div>
       <div className="uzu-actions uzu-actions--start">
-        <a className="button button--outline uzu-small-btn" href="/legacy/">Notifications (application actuelle)</a>
         {ctx?.academy_role !== "owner" && <ConfirmButton className="button button--outline uzu-small-btn uzu-danger" label={<><LogOut size={14} />Quitter cette académie</>} confirm="Confirmer : quitter" onConfirm={async () => { const r = await leaveAcademy(); if (!r.ok) { onToast(r.msg); return } window.location.reload() }} />}
       </div>
     </section>

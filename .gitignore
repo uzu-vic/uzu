@@ -4,4 +4,5 @@ next-env.d.ts
 *.tsbuildinfo
 .env*.local
 # Copie générée de l'ancienne application (config injectée au build)
-public/legacy/
+public/legacy/*
+!public/legacy/sw.js

@@ -16,6 +16,7 @@ export default function Page() {
       <li><b>Tranche d&apos;âge et sexe</b> : facultatifs, utilisés seulement dans les statistiques anonymes du club.</li>
       <li><b>Notifications</b> : tes préférences et, si tu les actives, l&apos;identifiant technique de ton téléphone pour les recevoir.</li>
       <li><b>Modération</b> : les signalements que tu envoies et les membres que tu masques.</li>
+      <li><b>Rapports techniques</b> : si un écran plante, la page concernée (sans paramètres), le message d&apos;erreur, le type de navigateur et la version de l&apos;application, pour corriger le problème. Aucune donnée saisie. Conservés 90 jours.</li>
     </ul>
     <h2>Pourquoi et sur quelle base</h2>
     <ul>

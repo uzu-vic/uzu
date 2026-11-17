@@ -518,3 +518,5 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-lp-q summary { font-weight: 600; cursor: pointer; }
 .uzu-lp-q div { margin-top: 8px; color: #3f3a36; }
 .uzu-lp-foot { max-width: 760px; margin: 0 auto; padding: 20px 20px calc(30px + env(safe-area-inset-bottom)); border-top: 1px solid #e6dfd7; color: #8a817b; font-size: 13px; }
+/* Écran de secours (filet d'erreur) */
+.uzu-crash { border-color: #ecd5d2; }

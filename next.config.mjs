@@ -3,13 +3,16 @@ const nextConfig = {
   // Les erreurs TypeScript bloquent la mise en ligne (audit, incompatibilité n° 6).
   typescript: { ignoreBuildErrors: false },
   images: { unoptimized: true },
-  // L'ancienne application est servie sur /legacy/ pendant la fusion. Ses chemins relatifs
-  // (sw.js, manifeste, icônes) sont rattachés à /legacy/ par une balise <base> ajoutée au build.
   skipTrailingSlashRedirect: true,
-  async rewrites() {
+  // L'ancienne application (/legacy/) est retirée : ses adresses renvoient vers l'application.
+  // Seul /legacy/sw.js reste servi, pour que les téléphones abonnés aux notifications depuis
+  // l'ancienne application continuent de les recevoir (elles ouvrent désormais l'application).
+  async redirects() {
     return [
-      { source: "/legacy", destination: "/legacy/index.html" },
-      { source: "/legacy/", destination: "/legacy/index.html" },
+      { source: "/legacy", destination: "/", permanent: false },
+      { source: "/legacy/", destination: "/", permanent: false },
+      { source: "/legacy/index.html", destination: "/", permanent: false },
+      { source: "/legacy/manifest.webmanifest", destination: "/manifest.webmanifest", permanent: false },
     ]
   },
 }

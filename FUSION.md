@@ -12,8 +12,8 @@ Plan complet : document « UZU — Audit comparatif et plan de fusion ».
 | `components/uzu/` | Composants réels, reliés à Supabase |
 | `components/maquette/` | Maquette B d'origine, conservée comme référence graphique (non publiée) |
 | `lib/uzu/` | Couche données unique : client Supabase, contexte, droits |
-| `legacy/` | Ancienne application A, servie sur `/legacy/` pendant la transition |
-| `scripts/prepare-legacy.mjs` | Copie A dans `public/legacy/` en injectant la configuration de l'environnement |
+| `legacy/` | Source de l'ancienne application A : plus servie (lot 6), conservée pour l'extraction du cœur métier. `/legacy/` renvoie vers l'application ; seul `public/legacy/sw.js` reste, en relais des notifications |
+| `scripts/check-env.mjs` | Garde-fous de configuration avant chaque construction (base visée, clé publique seulement) |
 | `archive/api-legacy/` | Anciennes fonctions Vercel (non déployées, à réécrire au lot 6) |
 
 ## Variables d'environnement
@@ -63,5 +63,6 @@ La construction échoue si le code extrait touche à l'écran, au stockage ou au
 | `python3 tests/auth_e2e.py` | Connexion, création de compte (solo, rejoindre, créer un club), mot de passe oublié et nouveau mot de passe, lien d'invitation d'équipe, écran de bienvenue |
 | `python3 tests/lot3c_e2e.py` | Accueil complet, notifications et liens ?go=, dictée vocale, carnet solo (rejoindre, créer), suppression des données, vidéos, bilan d'activité |
 | `python3 tests/club_admin_e2e.py` | Espace Club : cours et encadrement, équipe (invitations, rôles, droits sensibles, affectations), contenus, Mon académie, quitter |
+| `python3 tests/errors_e2e.py` | Filet d'erreur (page de secours, Réessayer), signalement des plantages sans paramètres d'adresse, retrait de /legacy/ (redirections, relais des notifications) |
 | `python3 tests/safety_e2e.py` | Pages publiques (confidentialité, conditions, suppression du compte, aide), signaler et masquer dans le fil, suppression du compte, signalements côté club |
 | `python3 tests/club_mock_e2e.py` | Espace Club : accès selon les droits, appel, fiche élève, notes pédagogiques, ★★★, retrait, grades |

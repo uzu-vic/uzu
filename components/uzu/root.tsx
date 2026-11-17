@@ -1,12 +1,13 @@
 "use client"
 import { UzuMark } from "@/components/uzu/mark"
-// Point d'entrée de la nouvelle application UZU (lot 1 — socle).
-// Les écrans pas encore portés renvoient vers l'ancienne application (/legacy/),
-// qui partage la même session et la même base.
+import { ErrorBoundary } from "@/components/uzu/error-boundary"
+import { installErrorReporting } from "@/lib/uzu/errors"
+// Point d'entrée de l'application UZU : connexion, espaces Athlète et Club, navigation.
+// Chaque écran est protégé par un filet d'erreur (page de secours + signalement automatique).
 import { useCallback, useEffect, useState } from "react"
 import type { Session } from "@supabase/supabase-js"
 import {
-  ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Dumbbell, GraduationCap, LayoutDashboard,
+  CalendarDays, CheckCircle2, ChevronDown, Dumbbell, GraduationCap, LayoutDashboard,
   Activity, LogOut, Menu, MoreHorizontal, Newspaper, ShieldCheck, Target, TrendingUp, UserRound, Users,
 } from "lucide-react"
 import { CONFIG_OK } from "@/lib/uzu/env"
@@ -32,7 +33,6 @@ type Space = "athlete" | "club"
 type IconType = typeof Dumbbell
 type NavItem = { id: string; label: string; icon: IconType; legacy: string; short?: string }
 
-const LEGACY = "/legacy/"
 
 const athleteNav: NavItem[] = [
   { id: "home", label: "Accueil", icon: LayoutDashboard, legacy: "today" },
@@ -69,6 +69,7 @@ function initials(name: string) {
 }
 
 export function UzuRoot() {
+  useEffect(() => { installErrorReporting() }, [])
   const [ready, setReady] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [ctx, setCtx] = useState<UzuContext | null>(null)
@@ -249,6 +250,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
         {notice && <div className="uzu-banner uzu-banner--error" role="alert">{notice}</div>}
         {flash && <div className="uzu-banner uzu-flash" role="status"><span>{flash}</span><button className="icon-button" aria-label="Fermer le message" onClick={onFlashClose}><X size={15} /></button></div>}
         {ctx && !teamOn(ctx) && <div className="uzu-banner">La base de cet environnement n'a pas la migration « équipe » : affichage en mode simplifié.</div>}
+        <ErrorBoundary key={space + ":" + (current?.id || "") + ":" + (composing ? "c" : "") + navArg + syncTick}>
         {space === "club" && isSuspended(ctx) ? <Suspended />
           : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={(m, sid) => { setComposing(false); setEditing(null); setActive("log"); setNavArg(sid ? "journal:" + sid : "journal"); showToast(m); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={greet} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
@@ -266,7 +268,8 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
           : space === "club" && teamOn(ctx) && current?.id === "courses" ? <ClubCourses key={"co" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
           : space === "club" && teamOn(ctx) && current?.id === "team" ? <ClubTeam key={"ct" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
           : space === "club" && teamOn(ctx) && current?.id === "academy" ? <ClubAcademy key={"ac" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
-          : current && <MigrationPage item={current} space={space} ctx={ctx} name={greet} />}
+          : current && <Unavailable item={current} space={space} ctx={ctx} />}
+        </ErrorBoundary>
       </div>
     </div>
     {notifOpen && <NotifCenter uid={session.user.id} ctx={ctx} list={notifs.list} ready={notifs.ready} onClose={() => setNotifOpen(false)} onOpen={openGo} onToast={showToast} />}
@@ -282,14 +285,13 @@ function Suspended() {
   return <section className="panel uzu-panel"><h2 className="uzu-h2">Accès suspendu</h2><p className="uzu-text">Votre accès à l'espace Club de cette académie est suspendu par son responsable. Votre compte et votre entraînement personnel restent disponibles dans l'espace Athlete.</p></section>
 }
 
-function MigrationPage({ item, space, ctx, name }: { item: NavItem; space: Space; ctx: UzuContext | null; name: string }) {
+/** Écran Club quand la base de cet environnement n'a pas les fonctions d'équipe (ne doit pas arriver en production). */
+function Unavailable({ item, space, ctx }: { item: NavItem; space: Space; ctx: UzuContext | null }) {
   return <>
-    <div className="page-heading"><div><div className="eyebrow">{space === "athlete" ? "ESPACE ATHLETE" : "ESPACE CLUB"}{ctx?.club && <><span className="eyebrow-dot" />{ctx.club.name.toUpperCase()}</>}</div><h1>{item.id === "home" ? (name ? `Salut ${name}` : "Salut") : item.label}<span className="heading-period">.</span></h1><p>{item.id === "home" ? "Votre espace UZU, sur la même base et le même compte." : "Cet écran est en cours de migration vers le nouveau design."}</p></div></div>
+    <div className="page-heading"><div><div className="eyebrow">{space === "athlete" ? "ESPACE ATHLETE" : "ESPACE CLUB"}{ctx?.club && <><span className="eyebrow-dot" />{ctx.club.name.toUpperCase()}</>}</div><h1>{item.label}<span className="heading-period">.</span></h1></div></div>
     <section className="panel uzu-panel">
-      <div className="eyebrow">EN COURS DE MIGRATION</div>
-      <h2 className="uzu-h2">« {item.label} » fonctionne dans l'application actuelle</h2>
-      <p className="uzu-text">Vos données sont les mêmes des deux côtés et vous restez connecté. Cet écran sera remplacé ici dès qu'il aura passé ses tests.</p>
-      <a className="button button--dark" href={LEGACY}>Ouvrir l'application actuelle<ArrowRight size={16} /></a>
+      <h2 className="uzu-h2">Écran indisponible pour le moment</h2>
+      <p className="uzu-text">Cet écran n&apos;est pas encore activé pour ton club. Ton compte et ton carnet ne sont pas concernés.</p>
     </section>
   </>
 }
