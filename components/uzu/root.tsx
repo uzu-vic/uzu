@@ -208,6 +208,12 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
     if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", onMsg)
     return () => { if ("serviceWorker" in navigator) navigator.serviceWorker.removeEventListener("message", onMsg) }
   }, [!!ctx, openGo]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Ouverture d'une fiche de la bibliothèque depuis un autre écran (ex. détail d'une séance)
+  useEffect(() => {
+    const onNav = (e: Event) => { const d = (e as CustomEvent).detail || {}; if (d.page === "path") { setSpace("athlete"); go("path", String(d.arg || "")) } }
+    window.addEventListener("uzu-nav", onNav)
+    return () => window.removeEventListener("uzu-nav", onNav)
+  }) // eslint-disable-line react-hooks/exhaustive-deps
   const [notifOpen, setNotifOpen] = useState(false)
   const notifs = useNotifs(session.user.id, ctx, n => showToast(n.title))
   const openNotifs = () => { setNotifOpen(true); window.setTimeout(notifs.readAll, 800) }
@@ -254,7 +260,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
         {space === "club" && isSuspended(ctx) ? <Suspended />
           : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={(m, sid) => { setComposing(false); setEditing(null); setActive("log"); setNavArg(sid ? "journal:" + sid : "journal"); showToast(m); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={greet} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
-          : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick} uid={session.user.id} ctx={ctx} />
+          : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick + navArg} uid={session.user.id} ctx={ctx} initial={navArg} />
           : space === "athlete" && current?.id === "progress" ? <AthleteProgress key={"p" + syncTick} uid={session.user.id} ctx={ctx} />
           : space === "athlete" && current?.id === "log" ? <AthleteSessions key={"l" + syncTick + navArg} initialTab={navArg} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} onEdit={(kind, id) => { setEditing({ kind, id }); setComposing(true); window.scrollTo(0, 0) }} onToast={showToast} />
           : space === "athlete" && current?.id === "stats" ? <AthleteStats key={"st" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
