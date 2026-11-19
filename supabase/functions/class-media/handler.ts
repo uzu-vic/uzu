@@ -4,11 +4,11 @@
 // - stream     : photo ou morceau de vidéo (2 Mo au plus), après media_stream_check, jamais mis en cache ;
 // - finalize   : contrôle du type réel, de la taille et de la localisation, puis mise à disposition ;
 // - reconcile  : quarantaine ou retour des fichiers d'une séance (après dépublication, retrait…) ;
-// - sweep/purge: tâches planifiées (secret partagé), filet de sécurité et conservation.
+// - sweep/purge: tâches planifiées (secret du coffre de la base), filet de sécurité et conservation.
 // Journaux : jamais de jeton, d'adresse complète, de chemin de fichier ni de secret.
 import { detectMime, kindOfMime, moovHasLocation, parseRange, photoHasMetadata, readBoxHeader } from "../_shared/media-format.ts"
 
-export type Env = { url: string; anonKey: string; serviceKey: string; cronSecret: string; origins: string[] }
+export type Env = { url: string; anonKey: string; serviceKey: string; origins: string[] }
 type Fetch = typeof fetch
 type Json = Record<string, unknown>
 
@@ -75,7 +75,6 @@ export function makeHandler(env: Env, fetchImpl: Fetch = fetch, log: (o: Json) =
   }
   const json = (req: Request, status: number, body: Json) => new Response(JSON.stringify(body), { status, headers: { ...NO_STORE, ...cors(req), "Content-Type": "application/json; charset=utf-8" } })
   const sha256 = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))).map(b => b.toString(16).padStart(2, "0")).join("")
-  const sameSecret = (a: string, b: string) => { if (!a || !b || a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0 }
 
   type Action = { media: string; op: "move" | "delete"; from_bucket: string; from_path: string; to_bucket: string; to_path: string; to_location: string }
   const apply = async (acts: Action[]) => {
@@ -167,13 +166,11 @@ export function makeHandler(env: Env, fetchImpl: Fetch = fetch, log: (o: Json) =
   }
 
   const cron = async (req: Request, what: "sweep" | "purge") => {
+    // Le secret n'est gardé qu'à un seul endroit : le coffre (Vault) de la base. La fonction n'en garde aucune copie :
+    // elle envoie l'empreinte SHA-256 de ce qu'elle reçoit, et la base la compare à celle du secret du coffre.
     const got = req.headers.get("x-cron-secret") || ""
-    if (!sameSecret(got, env.cronSecret)) {
-      // Diagnostic sans fuite : présence, longueurs et 8 premiers caractères de l'empreinte SHA-256 (jamais la valeur)
-      const fp = async (s: string) => s ? Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 8) : ""
-      log({ a: what, ok: false, err: "secret", recu: !!got, lg_recu: got.length, lg_attendu: env.cronSecret.length, fp_recu: await fp(got), fp_attendu: await fp(env.cronSecret) })
-      return json(req, 403, { error: "Accès refusé" })
-    }
+    const ok = /^[0-9a-f]{64}$/.test(got) && (await rpc("class_media_cron_ok", { p_hash: await sha256(got) })) === true
+    if (!ok) { log({ a: what, ok: false, err: "secret" }); return json(req, 403, { error: "Accès refusé" }) }
     let purged: unknown = null
     if (what === "purge") purged = await rpc("media_purge", {})
     let total = 0

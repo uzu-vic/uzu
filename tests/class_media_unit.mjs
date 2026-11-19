@@ -86,6 +86,10 @@ const fake = async (url, init = {}) => {
     if (fn === "media_mark_failed" || fn === "media_set_location") return J(true)
     if (fn === "media_reconcile") return J(db.acts || [])
     if (fn === "media_purge") return J({ expired: 0 })
+    if (fn === "class_media_cron_ok") {
+      const sha = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(CRON)))).map(b => b.toString(16).padStart(2, "0")).join("")
+      return J(body.p_hash === sha)
+    }
     return J({}, 404)
   }
   if (u.pathname.startsWith("/storage/v1/object/authenticated/")) {
@@ -103,7 +107,7 @@ const fake = async (url, init = {}) => {
   if (u.pathname.startsWith("/storage/v1/object/") && init.method === "DELETE") { const b = u.pathname.split("/").pop(); for (const p of body.prefixes) files.delete(b + "/" + p); return J([]) }
   return J({}, 404)
 }
-const handle = makeHandler({ url: URL0, anonKey: "sb_publishable_simule", serviceKey: SVC, cronSecret: CRON, origins: ["https://uzu.example"] }, fake, o => logs.push(JSON.stringify(o)))
+const handle = makeHandler({ url: URL0, anonKey: "sb_publishable_simule", serviceKey: SVC, origins: ["https://uzu.example"] }, fake, o => logs.push(JSON.stringify(o)))
 const get = (q, headers = {}) => handle(new Request(`${URL0}/functions/v1/class-media/stream${q}`, { headers }))
 const post = (a, body, headers = {}) => handle(new Request(`${URL0}/functions/v1/class-media/${a}`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) }))
 
@@ -159,7 +163,9 @@ db.finalize = { bucket: "class-media", path: "club/sess/absent.mp4", kind: "vide
 ok("finalize : fichier absent → refusé", (await post("finalize", { media: "00000000-0000-0000-0000-000000000001" }, A)).status === 422)
 
 // Tâches planifiées et quarantaine
-ok("sweep sans le secret : refusé", (await post("sweep", {}, { "x-cron-secret": "faux" })).status === 403)
+ok("sweep sans le secret : refusé", (await post("sweep", {}, { "x-cron-secret": "faux" })).status === 403 && (await post("sweep", {})).status === 403)
+ok("sweep avec un mauvais secret de bonne forme : refusé", (await post("sweep", {}, { "x-cron-secret": "d".repeat(64) })).status === 403)
+ok("secret : seule son empreinte est envoyée à la base, jamais la valeur", calls.filter(c => c.path.endsWith("class_media_cron_ok")).every(c => !JSON.stringify(c.body).includes("d".repeat(64)) && /^[0-9a-f]{64}$/.test(c.body.p_hash)))
 files.set("class-media/club/sess/q1.mp4", mp4Clean)
 db.acts = [{ media: "q1", op: "move", from_bucket: "class-media", from_path: "club/sess/q1.mp4", to_bucket: "class-media-quarantine", to_path: "club/q1.mp4", to_location: "quarantine" }]
 r = await post("sweep", {}, { "x-cron-secret": CRON }); db.acts = []

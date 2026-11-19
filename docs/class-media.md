@@ -17,6 +17,7 @@ Branche `media/class-media`. Base et stockage **de test uniquement** (`ntypsrdwx
 | `db/uzu-13-controle-prealable.sql` | Contrôle en lecture seule, avant tout |
 | `db/uzu-13-class-media.sql` | Structure, droits, fonctions, stockage, contrôle, retour arrière commenté |
 | `db/uzu-13b-class-media-taches.sql` | Tâches planifiées (pg_cron, pg_net, coffre) |
+| `db/uzu-13c-class-media-secret.sql` | Vérification du secret des tâches par la base (coffre seul) |
 | `supabase/functions/class-media/index.ts`, `handler.ts` | Fonction serveur |
 | `supabase/functions/_shared/media-format.ts` | Formats réels, métadonnées, localisation, plages (partagé avec l'application) |
 | `lib/uzu/class-media.ts`, `components/uzu/class-media.tsx` | Application |
@@ -32,17 +33,15 @@ Chaque commande nomme le projet de test. Ne jamais utiliser l'identifiant de pro
 1. **Contrôle préalable** : éditeur SQL de la base de test, lancer `db/uzu-13-controle-prealable.sql`. Attendu : `medias_existants = 0`, `journal`, `focus`, `vue_ensemble`, `role_serveur` = true. Envoyer le résultat avant de continuer.
 2. **Structure** : lancer `db/uzu-13-class-media.sql`. Contrôle final attendu, dans l'ordre : `true, true, true, true, true, true, false, false, true`.
 3. **Outil Supabase** : `npm install -g supabase` (ou `brew install supabase/tap/supabase`), puis `supabase login`.
-4. **Secrets de la fonction** : générer le secret chez soi, sans le transmettre.
+4. **Réglage de la fonction** : le secret des tâches planifiées n'est **pas** un secret de la fonction ; il n'existe que dans le coffre de la base (étape 6). Seule l'adresse autorisée est à régler :
    ```
-   openssl rand -hex 32
-   supabase secrets set CLASS_MEDIA_CRON_SECRET=<valeur> --project-ref ntypsrdwxrkanahhuixx
    supabase secrets set CLASS_MEDIA_ALLOWED_ORIGINS=<adresse de l'aperçu, ex. https://uzu-git-media-class-media-….vercel.app> --project-ref ntypsrdwxrkanahhuixx
    ```
 5. **Déploiement** : depuis le dossier du projet, sur la branche `media/class-media` :
    ```
    supabase functions deploy class-media --no-verify-jwt --project-ref ntypsrdwxrkanahhuixx
    ```
-6. **Tâches planifiées** : tableau de bord de la base de test, Database › Extensions, activer `pg_cron` et `pg_net`. Ranger les deux valeurs dans le coffre (lignes en tête de `uzu-13b`), puis lancer `db/uzu-13b-class-media-taches.sql`. Attendu : deux tâches actives.
+6. **Tâches planifiées** : tableau de bord de la base de test, Database › Extensions, activer `pg_cron` et `pg_net`. Ranger les deux valeurs dans le coffre (lignes en tête de `uzu-13b`), puis lancer `db/uzu-13b-class-media-taches.sql` (attendu : deux tâches actives) et `db/uzu-13c-class-media-secret.sql` (attendu : `true, true, false, false`). Le secret (64 caractères hexadécimaux, `openssl rand -hex 32`) n'est gardé que dans le coffre : la fonction envoie l'empreinte SHA-256 de ce qu'elle reçoit et la base la compare (`class_media_cron_ok`, réservée au rôle serveur). Changer le secret = une seule commande `vault.update_secret`, sans redéploiement. Contrôle : `select public.class_media_call('sweep');` puis `net._http_response`, attendu 200.
 7. **Contrôles réels** : lancer `tests/class_media_live.mjs` (variables en tête du fichier, quatre comptes de test, mots de passe gardés chez soi), puis :
    - ouvrir l'aperçu sur un **iPhone (Safari)**, lire une vidéo de séance, avancer dans la vidéo ;
    - vérifier qu'une **vidéo pédagogique** existante (Contenus) se lit toujours ;
