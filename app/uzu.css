@@ -721,3 +721,13 @@ button.uzu-jv-bar:hover .uzu-jv-bl { text-decoration: underline; }
 .uzu-jv-track { height: 10px; border-radius: 0 4px 4px 0; background: transparent; }
 .uzu-jv-track i { display: block; height: 100%; border-radius: 0 4px 4px 0; background: #941b2b; }
 .uzu-jv-bn { min-width: 76px; color: #5c5650; font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+/* ---------- Focus des groupes (lot J4) ---------- */
+.uzu-gf { display: flex; flex-direction: column; gap: 12px; }
+.uzu-gf-head h2 { margin: 6px 0 4px; font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 400; }
+.uzu-gf-card { display: flex; flex-direction: column; gap: 10px; }
+.uzu-gf-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.uzu-gf-top b { font-size: 15px; }
+.uzu-gf-hist { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0; padding: 0; color: #5c5650; font-size: 12px; list-style: none; }
+.uzu-gf-form { display: flex; flex-direction: column; gap: 14px; }
+.uzu-jr-focus .uzu-jr-sys { color: #e9e2dc; }

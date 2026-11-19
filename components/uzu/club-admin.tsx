@@ -20,6 +20,7 @@ import { ClubHeading, ClubLoading, InvitePanel, initialsOf } from "@/components/
 import { checkVideo, loadVideos, removeVideo, uploadVideo, videoSlots, type VideoMap } from "@/lib/uzu/videos"
 import { useLibrary } from "@/components/uzu/library"
 import { ClubLibrary, type ClubTab } from "@/components/uzu/library-contrib"
+import { GroupFocusSection } from "@/components/uzu/group-focus"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -522,6 +523,7 @@ export function ClubContents({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
         {tf.weekTheme && <ConfirmButton label="Dépublier" confirm="Confirmer : dépublier" onConfirm={() => { setFocus({ weekTheme: "", focusFrom: "", focusTo: "", focusDetails: "" }); save("fc", { tactical_focus: { weekTheme: "", focusFrom: "", focusTo: "", focusDetails: "" } }, "Focus dépublié") }} />}
       </div>
     </section>}
+    <GroupFocusSection ctx={ctx} onToast={onToast} />
     {canNews && <section className="panel uzu-panel-col uzu-grid-gap">
       <div className="section-title"><h2>Actualités du club</h2><span className={`uzu-pill ${club?.news ? "done" : ""}`}>{club?.news ? "En ligne" : "Aucune"}</span></div>
       <p className="uzu-text uzu-small uzu-muted">Annonce, événement, changement de planning, compétition à venir : affichée sur l'Accueil de tous les élèves.</p>

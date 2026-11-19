@@ -40,6 +40,17 @@ export type Overview = {
   authors: { name: string; n: number }[]
 }
 export const journalOverview = (from: string | null, to: string | null, section: string | null) => rpc<Overview>("journal_overview", { p_from: from, p_to: to, p_section: section })
+// Focus des groupes (lot J4)
+export const SYS_LBL: Record<string, string> = { fond: "Fondamentaux", lutte: "Lutte & Scrambles", controle: "Contrôle & Dos", jambes: "Jeux de jambes" }
+export const SYS_KEYS = ["fond", "lutte", "controle", "jambes"]
+export type FocusInput = { theme: string; from: string; to: string; details: string }
+export type FocusBoardGroup = {
+  id: string; name: string; can_publish: boolean
+  current: { id: string; theme: string; from: string; to: string; details: string; published_at: string; by: string; sessions: number } | null
+  history: { theme: string; from: string; to: string }[]; history_count: number
+}
+export const groupFocusBoard = () => rpc<FocusBoardGroup[]>("group_focus_board")
+export const setGroupFocus = (section: string, f: FocusInput | null) => rpc<boolean>("set_group_focus", { p_section: section, p_focus: f })
 export type StudentGroups = { member: string; student: boolean; primary: string | null; secondary: string[]; can_edit: boolean }
 export const studentGroups = (user: string) => rpc<StudentGroups>("student_groups", { p_user: user })
 export const setStudentGroups = (user: string, primary: string | null, secondary: string[]) => rpc<number>("set_student_groups", { p_user: user, p_primary: primary, p_secondary: secondary })

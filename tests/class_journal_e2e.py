@@ -18,7 +18,7 @@ def sess(uid, email, name): return {"access_token": jwt(uid, email), "token_type
 CLUB = {"id": "c1", "name": "Académie de test", "invite_code": "TEST2026",
         "schedule": [{"id": "x1", "d": WD, "s": "00:01", "e": "23:59", "t": "JJB Gi adultes", "disc": "jjb"}, {"id": "x2", "d": WD, "s": "00:00", "e": "23:58", "t": "Grappling", "disc": "grappling"}],
         "tactical_focus": {"weekTheme": "Front headlock"}, "profile": {}}
-PERMS = {"owner": None, "instructor": {"schedule": {"view": "academy"}, "courses": {"view": "academy"}, "class_journal": {"view": "assigned_courses", "create": "assigned_courses", "approve": "assigned_courses"}}}
+PERMS = {"owner": None, "instructor": {"schedule": {"view": "academy"}, "courses": {"view": "academy"}, "contents": {"view": "academy", "create": "own_content"}, "class_journal": {"view": "assigned_courses", "create": "assigned_courses", "approve": "assigned_courses"}}}
 def ctx(role):
     return {"role": "student" if role == "student" else "coach", "share_activity": False, "club": CLUB, "academy_role": role, "member_status": "active", "member_id": "m0",
             "section_id": None, "perms": PERMS.get(role), "memberships": [{"academy_id": "c1", "name": CLUB["name"], "role": role, "status": "active"}]}
@@ -41,8 +41,12 @@ def S(id, sec, course, day, theme, status, techs, **k):
     o.update(k); return o
 
 class Mock:
-    def __init__(s, role, journal=True, uid=OWNER, empty_overview=False):
-        s.role, s.journal, s.uid, s.calls, s.empty_ov = role, journal, uid, [], empty_overview
+    def __init__(s, role, journal=True, uid=OWNER, empty_overview=False, group_focus=True):
+        s.role, s.journal, s.uid, s.calls, s.empty_ov, s.gfocus = role, journal, uid, [], empty_overview, group_focus
+        pub = role == "owner"
+        s.board = [{"id": GI, "name": "Adultes Gi", "can_publish": pub, "current": {"id": "f1", "theme": "Passer la demi-garde", "from": "fond", "to": "controle", "details": "Underhook d'abord", "published_at": d(3) + "T10:00:00Z", "by": "Paul Prof", "sessions": 3},
+                    "history": [{"theme": "Garde fermée", "from": d(40) + "T10:00:00Z", "to": d(3) + "T10:00:00Z"}], "history_count": 1},
+                   {"id": NG, "name": "No-Gi", "can_publish": pub, "current": None, "history": [], "history_count": 0}]
         s.sessions = [S("s1", GI, "x1", 7, "Gardes ouvertes", "publie", ["G17"], objective="Ouvrir la garde"),
                       S("s2", GI, "x1", 14, "Passages de garde", "publie", ["G18", "Passage en X"], exercises="Situations 3 × 3 min", comment="Très bonne intensité"),
                       S("s3", NG, "x2", 1, "Front headlock", "brouillon", [])]
@@ -53,7 +57,7 @@ class Mock:
                   f"roll/{S1}": {"s": [{"k": d(7) + "|x1", "date": d(7), "title": "JJB Gi adultes", "dur": 90}], "a": [d(14) + "|x1"]}}
     def groups(s):
         if s.role == "student":
-            return [{"id": GI, "name": "Adultes Gi", "discipline": "jjb_gi", "mine": True, "primary": True, "courses": ["x1"], "can_create": False, "can_view": False, "focus": FOCUS}] if s.uid == S1 else []
+            return [{"id": GI, "name": "Adultes Gi", "discipline": "jjb_gi", "mine": True, "primary": True, "courses": ["x1"], "can_create": False, "can_view": False, "focus": FOCUS if s.gfocus else None}] if s.uid == S1 else []
         return [{"id": GI, "name": "Adultes Gi", "discipline": "jjb_gi", "mine": False, "primary": False, "courses": ["x1"], "can_create": True, "can_view": True, "focus": FOCUS},
                 {"id": NG, "name": "No-Gi", "discipline": "grappling_nogi", "mine": False, "primary": False, "courses": ["x2"], "can_create": True, "can_view": True, "focus": None}]
     def handle(s, route):
@@ -95,6 +99,16 @@ class Mock:
                           "drafts": [{"id": "s3", "date": d(1), "group": "No-Gi", "theme": "Front headlock", "author": "Paul Prof"}],
                           "missing": [{"date": d(5), "course": "x1", "title": "JJB Gi adultes", "group": "Adultes Gi"}, {"date": d(10), "course": "x2", "title": "Grappling", "group": "No-Gi"}],
                           "top": [{"id": "G18", "name": NAME["G18"], "n": 2}, {"id": "G17", "name": NAME["G17"], "n": 1}], "authors": [{"name": "Paul Prof", "n": 2}]})
+            if name == "group_focus_board":
+                if s.role == "student": return J({"code": "P0001", "message": "Réservé à l'équipe du club"}, 400)
+                return J(s.board)
+            if name == "set_group_focus":
+                if s.role != "owner": return J({"code": "P0001", "message": "Droit requis"}, 400)
+                for g in s.board:
+                    if g["id"] == a["p_section"]:
+                        if g["current"]: g["history"].insert(0, {"theme": g["current"]["theme"], "from": g["current"]["published_at"], "to": d(0) + "T11:00:00Z"}); g["history_count"] += 1
+                        g["current"] = None if a["p_focus"] is None else dict(a["p_focus"], id="f9", published_at=d(0) + "T11:00:00Z", by="Paul Prof", sessions=0)
+                return J(a["p_focus"] is not None)
             if name == "student_groups": return J(s.sg)
             if name == "set_student_groups": s.sg = dict(s.sg, primary=a["p_primary"], secondary=a["p_secondary"]); return J(len(a["p_secondary"]))
             if name == "get_team": return J({"members": [], "invitations": [], "sections": [{"id": GI, "name": "Adultes Gi", "discipline": "jjb_gi"}], "course_staff": [], "course_meta": []})
@@ -198,6 +212,30 @@ with sync_playwright() as p:
     pg.locator(".uzu-jv-list li", has_text="Grappling").get_by_role("button", name="Saisir ›").click(); pg.wait_for_timeout(1500)
     f = pg.locator("form.uzu-lib-form")
     check("cours sans séance → « Saisir » ouvre la saisie du bon cours, à la bonne date", f.count() == 1 and f.get_by_label("Cours du planning").input_value() == "x2" and f.locator("input[type=date]").input_value() == d(10))
+    # Focus des groupes (J4)
+    pg.locator(".primary-nav .nav-item", has_text="Contenus").first.click(); pg.wait_for_timeout(1800)
+    gf = pg.locator(".uzu-gf")
+    check("Contenus : Focus du club conservé, section « Focus des groupes » sous lui", pg.get_by_text("Focus tactique").count() >= 1 and gf.count() == 1 and gf.locator(".uzu-gf-card").count() == 2)
+    gi = gf.locator(".uzu-gf-card", has_text="Adultes Gi")
+    check("groupe avec focus : aperçu, systèmes, séances depuis, historique", "Passer la demi-garde" in gi.inner_text() and "Fondamentaux → Contrôle & Dos" in gi.inner_text() and "3 séances publiées depuis ce focus · par Paul Prof" in gi.inner_text() and "Focus précédents (1)" in gi.inner_text(), gi.inner_text())
+    check("groupe sans focus : renvoie au Focus du club", "Aucun focus" in gf.locator(".uzu-gf-card", has_text="No-Gi").inner_text() and "voient le Focus du club" in gf.inner_text())
+    gi.get_by_role("button", name="Changer de focus").click(); pg.wait_for_timeout(500)
+    fm = pg.locator("form.uzu-gf-form")
+    fm.get_by_role("button", name="Publier pour le groupe").click(); pg.wait_for_timeout(300)
+    check("thème vide : bloqué avant envoi", "Indique le thème" in fm.inner_text() and not m.last("set_group_focus"))
+    fm.get_by_label("Thème du focus").fill("Passages de garde"); fm.get_by_label("Connecté à").select_option("jambes"); fm.get_by_label("Description (300 caractères max)").fill("Passer, stabiliser 3 secondes")
+    check("aperçu de ce que verra le groupe, mis à jour en direct", "Passages de garde" in fm.locator(".uzu-jr-focus").inner_text() and "Fondamentaux → Jeux de jambes" in fm.locator(".uzu-jr-focus").inner_text() and "« Passer la demi-garde » passera dans l'historique" in fm.inner_text())
+    pg.screenshot(path="/tmp/gf_editor.png", full_page=True)
+    fm.get_by_role("button", name="Publier pour le groupe").click(); pg.wait_for_timeout(1200)
+    sf = m.last("set_group_focus")
+    check("publication : groupe, thème, systèmes et description envoyés au serveur", sf and sf[-1] == {"p_section": GI, "p_focus": {"theme": "Passages de garde", "from": "fond", "to": "jambes", "details": "Passer, stabiliser 3 secondes"}}, sf)
+    gi = pg.locator(".uzu-gf-card", has_text="Adultes Gi")
+    check("après publication : nouveau focus affiché, ancien dans l'historique (2)", "Passages de garde" in gi.inner_text() and "Focus précédents (2)" in gi.inner_text(), gi.inner_text())
+    gi.get_by_role("button", name="Dépublier").click(); pg.wait_for_timeout(200)
+    check("dépublier : confirmation demandée d'abord", len(m.last("set_group_focus")) == 1 and gi.get_by_role("button", name="Confirmer : dépublier").count() == 1)
+    gi.get_by_role("button", name="Confirmer : dépublier").click(); pg.wait_for_timeout(1200)
+    check("dépublier : demandé au serveur, le groupe revient au Focus du club", m.last("set_group_focus")[-1] == {"p_section": GI, "p_focus": None} and "Aucun focus" in pg.locator(".uzu-gf-card", has_text="Adultes Gi").inner_text())
+    pg.screenshot(path="/tmp/gf_board.png", full_page=True)
     # Fiche élève : groupes
     pg.locator(".primary-nav .nav-item", has_text="Élèves").first.click(); pg.wait_for_timeout(1800)
     pg.locator(".uzu-pcard", has_text="Alice Martin").click(); pg.wait_for_timeout(1200)
@@ -221,6 +259,8 @@ with sync_playwright() as p:
     # ---------------- Professeur (portée ses cours) : Journal oui, vue d'ensemble non
     m = Mock("instructor"); c, pg, errs = open_page(b, m, OWNER, "prof@test.fr", "Paul Prof", {"width": 1280, "height": 900}); courses(pg)
     check("professeur (ses cours) : onglet Journal, pas de vue d'ensemble, aucun appel à la vue d'ensemble", pg.get_by_role("tab", name="Journal des cours").count() == 1 and pg.get_by_role("tab", name="Vue d'ensemble").count() == 0 and not m.last("journal_overview"))
+    pg.locator(".primary-nav .nav-item", has_text="Contenus").first.click(); pg.wait_for_timeout(1800)
+    check("professeur sans droit sur les groupes : focus visibles, aucun bouton de publication", pg.locator(".uzu-gf-card").count() == 2 and pg.locator(".uzu-gf").get_by_role("button", name="Changer de focus").count() == 0 and pg.locator(".uzu-gf").get_by_role("button", name="Dépublier").count() == 0)
     check("professeur : aucune erreur JavaScript", not errs, errs); c.close()
 
     # ---------------- Base sans le script du Journal
@@ -256,6 +296,14 @@ with sync_playwright() as p:
     check("technique du cours → fiche de la Bibliothèque", "Torreando Pass" in pg.inner_text(".page-content") and pg.locator(".mobile-bottom-nav button.active", has_text="Techniques").count() == 1, pg.inner_text(".page-content")[:300])
     check("adhérent : aucune écriture du Journal tentée", not [n for n, a in m.calls if n in ("journal_save_session", "journal_set_status", "set_student_groups")])
     check("adhérent : aucune erreur JavaScript", not errs, errs); c.close()
+
+    # ---------------- Adhérent dont le groupe n'a pas de focus : Focus du club
+    m = Mock("student", uid=S1, group_focus=False); c, pg, errs = open_page(b, m, S1, "alice@test.fr", "Alice Martin", {"width": 390, "height": 844})
+    pg.locator(".mobile-bottom-nav button", has_text="Séances").click(); pg.wait_for_timeout(1500)
+    pg.locator(".subnav-tabs button", has_text="Cours du groupe").click(); pg.wait_for_timeout(1200)
+    t = pg.inner_text(".page-content")
+    check("groupe sans focus : l'adhérent voit le Focus du club", "FOCUS DU CLUB" in t and "Front headlock" in t and "FOCUS DU GROUPE" not in t, t[:300])
+    check("adhérent : aucun appel au tableau des focus", not m.last("group_focus_board") and not errs, errs); c.close()
 
     # ---------------- Adhérent sans groupe
     m = Mock("student", uid="00000000-0000-0000-0000-0000000000c9"); c, pg, errs = open_page(b, m, "00000000-0000-0000-0000-0000000000c9", "z@test.fr", "Zoé", {"width": 390, "height": 844})

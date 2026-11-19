@@ -99,7 +99,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
           </article>)}</div>
         </section>))}
 
-      {tab === "group" && (hasGroup ? <GroupJournal uid={uid} groups={JG.groups} /> : JG.status === "loading" ? <p className="uzu-text uzu-muted" aria-busy="true">Chargement…</p> : <div className="panel uzu-panel"><p className="uzu-text">Tu n'es rattaché à aucun groupe pour l'instant.</p></div>)}
+      {tab === "group" && (hasGroup ? <GroupJournal uid={uid} groups={JG.groups} clubFocus={ctx?.club?.tactical_focus} /> : JG.status === "loading" ? <p className="uzu-text uzu-muted" aria-busy="true">Chargement…</p> : <div className="panel uzu-panel"><p className="uzu-text">Tu n'es rattaché à aucun groupe pour l'instant.</p></div>)}
       {tab === "comps" && (data.comps.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Aucune compétition enregistrée.</p><button className="button button--dark" onClick={onCompose}><Plus size={15} />Saisir un résultat</button></div>
         : <div className="session-list">{data.comps.map(c => <article className="session-card" key={c.id}>
           <div className="session-date"><span>{parseYmd(c.date).toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase()}</span><strong>{parseYmd(c.date).getDate()}</strong></div>

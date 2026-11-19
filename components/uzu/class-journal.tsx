@@ -17,6 +17,7 @@ import { matches, splitName, type Library } from "@/lib/uzu/library"
 import { useLibrary } from "@/components/uzu/library"
 import { ClubCourses } from "@/components/uzu/club-admin"
 import { ClubHeading } from "@/components/uzu/club"
+import { FocusCard } from "@/components/uzu/group-focus"
 
 type Toast = (m: string) => void
 const openFiche = (id: string) => window.dispatchEvent(new CustomEvent("uzu-nav", { detail: { page: "path", arg: "fiche:" + id } }))
@@ -275,7 +276,7 @@ export function StaffJournal({ ctx, onToast, init }: { ctx: UzuContext | null; o
 }
 
 // ---------------------------------------------------------------- Cours du groupe (adhérent)
-export function GroupJournal({ uid, groups }: { uid: string; groups: JGroup[] }) {
+export function GroupJournal({ uid, groups, clubFocus }: { uid: string; groups: JGroup[]; clubFocus?: unknown }) {
   const mine = groups.filter(g => g.mine)
   const [group, setGroup] = useState("")
   const [q, setQ] = useState(""), [qq, setQq] = useState("")
@@ -299,7 +300,12 @@ export function GroupJournal({ uid, groups }: { uid: string; groups: JGroup[] })
   const g = mine.find(x => x.id === cur)
   return <div className="uzu-lib uzu-jr">
     {mine.length > 1 && <div className="uzu-chips" role="group" aria-label="Mes groupes">{mine.map(x => <button key={x.id} type="button" className={x.id === cur ? "on" : ""} aria-pressed={x.id === cur} onClick={() => { setGroup(x.id); setList(null) }}>{x.name}</button>)}</div>}
-    {g?.focus && <section className="uzu-jr-focus" aria-labelledby="jr-focus"><span>FOCUS DU GROUPE</span><h2 id="jr-focus">{g.focus.theme}</h2>{g.focus.details && <p>{g.focus.details}</p>}</section>}
+    {(() => { // Focus du groupe, sinon celui du club
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cf = (clubFocus || {}) as any
+      const f = g?.focus ? { l: "FOCUS DU GROUPE", t: g.focus.theme, a: g.focus.from, b: g.focus.to, d: g.focus.details } : cf.weekTheme ? { l: "FOCUS DU CLUB", t: String(cf.weekTheme), a: String(cf.focusFrom || ""), b: String(cf.focusTo || ""), d: String(cf.focusDetails || "") } : null
+      return f && <section aria-label={f.l.toLowerCase()}><FocusCard label={f.l} theme={f.t} from={f.a} to={f.b} details={f.d} /></section>
+    })()}
     <label className="uzu-search"><Search size={16} aria-hidden="true" /><span className="sr-only">Retrouver un cours</span>
       <input className="uzu-input" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Retrouver un cours (thème, technique)" /></label>
     {err && <div className="uzu-banner uzu-banner--error" role="alert">{err}</div>}
