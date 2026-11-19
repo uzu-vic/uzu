@@ -161,7 +161,7 @@ with sync_playwright() as p:
     check("Invitation : adresse invalide refusée sans appel serveur", "Adresse e-mail invalide" in content(pg) and not m.last("create_invitation"))
     pg.fill("#iv-email", "nouveau@test.fr"); pg.select_option("#iv-tpl", "assistant"); pg.locator("button", has_text="Créer l'invitation").click(); pg.wait_for_timeout(800)
     ci = m.last("create_invitation")
-    check("Invitation : rôle et droits du modèle Assistant", ci and ci[0]["p_email"] == "nouveau@test.fr" and ci[0]["p_role"] == "instructor" and ci[0]["p_section"] is None and len(ci[0]["p_perms"]) == 9 and all(x["e"] == "allow" for x in ci[0]["p_perms"]))
+    check("Invitation : rôle et droits du modèle Assistant", ci and ci[0]["p_email"] == "nouveau@test.fr" and ci[0]["p_role"] == "instructor" and ci[0]["p_section"] is None and len(ci[0]["p_perms"]) == 10 and any(x["r"] == "class_journal" for x in ci[0]["p_perms"]) and all(x["e"] == "allow" for x in ci[0]["p_perms"]))
     check("Invitation : lien partageable affiché une fois", "?invite=tok123" in content(pg) and "Invitation prête" in content(pg))
     pg.locator("button", has_text="Fermer").click(); pg.wait_for_timeout(200)
     inv = pg.locator(".uzu-inv-row", has_text="attente@test.fr")

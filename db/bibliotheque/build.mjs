@@ -279,11 +279,11 @@ sql += "insert into public.lib_disciplines (id, label, long_label, position, act
 sql += "insert into public.lib_categories (id, discipline_id, position, label) values\n" +
   categories.map(c => `  (${q(c.id)}, ${q(c.discipline)}, ${c.pos}, ${q(c.label)})`).join(",\n") +
   "\non conflict (id) do update set discipline_id = excluded.discipline_id, position = excluded.position, label = excluded.label;\n\n"
-sql += "insert into public.lib_techniques (id, discipline_id, category_id, position, name, aliases, source_text, proposed_text, origin, level, validation_refs, restricted, uzu_links, source) values\n" +
-  techniques.map(t => `  (${q(t.id)}, ${q(t.discipline)}, ${q(t.category)}, ${t.pos}, ${q(t.name)}, ${arr(t.aliases)}, ${q(t.source_text)}, ${q(t.proposed_text)}, ${q(t.origin)}, ${t.level ?? "null"}, ${arr(t.validation_refs)}, ${q(t.restricted)}, ${js(t.links)}, ${q(t.source)})`).join(",\n") +
+sql += "insert into public.lib_techniques (id, discipline_id, category_id, position, name, aliases, source_text, proposed_text, origin, level, validation_refs, restricted, uzu_links, source, archived) values\n" +
+  techniques.map(t => `  (${q(t.id)}, ${q(t.discipline)}, ${q(t.category)}, ${t.pos}, ${q(t.name)}, ${arr(t.aliases)}, ${q(t.source_text)}, ${q(t.proposed_text)}, ${q(t.origin)}, ${t.level ?? "null"}, ${arr(t.validation_refs)}, ${q(t.restricted)}, ${js(t.links)}, ${q(t.source)}, ${t.origin === "proposition"})`).join(",\n") +
   "\non conflict (id) do update set discipline_id = excluded.discipline_id, category_id = excluded.category_id, position = excluded.position, name = excluded.name, aliases = excluded.aliases,\n" +
   "  source_text = excluded.source_text, proposed_text = excluded.proposed_text, origin = excluded.origin, level = excluded.level, validation_refs = excluded.validation_refs,\n" +
-  "  restricted = excluded.restricted, uzu_links = excluded.uzu_links, source = excluded.source,\n" +
+  "  restricted = excluded.restricted, uzu_links = excluded.uzu_links, source = excluded.source, archived = excluded.archived,\n" +
   "  version = case when (lib_techniques.name, lib_techniques.source_text, lib_techniques.proposed_text) is distinct from (excluded.name, excluded.source_text, excluded.proposed_text) then lib_techniques.version + 1 else lib_techniques.version end,\n" +
   "  updated_at = case when (lib_techniques.name, lib_techniques.source_text, lib_techniques.proposed_text) is distinct from (excluded.name, excluded.source_text, excluded.proposed_text) then now() else lib_techniques.updated_at end;\n\n"
 sql += "insert into public.lib_flows (id, discipline_id, position, title, intro) values\n" +

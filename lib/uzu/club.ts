@@ -196,6 +196,7 @@ export const PERM_CAT: [string, string, string[], string[]][] = [
   ["academy_settings", "Paramètres", ["view", "update"], ["academy"]],
   ["academy_audit_logs", "Journal d'activité", ["view"], ["academy"]],
   ["library", "Bibliothèque technique", ["approve", "manage"], ["academy"]],
+  ["class_journal", "Journal des cours", ["view", "create", "update", "approve"], ["academy", "section", "assigned_courses"]],
 ]
 export const ACT_LBL: Record<string, string> = { view: "Consulter", create: "Créer", update: "Modifier", delete: "Supprimer", approve: "Valider", manage: "Gérer" }
 export const ACT_OVR: Record<string, Record<string, string>> = {
@@ -204,13 +205,14 @@ export const ACT_OVR: Record<string, Record<string, string>> = {
   contents: { create: "Publier", update: "Modifier", delete: "Retirer" }, instructors: { create: "Inviter", update: "Rôles, droits, affectations", delete: "Suspendre ou retirer" },
   communications: { create: "Publier une annonce", delete: "Retirer une annonce" },
   library: { approve: "Valider les contributions", manage: "Collections et fiches masquées" },
+  class_journal: { view: "Consulter", create: "Ajouter et modifier ses séances", update: "Modifier les séances des autres", approve: "Publier ou dépublier" },
 }
 export const actLabel = (r: string, a: string) => ACT_OVR[r]?.[a] || ACT_LBL[a] || a
 const T = (l: string) => l.split(" ").map(x => { const p = x.split(":"); return { r: p[0], a: p[1], s: p[2] || "academy" } })
 export const PERM_TPL: Record<string, { r: string; a: string; s: string }[]> = {
-  instructor: T("dashboard:view schedule:view students:view courses:view sessions:view:assigned_courses sessions:update:assigned_courses attendance:view attendance:create:assigned_courses attendance:update:assigned_courses progression:view progression:update belts:view belts:create pedagogical_notes:view pedagogical_notes:create pedagogical_notes:update contents:view contents:create:own_content contents:update:own_content communications:view"),
-  assistant: T("dashboard:view schedule:view students:view:assigned_courses courses:view:assigned_courses sessions:view:assigned_courses attendance:view:assigned_courses attendance:create:assigned_courses attendance:update:assigned_courses communications:view"),
-  section_lead: T("dashboard:view schedule:view students:view:section courses:view courses:update:section courses:manage:section sessions:view:section sessions:update:section attendance:view:section attendance:create:section attendance:update:section attendance:delete:section progression:view:section progression:update:section belts:view:section belts:create:section belts:approve:section pedagogical_notes:view:section pedagogical_notes:create:section pedagogical_notes:update:section contents:view contents:create:own_content contents:update:own_content contents:delete:own_content communications:view academy_statistics:view instructors:view"),
+  instructor: T("dashboard:view schedule:view students:view courses:view sessions:view:assigned_courses sessions:update:assigned_courses attendance:view attendance:create:assigned_courses attendance:update:assigned_courses progression:view progression:update belts:view belts:create pedagogical_notes:view pedagogical_notes:create pedagogical_notes:update contents:view contents:create:own_content contents:update:own_content communications:view class_journal:view:assigned_courses class_journal:create:assigned_courses class_journal:approve:assigned_courses"),
+  assistant: T("dashboard:view schedule:view students:view:assigned_courses courses:view:assigned_courses sessions:view:assigned_courses attendance:view:assigned_courses attendance:create:assigned_courses attendance:update:assigned_courses communications:view class_journal:view:assigned_courses"),
+  section_lead: T("dashboard:view schedule:view students:view:section courses:view courses:update:section courses:manage:section sessions:view:section sessions:update:section attendance:view:section attendance:create:section attendance:update:section attendance:delete:section progression:view:section progression:update:section belts:view:section belts:create:section belts:approve:section pedagogical_notes:view:section pedagogical_notes:create:section pedagogical_notes:update:section contents:view contents:create:own_content contents:update:own_content contents:delete:own_content communications:view academy_statistics:view instructors:view class_journal:view:section class_journal:create:section class_journal:update:section class_journal:approve:section"),
   custom: [],
 }
 export const TPL_LBL: Record<string, string> = { instructor: "Professeur standard", assistant: "Assistant", section_lead: "Responsable de section", custom: "Personnalisé (tout désactivé)" }

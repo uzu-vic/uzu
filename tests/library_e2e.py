@@ -17,14 +17,14 @@ DOCS={f"members/{UID}":{"consent":{"at":"2026-01-01T00:00:00Z","share":True},"se
       "skills":{"Toreando pass":{"lvl":2,"at":d(2),"partner":None,"rev":d(2),"legacy":False}},"belt":{"rank":"bleue"}},
       f"grades/{UID}":{"rank":"bleue","stripes":1,"since":"2026-03-01"}}
 LIBCTX={"academy":"c1","disciplines":["jjb_gi","grappling_nogi"],"configured":False,"can_review":False,"can_manage":False,"can_configure":False,"hidden":["G22"],"pending":0}
-TECH=[dict(id=t["id"],discipline_id=t["discipline"],category_id=t["category"],position=t["pos"],name=t["name"],aliases=t["aliases"],source_text=t["source_text"],proposed_text=t["proposed_text"],origin=t["origin"],level=t["level"],validation_status="a_valider",validation_refs=t["validation_refs"],restricted=t["restricted"],uzu_links=t["links"]) for t in CAT["techniques"]]
+TECH=[dict(id=t["id"],discipline_id=t["discipline"],category_id=t["category"],position=t["pos"],name=t["name"],aliases=t["aliases"],source_text=t["source_text"],proposed_text=t["proposed_text"],origin=t["origin"],level=t["level"],validation_status="a_valider",validation_refs=t["validation_refs"],restricted=t["restricted"],uzu_links=t["links"]) for t in CAT["techniques"] if t["origin"]=="document"]
 TABLES={
  "lib_disciplines":[dict(id=x["id"],label=x["label"],long_label=x["long"],position=x["pos"]) for x in CAT["disciplines"] if x["active"]],
  "lib_categories":[dict(id=c["id"],discipline_id=c["discipline"],position=c["pos"],label=c["label"]) for c in CAT["categories"]],
  "lib_techniques":TECH,
  "lib_flows":[dict(id=f["id"],discipline_id=f["discipline"],position=f["pos"],title=f["title"],intro=f["intro"]) for f in CAT["flows"]],
- "lib_flow_steps":[dict(id=s["id"],flow_id=s["flow"],position=s["pos"],parent_id=s["parent"],kind=s["kind"],branch_label=s["branch"],label=s["text"],origin=s["origin"]) for s in CAT["steps"]],
- "lib_flow_step_techniques":[dict(step_id=s["id"],technique_id=x["t"],position=i+1,origin=x["o"]) for s in CAT["steps"] for i,x in enumerate(s["techs"])],
+ "lib_flow_steps":[dict(id=s["id"],flow_id=s["flow"],position=s["pos"],parent_id=s["parent"],kind=s["kind"],branch_label=s["branch"],label=s["text"],origin=s["origin"]) for s in CAT["steps"] if s["origin"]=="document"],
+ "lib_flow_step_techniques":[dict(step_id=s["id"],technique_id=x["t"],position=i+1,origin=x["o"]) for s in CAT["steps"] if s["origin"]=="document" for i,x in enumerate(s["techs"]) if x["o"]=="document"],
  "club_lib_items":[{"id":"i1","kind":"lien","technique_id":"N27","discipline_id":"grappling_nogi","title":"RNC du club","body":"","url":"https://www.youtube.com/watch?v=abc","status":"publie","published_at":"2026-11-10T10:00:00Z"},
                    {"id":"i2","kind":"variante","technique_id":"G17","discipline_id":"jjb_gi","title":"Toreando avec saisie des genoux","body":"Variante validée au club","url":None,"status":"publie","published_at":"2026-11-11T10:00:00Z"}],
 }
@@ -69,7 +69,7 @@ with sync_playwright() as p:
         pg.get_by_role("button", name="Passages de garde").click(); pg.wait_for_timeout(300)
         cards=pg.locator(".uzu-lib-card")
         ct=" | ".join(cards.all_inner_texts())
-        check(f"[{name}] Passages de garde : 7 fiches (G22 masquée par le club), propositions G32/G34 signalées", cards.count()==7 and "Long Step" not in ct and ct.count("Proposée par UZU")==2, ct[:400])
+        check(f"[{name}] Passages de garde : 5 fiches (G22 masquée par le club), aucune fiche complémentaire (D1)", cards.count()==5 and "Long Step" not in ct and "Proposée par UZU" not in ct and "Headquarters" not in ct, ct[:400])
         tor=cards.filter(has_text="Torreando Pass").first
         check(f"[{name}] Torreando : mêmes étoiles que dans Ma progression ({ency}), contenu du club signalé", ency>0 and tor.locator("i.on").count()==ency and "1 contenu du club" in tor.inner_text(), tor.inner_text())
         pg.fill(".uzu-lib-search input", "knee slice"); pg.wait_for_timeout(300)
@@ -82,13 +82,14 @@ with sync_playwright() as p:
         check(f"[{name}] fiche : badges Référence UZU + À valider, autres noms", "Référence UZU" in ft and "À valider" in ft and "RNC" in ft)
         check(f"[{name}] fiche : vidéo du club en lien externe (YouTube), aucune autre", f.locator("a[href='https://www.youtube.com/watch?v=abc'][target=_blank][rel*=noopener]").count()==1)
         check(f"[{name}] fiche : enchaînements FC3 et FC4", f.locator(".uzu-lib-row", has_text="FC3").count()==1 and f.locator(".uzu-lib-row", has_text="FC4").count()==1)
+        check(f"[{name}] fiche (élève, D3) : repères du club vides, sans bouton d'édition", "Repères du club" not in ft and f.get_by_role("button", name="Compléter la fiche").count()==0)
         if name=="mob": pg.screenshot(path="/tmp/lib_fiche_mob.png", full_page=True)
         f.locator(".uzu-lib-row", has_text="FC3").click(); pg.wait_for_timeout(600)
         st=pg.inner_text(".page-content")
-        check(f"[{name}] FC3 ouvert depuis la fiche : intro du document, branche A par défaut avec suite proposée en pointillés", "Garde Assise, Wrestle-Up & Leg Locks" in st and pg.locator(".uzu-lib-step.prop").count()==1 and "suite proposée par uzu" in st.lower(), st[:400])
+        check(f"[{name}] FC3 ouvert depuis la fiche : intro du document, branche A par défaut, sans suite proposée (D1)", "Garde Assise, Wrestle-Up & Leg Locks" in st and pg.locator(".uzu-lib-step.prop").count()==0 and "Wrestle-Up" in st, st[:400])
         pg.get_by_role("button", name="Réaction B : il avance et met son poids sur vous").click(); pg.wait_for_timeout(400)
         st=pg.inner_text(".page-content")
-        check(f"[{name}] branche B : clés de jambes, avertissement clé de talon, alternative Crab Ride", "Inside Heel Hook" in st and "Clé de talon" in st and "Crab Ride" in st and pg.locator(".uzu-lib-step.prop").count()==0, st[:400])
+        check(f"[{name}] branche B : clés de jambes, avertissement clé de talon, alternative Crab Ride, aucune fiche proposée", "Inside Heel Hook" in st and "Clé de talon" in st and "Crab Ride" in st and pg.locator(".uzu-lib-chips button.prop").count()==0, st[:400])
         if name=="mob": pg.screenshot(path="/tmp/lib_flow_mob.png", full_page=True)
         pg.locator(".uzu-lib-chips button", has_text="N28").click(); pg.wait_for_timeout(500)
         ft=pg.locator(".uzu-lib-fiche").inner_text()

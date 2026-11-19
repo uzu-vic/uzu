@@ -62,6 +62,9 @@ create table if not exists public.lib_techniques (
   check (origin = 'proposition' or source_text is not null)
 );
 create index if not exists lib_techniques_cat_idx on public.lib_techniques (category_id, position);
+-- Décision D1 (19/11/2026) : les fiches complémentaires proposées par UZU sont archivées,
+-- invisibles des clubs, conservées pour l'administration UZU.
+alter table public.lib_techniques add column if not exists archived boolean not null default false;
 
 create table if not exists public.lib_flows (
   id             text primary key check (id ~ '^FC[0-9]{1,2}$'),
@@ -161,6 +164,19 @@ create table if not exists public.club_lib_hidden (
   primary key (academy_id, technique_id)
 );
 
+-- Décision D3 : étapes pédagogiques, points de vigilance et niveau, vides par défaut,
+-- remplis par les professeurs autorisés du club (le catalogue UZU n'est jamais modifié)
+create table if not exists public.club_lib_technique_details (
+  academy_id    uuid not null references public.clubs (id) on delete cascade,
+  technique_id  text not null references public.lib_techniques (id) on delete cascade,
+  steps         text not null default '' check (length(steps) <= 3000),
+  vigilance     text not null default '' check (length(vigilance) <= 2000),
+  level         smallint check (level between 1 and 3),
+  updated_by    uuid references auth.users (id) on delete set null,
+  updated_at    timestamptz not null default now(),
+  primary key (academy_id, technique_id)
+);
+
 create table if not exists public.club_lib_events (
   id          bigserial primary key,
   academy_id  uuid not null references public.clubs (id) on delete cascade,
@@ -240,6 +256,19 @@ language sql stable security definer set search_path = public as $$
     where academy_id = p_academy and user_id = auth.uid() and role <> 'student' and status = 'active')
 $$;
 
+-- Administrateur de la plateforme UZU (archives du catalogue)
+create or replace function public.uzu_is_platform_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select auth.uid() is not null and exists (select 1 from public.uzu_platform_admins where user_id = auth.uid())
+$$;
+
+-- Fiche utilisable par un club : discipline ouverte et non archivée
+create or replace function public.uzu_lib_tech_ok(p_academy uuid, p_technique text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.lib_techniques t where t.id = p_technique and not t.archived
+                  and t.discipline_id = any (public.uzu_lib_disciplines(p_academy)))
+$$;
+
 -- Lien vidéo accepté : YouTube ou Instagram, en https
 create or replace function public.uzu_lib_url_ok(p_url text) returns boolean
 language sql immutable as $$
@@ -262,14 +291,17 @@ alter table public.club_lib_collections      enable row level security;
 alter table public.club_lib_collection_items enable row level security;
 alter table public.club_lib_hidden           enable row level security;
 alter table public.club_lib_events           enable row level security;
+alter table public.club_lib_technique_details enable row level security;
 
 revoke all on public.lib_disciplines, public.lib_categories, public.lib_techniques, public.lib_flows,
   public.lib_flow_steps, public.lib_flow_step_techniques, public.club_lib_settings, public.club_lib_items,
-  public.club_lib_collections, public.club_lib_collection_items, public.club_lib_hidden, public.club_lib_events
+  public.club_lib_collections, public.club_lib_collection_items, public.club_lib_hidden, public.club_lib_events,
+  public.club_lib_technique_details
   from anon, authenticated;
 grant select on public.lib_disciplines, public.lib_categories, public.lib_techniques, public.lib_flows,
   public.lib_flow_steps, public.lib_flow_step_techniques, public.club_lib_settings, public.club_lib_items,
-  public.club_lib_collections, public.club_lib_collection_items, public.club_lib_hidden, public.club_lib_events
+  public.club_lib_collections, public.club_lib_collection_items, public.club_lib_hidden, public.club_lib_events,
+  public.club_lib_technique_details
   to authenticated;
 revoke all on sequence public.club_lib_events_id_seq from anon, authenticated;
 
@@ -280,17 +312,21 @@ create policy uzu_lib_cat_select on public.lib_categories for select to authenti
   using (public.uzu_lib_visible(discipline_id));
 drop policy if exists uzu_lib_tech_select on public.lib_techniques;
 create policy uzu_lib_tech_select on public.lib_techniques for select to authenticated
-  using (public.uzu_lib_visible(discipline_id));
+  using ((public.uzu_lib_visible(discipline_id) and not archived) or public.uzu_is_platform_admin());
 drop policy if exists uzu_lib_flow_select on public.lib_flows;
 create policy uzu_lib_flow_select on public.lib_flows for select to authenticated
   using (public.uzu_lib_visible(discipline_id));
 drop policy if exists uzu_lib_step_select on public.lib_flow_steps;
 create policy uzu_lib_step_select on public.lib_flow_steps for select to authenticated
-  using (exists (select 1 from public.lib_flows f where f.id = flow_id and public.uzu_lib_visible(f.discipline_id)));
+  using ((origin = 'document' and exists (select 1 from public.lib_flows f where f.id = flow_id and public.uzu_lib_visible(f.discipline_id)))
+         or public.uzu_is_platform_admin());
 drop policy if exists uzu_lib_steptech_select on public.lib_flow_step_techniques;
 create policy uzu_lib_steptech_select on public.lib_flow_step_techniques for select to authenticated
-  using (exists (select 1 from public.lib_flow_steps s join public.lib_flows f on f.id = s.flow_id
-                  where s.id = step_id and public.uzu_lib_visible(f.discipline_id)));
+  using ((origin = 'document'
+          and exists (select 1 from public.lib_techniques t where t.id = technique_id and not t.archived)
+          and exists (select 1 from public.lib_flow_steps s join public.lib_flows f on f.id = s.flow_id
+                       where s.id = step_id and s.origin = 'document' and public.uzu_lib_visible(f.discipline_id)))
+         or public.uzu_is_platform_admin());
 
 drop policy if exists uzu_club_lib_settings_select on public.club_lib_settings;
 create policy uzu_club_lib_settings_select on public.club_lib_settings for select to authenticated
@@ -310,6 +346,9 @@ create policy uzu_club_lib_collitem_select on public.club_lib_collection_items f
   using (exists (select 1 from public.club_lib_collections c where c.id = collection_id and public.uzu_lib_member(c.academy_id)));
 drop policy if exists uzu_club_lib_hidden_select on public.club_lib_hidden;
 create policy uzu_club_lib_hidden_select on public.club_lib_hidden for select to authenticated
+  using (public.uzu_lib_member(academy_id));
+drop policy if exists uzu_club_lib_details_select on public.club_lib_technique_details;
+create policy uzu_club_lib_details_select on public.club_lib_technique_details for select to authenticated
   using (public.uzu_lib_member(academy_id));
 drop policy if exists uzu_club_lib_events_select on public.club_lib_events;
 create policy uzu_club_lib_events_select on public.club_lib_events for select to authenticated
@@ -382,7 +421,7 @@ begin
   if not public.uzu_lib_url_ok(v_url) then raise exception 'Lien accepté : YouTube ou Instagram, en https'; end if;
   if v_kind = 'lien' and v_url is null then raise exception 'Lien vidéo obligatoire'; end if;
   if v_tech is not null then
-    select discipline_id into v_disc from public.lib_techniques where id = v_tech;
+    select discipline_id into v_disc from public.lib_techniques where id = v_tech and not archived;
     if v_disc is null then raise exception 'Fiche inconnue'; end if;
   elsif v_kind not in ('technique','question') then
     raise exception 'Choisis la fiche UZU concernée';
@@ -513,7 +552,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_uid uuid := public.uzu_require_auth(); v_a uuid := public.uzu_active_academy();
 begin
   if v_a is null or not public.uzu_can(v_a, 'library', 'manage') then raise exception 'Action non autorisée'; end if;
-  if not exists (select 1 from public.lib_techniques where id = p_technique) then raise exception 'Fiche inconnue'; end if;
+  if not exists (select 1 from public.lib_techniques where id = p_technique and not archived) then raise exception 'Fiche inconnue'; end if;
   if coalesce(p_hidden, false) then
     insert into public.club_lib_hidden (academy_id, technique_id, hidden_by) values (v_a, p_technique, v_uid)
     on conflict do nothing;
@@ -546,7 +585,7 @@ begin
   for v_e in select * from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) loop
     v_n := v_n + 1;
     if v_e ? 't' then
-      if not exists (select 1 from public.lib_techniques where id = v_e->>'t') then raise exception 'Fiche inconnue'; end if;
+      if not public.uzu_lib_tech_ok(v_a, v_e->>'t') then raise exception 'Fiche inconnue'; end if;
       insert into public.club_lib_collection_items (collection_id, position, technique_id) values (v_id, v_n, v_e->>'t');
     elsif v_e ? 'i' then
       if not exists (select 1 from public.club_lib_items where id = public.uzu_try_uuid(v_e->>'i') and academy_id = v_a and status = 'publie') then
@@ -557,6 +596,24 @@ begin
   end loop;
   perform public.uzu_audit(v_a, 'library.collection', 'collection', v_id::text, jsonb_build_object('items', v_n));
   return v_id;
+end $$;
+
+-- Étapes pédagogiques, points de vigilance, niveau (D3) : professeurs autorisés du club
+create or replace function public.library_set_details(p_technique text, p_steps text, p_vigilance text, p_level int) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := public.uzu_require_auth(); v_a uuid := public.uzu_active_academy();
+begin
+  if v_a is null or not public.uzu_is_coach_of_academy(v_a)
+     or not (public.uzu_can(v_a, 'library', 'approve') or public.uzu_can(v_a, 'library', 'manage')) then raise exception 'Action non autorisée'; end if;
+  if not public.uzu_lib_tech_ok(v_a, p_technique) then raise exception 'Fiche inconnue'; end if;
+  if length(coalesce(p_steps, '')) > 3000 or length(coalesce(p_vigilance, '')) > 2000 then raise exception 'Texte trop long'; end if;
+  if p_level is not null and p_level not between 1 and 3 then raise exception 'Niveau invalide'; end if;
+  insert into public.club_lib_technique_details (academy_id, technique_id, steps, vigilance, level, updated_by, updated_at)
+  values (v_a, p_technique, btrim(coalesce(p_steps, '')), btrim(coalesce(p_vigilance, '')), p_level, v_uid, now())
+  on conflict (academy_id, technique_id) do update set steps = excluded.steps, vigilance = excluded.vigilance,
+    level = excluded.level, updated_by = excluded.updated_by, updated_at = now();
+  perform public.uzu_audit(v_a, 'library.details', 'technique', p_technique, jsonb_build_object('level', p_level));
+  return true;
 end $$;
 
 create or replace function public.library_delete_collection(p_id uuid) returns boolean
@@ -584,6 +641,9 @@ revoke all on function public.uzu_is_coach_of_academy(uuid) from public, anon;
 revoke all on function public.library_set_hidden(text, boolean) from public, anon;
 revoke all on function public.library_save_collection(uuid, text, text, int, jsonb) from public, anon;
 revoke all on function public.library_delete_collection(uuid) from public, anon;
+revoke all on function public.library_set_details(text, text, text, int) from public, anon;
+revoke all on function public.uzu_is_platform_admin() from public, anon;
+revoke all on function public.uzu_lib_tech_ok(uuid, text) from public, anon;
 grant execute on function public.uzu_lib_member(uuid) to authenticated;
 grant execute on function public.uzu_lib_disciplines(uuid) to authenticated;
 grant execute on function public.uzu_lib_visible(text) to authenticated;
@@ -597,6 +657,9 @@ grant execute on function public.uzu_is_coach_of_academy(uuid) to authenticated;
 grant execute on function public.library_set_hidden(text, boolean) to authenticated;
 grant execute on function public.library_save_collection(uuid, text, text, int, jsonb) to authenticated;
 grant execute on function public.library_delete_collection(uuid) to authenticated;
+grant execute on function public.library_set_details(text, text, text, int) to authenticated;
+grant execute on function public.uzu_is_platform_admin() to authenticated;
+grant execute on function public.uzu_lib_tech_ok(uuid, text) to authenticated;
 
 -- -----------------------------------------------------------------------------------------
 -- 7. Données du catalogue (générées depuis le document, voir db/bibliotheque/build.mjs)

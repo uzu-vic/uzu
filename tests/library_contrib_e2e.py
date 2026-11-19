@@ -17,10 +17,10 @@ def ctx(role):
 TABLES={
  "lib_disciplines":[dict(id=x["id"],label=x["label"],long_label=x["long"],position=x["pos"]) for x in CAT["disciplines"] if x["active"]],
  "lib_categories":[dict(id=c["id"],discipline_id=c["discipline"],position=c["pos"],label=c["label"]) for c in CAT["categories"]],
- "lib_techniques":[dict(id=t["id"],discipline_id=t["discipline"],category_id=t["category"],position=t["pos"],name=t["name"],aliases=t["aliases"],source_text=t["source_text"],proposed_text=t["proposed_text"],origin=t["origin"],level=t["level"],validation_status="a_valider",validation_refs=t["validation_refs"],restricted=t["restricted"],uzu_links=t["links"]) for t in CAT["techniques"]],
+ "lib_techniques":[dict(id=t["id"],discipline_id=t["discipline"],category_id=t["category"],position=t["pos"],name=t["name"],aliases=t["aliases"],source_text=t["source_text"],proposed_text=t["proposed_text"],origin=t["origin"],level=t["level"],validation_status="a_valider",validation_refs=t["validation_refs"],restricted=t["restricted"],uzu_links=t["links"]) for t in CAT["techniques"] if t["origin"]=="document"],
  "lib_flows":[dict(id=f["id"],discipline_id=f["discipline"],position=f["pos"],title=f["title"],intro=f["intro"]) for f in CAT["flows"]],
- "lib_flow_steps":[dict(id=s["id"],flow_id=s["flow"],position=s["pos"],parent_id=s["parent"],kind=s["kind"],branch_label=s["branch"],label=s["text"],origin=s["origin"]) for s in CAT["steps"]],
- "lib_flow_step_techniques":[dict(step_id=s["id"],technique_id=x["t"],position=i+1,origin=x["o"]) for s in CAT["steps"] for i,x in enumerate(s["techs"])],
+ "lib_flow_steps":[dict(id=s["id"],flow_id=s["flow"],position=s["pos"],parent_id=s["parent"],kind=s["kind"],branch_label=s["branch"],label=s["text"],origin=s["origin"]) for s in CAT["steps"] if s["origin"]=="document"],
+ "lib_flow_step_techniques":[dict(step_id=s["id"],technique_id=x["t"],position=i+1,origin=x["o"]) for s in CAT["steps"] if s["origin"]=="document" for i,x in enumerate(s["techs"]) if x["o"]=="document"],
 }
 class Mock:
     def __init__(s, role, can_review=False, can_manage=False, can_configure=False):
@@ -29,7 +29,7 @@ class Mock:
         s.mine=[{"id":"m1","kind":"variante","technique_id":"G18","discipline_id":"jjb_gi","title":"Knee Cut avec underhook","body":"Ancien texte","url":None,"status":"a_completer","published_at":None,"review_note":"Précise la position de la tête","updated_at":d(1)+"T10:00:00Z","rights_declared_at":None},
                 {"id":"m2","kind":"question","technique_id":None,"discipline_id":"grappling_nogi","title":"Question en attente","body":"","url":None,"status":"en_attente","published_at":None,"review_note":"","updated_at":d(2)+"T10:00:00Z","rights_declared_at":None}]
         s.queue=[{"id":"q1","kind":"lien","technique_id":"N27","discipline_id":"grappling_nogi","title":"RNC vue de face","body":"Vidéo du cours de mardi","url":"https://youtu.be/xyz","rights_declared_at":d(1)+"T09:00:00Z","submitted_at":d(1)+"T09:00:00Z","author_name":"Yanis B.","author_role":"student","status":"en_attente","published_at":None}]
-        s.collections=[]; s.collitems=[]
+        s.collections=[]; s.collitems=[]; s.details=None
     def handle(s, route):
         r=route.request; u=r.url; body=r.post_data_json if r.method=="POST" and r.post_data else None
         J=lambda o, st=200: route.fulfill(status=st, content_type="application/json", body=json.dumps(o))
@@ -52,10 +52,12 @@ class Mock:
                 h=set(s.libctx["hidden"]); (h.add if body["p_hidden"] else h.discard)(body["p_technique"]); s.libctx["hidden"]=sorted(h); return J(body["p_hidden"])
             if name=="library_set_disciplines": s.libctx["disciplines"]=body["p_disciplines"]; return J(body["p_disciplines"])
             if name=="library_archive_item": return J(True)
+            if name=="library_set_details": s.details={"technique_id":body["p_technique"],"steps":body["p_steps"],"vigilance":body["p_vigilance"],"level":body["p_level"]}; return J(True)
             return J(None)
         for tb,rows in TABLES.items():
             if f"/rest/v1/{tb}?" in u: return J(rows)
         if "/rest/v1/club_lib_collections?" in u: return J(s.collections)
+        if "/rest/v1/club_lib_technique_details?" in u: return J([s.details] if s.details else [])
         if "/rest/v1/club_lib_collection_items?" in u: return J(s.collitems)
         if "/rest/v1/club_lib_items?" in u:
             q=up.unquote(u)
@@ -168,6 +170,19 @@ with sync_playwright() as p:
     boxes.nth(1).check(); sec.locator(".uzu-lib-kinds button").click(); pg.wait_for_timeout(1200)
     check("réglages : seul le Grappling No-Gi ouvert", last(m,"library_set_disciplines")[-1]=={"p_disciplines":["grappling_nogi"]})
     pg.screenshot(path="/tmp/lib_club_desk.png", full_page=True)
+    # D3 : le responsable complète les repères pédagogiques d'une fiche (pour son club)
+    pg.locator(".space-option", has_text="Athlete").click(); pg.wait_for_timeout(1200)
+    pg.locator(".primary-nav .nav-item", has_text="Techniques").first.click(); pg.wait_for_timeout(1500)
+    pg.locator(".uzu-lib-volets button", has_text="Bibliothèque").click(); pg.wait_for_timeout(400)
+    pg.fill(".uzu-lib-search input","knee cut"); pg.wait_for_timeout(300); pg.locator(".uzu-lib-card", has_text="Knee Cut Pass").first.click(); pg.wait_for_timeout(500)
+    f=pg.locator(".uzu-lib-fiche")
+    check("D3 : fiche vide « pas encore renseignés », bouton « Compléter la fiche » pour le responsable", "pas encore renseignés" in f.inner_text() and f.get_by_role("button", name="Compléter la fiche").count()==1)
+    f.get_by_role("button", name="Compléter la fiche").click(); pg.wait_for_timeout(300)
+    f.get_by_label("Étapes pédagogiques").fill("1. Saisir le col\n2. Couper le genou"); f.get_by_label("Points de vigilance").fill("Garder la tête haute"); f.get_by_label("Niveau").select_option("2")
+    f.get_by_role("button", name="Enregistrer").click(); pg.wait_for_timeout(1000)
+    sd=last(m,"library_set_details")
+    check("D3 : repères enregistrés pour le club (fiche, étapes, vigilance, niveau)", sd and sd[-1]["p_technique"] in ("G18","N18") and sd[-1]["p_level"]==2 and "Couper le genou" in sd[-1]["p_steps"], sd)
+    check("D3 : repères affichés dans la fiche", "Repères du club" in f.inner_text() and "Garder la tête haute" in f.inner_text() and "Niveau ★★" in f.inner_text(), f.inner_text()[:400])
     check("responsable : aucune erreur JavaScript", not errs, errs); c.close()
 
     # ---------------- Prof sans droit bibliothèque : pas de section

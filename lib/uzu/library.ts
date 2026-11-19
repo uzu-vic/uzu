@@ -30,7 +30,10 @@ export type Library = {
   byId: Record<string, LibTechnique>
   /** Toutes les fiches des disciplines ouvertes, masquées comprises (réglages du club) */
   all: LibTechnique[]
+  /** Étapes pédagogiques, vigilance, niveau saisis par les professeurs du club (décision D3) */
+  details: Record<string, FicheDetails>
 }
+export type FicheDetails = { steps: string; vigilance: string; level: number | null; updated_at?: string }
 export type LibraryState = { status: "loading" } | { status: "unavailable" } | { status: "error"; msg: string } | { status: "ok"; lib: Library }
 
 const absent = (e: { code?: string; message?: string } | null) => !!e && (e.code === "42P01" || e.code === "PGRST205" || e.code === "PGRST202" || /does not exist|schema cache|could not find/i.test(e.message || ""))
@@ -64,6 +67,10 @@ async function fetchLibrary(): Promise<LibraryState> {
     db.from("club_lib_collection_items").select("collection_id,position,technique_id,item_id").order("position"),
   ])
   for (const r of [d, c, t, f, s, st, it, co, ci]) if (r.error) return absent(r.error) ? { status: "unavailable" } : { status: "error", msg: r.error.message }
+  // Détails pédagogiques du club : facultatifs (absents sur une base qui n'a pas la dernière version du script)
+  const dt = await db.from("club_lib_technique_details").select("technique_id,steps,vigilance,level,updated_at")
+  const details: Record<string, FicheDetails> = {}
+  if (!dt.error) for (const x of (dt.data || []) as (FicheDetails & { technique_id: string })[]) details[x.technique_id] = { steps: x.steps || "", vigilance: x.vigilance || "", level: x.level ?? null, updated_at: x.updated_at }
   const open = new Set(ctx.disciplines)
   const hidden = new Set(ctx.hidden || [])
   const all = ((t.data || []) as LibTechnique[]).filter(x => open.has(x.discipline_id))
@@ -82,7 +89,7 @@ async function fetchLibrary(): Promise<LibraryState> {
       stepTechs: ((st.data || []) as LibStepTech[]).filter(x => byId[x.technique_id]),
       items: ((it.data || []) as ClubItem[]).filter(x => x.status === "publie"),
       collections: ((co.data || []) as Collection[]).map(x => ({ ...x, items: ((ci.data || []) as { collection_id: string; technique_id: string | null; item_id: string | null }[]).filter(y => y.collection_id === x.id) })),
-      ctx, byId, all,
+      ctx, byId, all, details,
     },
   }
 }
@@ -179,6 +186,7 @@ export const archiveItem = (id: string) => rpc<boolean>("library_archive_item", 
 export const setHidden = (technique: string, hidden: boolean) => rpc<boolean>("library_set_hidden", { p_technique: technique, p_hidden: hidden })
 export const setDisciplines = (ids: string[]) => rpc<string[]>("library_set_disciplines", { p_disciplines: ids })
 export const saveCollection = (id: string | null, name: string, description: string, position: number, items: ({ t: string } | { i: string })[]) => rpc<string>("library_save_collection", { p_id: id, p_name: name, p_description: description, p_position: position, p_items: items })
+export const setDetails = (technique: string, steps: string, vigilance: string, level: number | null) => rpc<boolean>("library_set_details", { p_technique: technique, p_steps: steps, p_vigilance: vigilance, p_level: level })
 export const deleteCollection = (id: string) => rpc<boolean>("library_delete_collection", { p_id: id })
 export type QueueItem = ClubItem & { author_name: string; author_role: string; submitted_at: string }
 export const reviewQueue = () => rpc<QueueItem[]>("library_review_queue")

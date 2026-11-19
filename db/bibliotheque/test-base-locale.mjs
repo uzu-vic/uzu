@@ -9,8 +9,8 @@ const s9 = rd("/home/claude/uzu-repo/db/uzu-9-bibliotheque.sql");
 const before = (await db.query("select count(*)::int n from public.docs")).rows[0].n;
 await db.exec(s9);
 const ctl = (await db.query(s9.split("commit;")[1])).rows[0];
-ok("contrôle : 12 tables, 3 disciplines, 12 catégories, 70 fiches dont 60 du document, 4 enchaînements, 33 étapes, droit ajouté",
-  ctl.tables_ajoutees == 12 && ctl.disciplines == 3 && ctl.categories == 12 && ctl.fiches == 70 && ctl.fiches_du_document == 60 && ctl.enchainements == 4 && ctl.etapes == 33 && ctl.droit_bibliotheque, ctl);
+ok("contrôle : 13 tables, 3 disciplines, 12 catégories, 70 fiches dont 60 du document, 4 enchaînements, 33 étapes, droit ajouté",
+  ctl.tables_ajoutees == 13 && ctl.fiches_archivees == 10 && ctl.disciplines == 3 && ctl.categories == 12 && ctl.fiches == 70 && ctl.fiches_du_document == 60 && ctl.enchainements == 4 && ctl.etapes == 33 && ctl.droit_bibliotheque, ctl);
 await db.exec(s9);
 ok("script rejouable sans doublon ni changement de version", (await db.query("select count(*)::int n, max(version) v from public.lib_techniques")).rows[0].v === 1);
 ok("aucune donnée existante modifiée", (await db.query("select count(*)::int n from public.docs")).rows[0].n === before);
@@ -48,7 +48,10 @@ ok("un prof ne peut pas s'accorder lui-même le droit", !!(await t(I2, "select p
 
 // Lecture du catalogue
 const cnt = async u => (await t(u, "select count(*)::int n from public.lib_techniques")).rows?.[0]?.n;
-ok("élève du club : voit les 70 fiches (club non configuré = toutes les disciplines)", await cnt(B1) === 70);
+ok("élève du club : voit les 60 fiches du document (10 complémentaires archivées, club non configuré)", await cnt(B1) === 60);
+ok("D1 : aucune fiche complémentaire ni suite proposée visible d'un club", (await t(B1, "select count(*)::int n from public.lib_techniques where origin='proposition'")).rows[0].n === 0 && (await t(B1, "select count(*)::int n from public.lib_flow_steps where origin='proposition'")).rows[0].n === 0 && (await t(B1, "select count(*)::int n from public.lib_flow_step_techniques where origin='proposition'")).rows[0].n === 0);
+ok("D1 : étapes du document conservées (31 sur 33), sans lien vers une fiche archivée", (await t(B1, "select count(*)::int n from public.lib_flow_steps")).rows[0].n === 31);
+ok("D2 : corrections N25, N27, N28 conservées, « à valider »", (await t(B1, "select count(*)::int n from public.lib_techniques where id in ('N25','N27','N28') and proposed_text is not null and validation_status='a_valider'")).rows[0].n === 3);
 ok("personne sans club : ne voit aucune fiche", await cnt(X1) === 0);
 ok("visiteur non connecté : aucun accès", !!(await t(null, "select count(*) from public.lib_techniques")).err);
 ok("élève : modification du catalogue impossible", !!(await t(B1, "update public.lib_techniques set name='x' where id='G01'")).err);
@@ -56,9 +59,9 @@ ok("responsable : modification ou ajout dans le catalogue impossible", !!(await 
 ok("élève : ne peut pas choisir les disciplines", !!(await t(B1, "select public.library_set_disciplines(array['jjb_gi'])")).err);
 r = await t(A1, "select public.library_set_disciplines(array['grappling_nogi']) v");
 ok("responsable : n'ouvre que le Grappling No-Gi", r.rows?.[0]?.v?.join() === "grappling_nogi", r);
-ok("… l'élève ne voit plus que les 36 fiches No-Gi", await cnt(B1) === 36);
+ok("… l'élève ne voit plus que les 30 fiches No-Gi", await cnt(B1) === 30);
 ok("… et seulement les enchaînements FC3 et FC4", (await t(B1, "select string_agg(id, ',' order by id) s from public.lib_flows")).rows[0].s === "FC3,FC4");
-ok("… l'autre club garde tout son catalogue", await cnt(D1) === 70);
+ok("… l'autre club garde tout son catalogue", await cnt(D1) === 60);
 ok("fermer toutes les disciplines refusé (la bibliothèque resterait inaccessible)", !!(await t(A1, "select public.library_set_disciplines(array[]::text[])")).err);
 ok("discipline inactive (MMA) refusée", !!(await t(A1, "select public.library_set_disciplines(array['mma'])")).err);
 ok("MMA invisible dans le catalogue tant qu'elle est inactive", (await t(B1, "select count(*)::int n from public.lib_disciplines where id='mma'")).rows[0].n === 0);
@@ -126,6 +129,17 @@ ok("collection ordonnée créée", !!col && (await t(B1, "select string_agg(tech
 ok("collection : contenu non publié refusé", !!(await t(A1, "select public.library_save_collection($1, 'X', '', 1, $2::jsonb)", [col, JSON.stringify([{ i: it2 }])])).err);
 ok("élève : ne peut pas créer de collection", !!(await t(B1, "select public.library_save_collection(null, 'X', '', 1, '[]'::jsonb)")).err);
 ok("autre club : ne voit pas la collection", (await t(D1, "select count(*)::int n from public.club_lib_collections")).rows[0].n === 0);
+
+await db.query("insert into public.uzu_platform_admins (user_id) values ($1)", [X1]);
+ok("D1 : archive conservée pour l'administration UZU (10 fiches complémentaires lisibles par l'admin plateforme)", (await t(X1, "select count(*)::int n from public.lib_techniques where archived")).rows[0].n === 10);
+await db.query("delete from public.uzu_platform_admins where user_id=$1", [X1]);
+// D3 : détails pédagogiques par club
+ok("D3 : élève ne peut pas remplir les champs pédagogiques", !!(await t(B1, "select public.library_set_details('G18','x','y',1)")).err);
+ok("D3 : prof sans droit bibliothèque ne peut pas", !!(await t(I2, "select public.library_set_details('G18','x','y',1)")).err);
+ok("D3 : prof autorisé remplit étapes, vigilance, niveau pour son club", (await t(I1, "select public.library_set_details('G18','1. Saisir le col','Genou de l''adversaire',2) v")).rows?.[0]?.v === true);
+ok("D3 : visibles des membres du club, pas de l'autre club ; catalogue UZU inchangé", (await t(B1, "select steps from public.club_lib_technique_details where technique_id='G18'")).rows?.[0]?.steps === "1. Saisir le col" && (await t(D1, "select count(*)::int n from public.club_lib_technique_details")).rows[0].n === 0 && (await db.query("select version from public.lib_techniques where id='G18'")).rows[0].version === 1);
+ok("D3 : fiche archivée refusée", !!(await t(I1, "select public.library_set_details('G31','x','',1)")).err);
+ok("D1 : contribution sur une fiche archivée refusée", !!(await t(B1, "select public.library_save_item(null, $1::jsonb, false)", [JSON.stringify({ kind: "variante", technique_id: "G31", title: "x" })])).err);
 
 // Droits : catalogue étendu sans régression
 ok("le droit inconnu reste refusé", !!(await t(A1, "select public.set_member_permissions($1, $2::jsonb)", [mI1, JSON.stringify([{ r: "library", a: "delete", s: "academy" }])])).err);

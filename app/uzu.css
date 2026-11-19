@@ -636,3 +636,4 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-lib-status--publie { background: #e8f2ea; color: #1f5b2c; }
 .uzu-lib-status--refuse { background: #171717; color: #fff; }
 .uzu-lib-status--archive { background: #eee9e2; color: #5c5650; }
+.uzu-lib-self { align-self: flex-start; }

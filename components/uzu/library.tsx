@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Search } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
 import {
-  childrenOf, fichesForName, flowsOfTechnique, KIND_LABEL, loadLibrary, matches, RESTRICTED_TXT, splitName, starsFor, techsOfStep, videoSource,
+  childrenOf, fichesForName, flowsOfTechnique, setDetails, KIND_LABEL, loadLibrary, matches, RESTRICTED_TXT, splitName, starsFor, techsOfStep, videoSource,
   type Library, type LibraryState, type LibStep, type LibTechnique,
 } from "@/lib/uzu/library"
 import { Stars } from "@/components/uzu/progress"
@@ -94,7 +94,7 @@ export function LibraryPane({ lib, C, P, onOpen, onPropose, onMine, initialQuery
     <div className="uzu-chips uzu-chips--small uzu-lib-filters">
       <label className="uzu-lib-select"><span className="sr-only">Provenance</span>
         <select className="uzu-input" value={origin} onChange={e => setOrigin(e.target.value as Filter)}>
-          <option value="all">Toutes provenances</option><option value="ref">Référence UZU</option><option value="prop">Proposées par UZU</option><option value="club">Avec contenu du club</option>
+          <option value="all">Toutes provenances</option><option value="ref">Référence UZU</option><option value="club">Avec contenu du club</option>
         </select></label>
       <button type="button" className={withVideo ? "on" : ""} aria-pressed={withVideo} onClick={() => setWithVideo(v => !v)}>Avec vidéo</button>
       <button type="button" className={mine ? "on" : ""} aria-pressed={mine} onClick={() => setMine(v => !v)}>Que je travaille</button>
@@ -152,6 +152,7 @@ export function FicheView({ lib, C, P, id, onBack, onOpenFlow, onPropose }: { li
       {t.source_text && <div className="panel uzu-lib-text"><span className="uzu-lib-label">Texte du document</span><p>{t.source_text}</p></div>}
       {t.proposed_text && <div className="uzu-lib-text uzu-lib-text--prop"><span className="uzu-lib-label">{t.source_text ? "Correction proposée · à valider par un professeur" : "Description proposée par UZU · à valider par un professeur"}</span><p>{t.proposed_text}</p></div>}
     </section>
+    <FicheDetailsSection key={t.id} lib={lib} t={t} />
     {flows.length > 0 && <section className="uzu-lib-sec" aria-labelledby="fiche-flows"><h3 id="fiche-flows">Dans les enchaînements</h3>
       {flows.map(f => <button key={f.flow.id} type="button" className="panel uzu-lib-row" onClick={() => onOpenFlow(f.flow.id)}>
         <span><b>{f.flow.id} · {f.flow.title.replace(/^Le système « (.+) »$/, "$1")}</b><small>{KIND_LABEL[f.step.kind]}{f.step.branch_label ? " · " + f.step.branch_label : ""}</small></span><ChevronRight size={16} aria-hidden="true" /></button>)}
@@ -172,6 +173,39 @@ export function FicheView({ lib, C, P, id, onBack, onOpenFlow, onPropose }: { li
       <button type="button" className="text-link" onClick={() => onPropose({ kind: "question", technique_id: t.id, title: "Remarque sur la fiche " + t.id })}>Poser une question ou signaler une erreur</button>
     </div>}
   </article>
+}
+
+// Étapes pédagogiques, points de vigilance, niveau : vides par défaut, remplis par les professeurs
+// autorisés du club (décision D3). Le catalogue UZU n'est jamais modifié.
+function FicheDetailsSection({ lib, t }: { lib: Library; t: LibTechnique }) {
+  const d0 = lib.details[t.id] || { steps: "", vigilance: "", level: null }
+  const [d, setD] = useState(d0)
+  const [edit, setEdit] = useState(false)
+  const [draft, setDraft] = useState(d0)
+  const [msg, setMsg] = useState("")
+  const canEdit = lib.ctx.can_review || lib.ctx.can_manage
+  const empty = !d.steps && !d.vigilance && !d.level
+  if (empty && !canEdit) return null
+  if (edit) return <section className="uzu-lib-sec uzu-lib-form" aria-labelledby="fiche-det">
+    <h3 id="fiche-det">Compléter la fiche pour le club</h3>
+    <label className="uzu-field"><span className="uzu-label">Étapes pédagogiques</span><textarea className="uzu-input" rows={5} maxLength={3000} value={draft.steps} onChange={e => setDraft({ ...draft, steps: e.target.value })} placeholder={"1. …\n2. …"} /></label>
+    <label className="uzu-field"><span className="uzu-label">Points de vigilance</span><textarea className="uzu-input" rows={3} maxLength={2000} value={draft.vigilance} onChange={e => setDraft({ ...draft, vigilance: e.target.value })} /></label>
+    <label className="uzu-field"><span className="uzu-label">Niveau</span><select className="uzu-input" value={draft.level ?? ""} onChange={e => setDraft({ ...draft, level: e.target.value ? Number(e.target.value) : null })}>
+      <option value="">Non défini</option><option value="1">★ Débutant</option><option value="2">★★ Intermédiaire</option><option value="3">★★★ Avancé</option></select></label>
+    {msg && <div className="uzu-banner uzu-banner--error" role="alert">{msg}</div>}
+    <div className="uzu-lib-actions"><button type="button" className="button button--outline" onClick={() => { setEdit(false); setMsg("") }}>Annuler</button>
+      <button type="button" className="button button--dark" onClick={async () => { const r = await setDetails(t.id, draft.steps.trim(), draft.vigilance.trim(), draft.level); if (!r.ok) { setMsg(r.msg); return } setD(draft); setEdit(false) }}>Enregistrer</button></div>
+  </section>
+  return <section className="uzu-lib-sec" aria-labelledby="fiche-det">
+    <h3 id="fiche-det">Repères du club</h3>
+    {empty ? <p className="uzu-lib-empty">Étapes pédagogiques, points de vigilance et niveau : pas encore renseignés par les professeurs du club.</p> : <div className="panel uzu-lib-text">
+      {d.level ? <span className="uzu-lib-badges"><span className="uzu-lib-badge uzu-lib-badge--plain">Niveau {"★".repeat(d.level)}</span></span> : null}
+      {d.steps && <><span className="uzu-lib-label">Étapes pédagogiques</span><p>{d.steps}</p></>}
+      {d.vigilance && <><span className="uzu-lib-label">Points de vigilance</span><p>{d.vigilance}</p></>}
+      <small className="uzu-muted">Rédigé par les professeurs du club.</small>
+    </div>}
+    {canEdit && <button type="button" className="button button--outline uzu-lib-self" onClick={() => { setDraft(d); setEdit(true) }}>{empty ? "Compléter la fiche" : "Modifier les repères"}</button>}
+  </section>
 }
 
 // ---------------------------------------------------------------- Volet Enchaînements
