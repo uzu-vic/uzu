@@ -17,6 +17,7 @@ Branche `media/class-media`. Base et stockage **de test uniquement** (`ntypsrdwx
 | `db/uzu-13-controle-prealable.sql` | Contrôle en lecture seule, avant tout |
 | `db/uzu-13-class-media.sql` | Structure, droits, fonctions, stockage, contrôle, retour arrière commenté |
 | `db/uzu-13b-class-media-taches.sql` | Tâches planifiées (pg_cron, pg_net, coffre) |
+| `db/uzu-13d-class-media-controles.sql` | Contrôles de sécurité dans l'éditeur SQL (fictifs, annulés à la fin) |
 | `db/uzu-13c-class-media-secret.sql` | Vérification du secret des tâches par la base (coffre seul) |
 | `supabase/functions/class-media/index.ts`, `handler.ts` | Fonction serveur |
 | `supabase/functions/_shared/media-format.ts` | Formats réels, métadonnées, localisation, plages (partagé avec l'application) |
@@ -42,7 +43,7 @@ Chaque commande nomme le projet de test. Ne jamais utiliser l'identifiant de pro
    supabase functions deploy class-media --no-verify-jwt --project-ref ntypsrdwxrkanahhuixx
    ```
 6. **Tâches planifiées** : tableau de bord de la base de test, Database › Extensions, activer `pg_cron` et `pg_net`. Ranger les deux valeurs dans le coffre (lignes en tête de `uzu-13b`), puis lancer `db/uzu-13b-class-media-taches.sql` (attendu : deux tâches actives) et `db/uzu-13c-class-media-secret.sql` (attendu : `true, true, false, false`). Le secret (64 caractères hexadécimaux, `openssl rand -hex 32`) n'est gardé que dans le coffre : la fonction envoie l'empreinte SHA-256 de ce qu'elle reçoit et la base la compare (`class_media_cron_ok`, réservée au rôle serveur). Changer le secret = une seule commande `vault.update_secret`, sans redéploiement. Contrôle : `select public.class_media_call('sweep');` puis `net._http_response`, attendu 200.
-7. **Contrôles réels** : lancer `tests/class_media_live.mjs` (variables en tête du fichier, quatre comptes de test, mots de passe gardés chez soi), puis :
+7. **Contrôles réels** : sans installation, coller et lancer `db/uzu-13d-class-media-controles.sql` dans l'éditeur SQL de la base de test (personnes fictives, tout est annulé à la fin ; attendu : 36 ✔, dernière ligne « annulation » ✔). Ou bien, depuis un ordinateur avec Node.js : lancer `tests/class_media_live.mjs` (variables en tête du fichier, quatre comptes de test, mots de passe gardés chez soi), puis :
    - ouvrir l'aperçu sur un **iPhone (Safari)**, lire une vidéo de séance, avancer dans la vidéo ;
    - vérifier qu'une **vidéo pédagogique** existante (Contenus) se lit toujours ;
    - ouvrir les journaux de la fonction (Edge Functions › class-media › Logs) et vérifier qu'aucun jeton ni chemin de fichier n'y figure.
