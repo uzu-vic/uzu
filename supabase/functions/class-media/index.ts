@@ -10,7 +10,7 @@ const env = {
   anonKey: Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "",
   serviceKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? "",
   cronSecret: Deno.env.get("CLASS_MEDIA_CRON_SECRET") ?? "",
-  origins: (Deno.env.get("CLASS_MEDIA_ALLOWED_ORIGINS") ?? "").split(",").map(s => s.trim()).filter(Boolean),
+  origins: (Deno.env.get("CLASS_MEDIA_ALLOWED_ORIGINS") ?? "").split(",").map((s: string) => s.trim()).filter(Boolean),
 }
 if (!env.url || !env.serviceKey || !env.anonKey) console.log(JSON.stringify({ a: "boot", ok: false, err: "configuration incomplète" }))
 
