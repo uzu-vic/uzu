@@ -369,7 +369,13 @@ function makeHandler(env: Env, fetchImpl: Fetch = fetch, log: (o: Json) => void 
   }
 
   const cron = async (req: Request, what: "sweep" | "purge") => {
-    if (!sameSecret(req.headers.get("x-cron-secret") || "", env.cronSecret)) return json(req, 403, { error: "Accès refusé" })
+    const got = req.headers.get("x-cron-secret") || ""
+    if (!sameSecret(got, env.cronSecret)) {
+      // Diagnostic sans fuite : présence, longueurs et 8 premiers caractères de l'empreinte SHA-256 (jamais la valeur)
+      const fp = async (s: string) => s ? Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 8) : ""
+      log({ a: what, ok: false, err: "secret", recu: !!got, lg_recu: got.length, lg_attendu: env.cronSecret.length, fp_recu: await fp(got), fp_attendu: await fp(env.cronSecret) })
+      return json(req, 403, { error: "Accès refusé" })
+    }
     let purged: unknown = null
     if (what === "purge") purged = await rpc("media_purge", {})
     let total = 0
