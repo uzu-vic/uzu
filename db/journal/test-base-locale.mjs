@@ -65,7 +65,19 @@ ok("responsable : ajoute le groupe secondaire Adultes Gi à un adhérent No-Gi",
 ok("groupe principal inchangé (aucune donnée existante modifiée)", (await db.query("select section_id from public.academy_members where user_id=$1", [B3])).rows[0].section_id === NG);
 ok("… il voit maintenant le Journal des deux groupes", (await feed(B3)).length === 1 && (await t(B3, "select public.journal_groups() g")).rows[0].g.filter(g => g.mine).length === 2);
 ok("groupe d'un autre club refusé", !!(await t(A1, "select public.set_member_groups($1, array[$2]::uuid[])", [await mid(B3), GD])).err);
+// Fiche élève : groupe principal + secondaires, par le compte de l'élève
+let sg = await t(A1, "select public.student_groups($1) j", [B3]);
+ok("fiche élève : groupes lus (principal No-Gi, secondaire Adultes Gi, modifiable)", sg.rows?.[0]?.j?.primary === NG && sg.rows[0].j.secondary.includes(GI) && sg.rows[0].j.can_edit === true, sg);
+r = await t(A1, "select public.set_student_groups($1, $2, array[$3]::uuid[]) n", [B3, GI, NG]);
+ok("responsable : change le groupe principal d'un élève et garde l'autre en secondaire", r.rows?.[0]?.n === 1 && (await db.query("select section_id from public.academy_members where user_id=$1", [B3])).rows[0].section_id === GI, r);
+await t(A1, "select public.set_student_groups($1, $2, array[$3]::uuid[]) n", [B3, NG, GI]);
+ok("le groupe d'un membre de l'équipe ne se règle pas par la fiche élève", !!(await t(A1, "select public.set_student_groups($1, $2, '{}'::uuid[])", [L1, GI])).err && (await db.query("select section_id from public.academy_members where user_id=$1", [L1])).rows[0].section_id === NG);
+ok("personne ne modifie ses propres groupes (pas d'élévation de droits)", !!(await t(A1, "select public.set_member_groups($1, array[$2]::uuid[])", [await mid(A1), GI])).err && !!(await t(A1, "select public.set_student_groups($1, null, '{}'::uuid[])", [A1])).err);
+ok("élève : ne lit pas les groupes d'un autre élève", !!(await t(B3, "select public.student_groups($1)", [B1])).err);
+ok("autre club : élève introuvable", !!(await t(D1, "select public.student_groups($1)", [B3])).err);
 
+const gA = (await t(I1, "select public.journal_groups() g")).rows[0].g;
+ok("groupes côté équipe : cours rattachés et droit de création par groupe", gA.find(g => g.id === GI)?.courses?.includes("x1") && gA.find(g => g.id === GI)?.can_create === true && gA.find(g => g.id === NG)?.can_create === false, gA);
 // Droits des professeurs
 r = await save(I1, null, { theme: "Gardes ouvertes" }, true);
 ok("prof (ses cours) : crée et publie une séance de son cours", r.rows?.[0]?.j?.status === "publie", r); const s2 = r.rows?.[0]?.j?.id;

@@ -637,3 +637,54 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-lib-status--refuse { background: #171717; color: #fff; }
 .uzu-lib-status--archive { background: #eee9e2; color: #5c5650; }
 .uzu-lib-self { align-self: flex-start; }
+
+/* ---------- Journal des cours (lot J2) ---------- */
+.uzu-jr { display: flex; flex-direction: column; gap: 14px; }
+.uzu-jr-new { align-self: flex-start; }
+.uzu-jr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 520px) { .uzu-jr-grid { grid-template-columns: 1fr; } }
+.uzu-jr-mh { display: flex; align-items: baseline; justify-content: space-between; margin: 6px 0 8px; font-size: 15px; font-weight: 700; color: #171717; }
+.uzu-jr-mh small { color: #777; font-size: 12px; font-weight: 400; }
+.uzu-jr-line { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.uzu-jr-card { display: flex; width: 100%; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid #ebe6df; border-radius: 14px; background: #fff; color: #171717; text-align: left; }
+.uzu-jr-card:active { background: #faf8f5; }
+.uzu-jr-date { display: flex; flex: none; flex-direction: column; align-items: center; justify-content: center; width: 46px; height: 50px; border-radius: 10px; background: #f5f2ed; color: #171717; }
+.uzu-jr-date b { font-size: 18px; line-height: 1; }
+.uzu-jr-date small { margin-top: 3px; color: #777; font-size: 10px; letter-spacing: .04em; }
+.uzu-jr-date.hot { background: #941b2b; color: #fff; }
+.uzu-jr-date.hot small { color: #f3dcdf; }
+.uzu-jr-date.big { width: 58px; height: 62px; }
+.uzu-jr-date.big b { font-size: 24px; }
+.uzu-jr-body { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 5px; }
+.uzu-jr-body > b { font-size: 15px; }
+.uzu-jr-body > small { color: #777; font-size: 12px; }
+.uzu-jr-meta { display: inline-flex; align-items: center; gap: 4px; color: #777; font-size: 12px; }
+.uzu-jr-st--brouillon { background: #f3ece2; color: #7a5b2e; }
+.uzu-jr-st--publie { background: #e9f2ea; color: #2f6b3a; }
+.uzu-jr-st--depublie { background: #eeeeee; color: #555; }
+.uzu-jr-todo { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px dashed #941b2b; border-radius: 14px; background: #fff; }
+.uzu-jr-todo h2 { margin: 0 0 2px; color: #941b2b; font-size: 13px; font-weight: 700; }
+.uzu-jr-todo button { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 8px; padding: 0; border: 0; background: none; color: #171717; font-size: 13px; text-align: left; }
+.uzu-jr-todo button span:last-child { flex: none; color: #941b2b; font-weight: 600; }
+.uzu-jr-head { display: flex; gap: 12px; align-items: center; }
+.uzu-jr-head > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.uzu-jr-free { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.uzu-jr-prevnext { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.uzu-jr-prevnext button { display: flex; flex-direction: column; gap: 3px; min-height: 56px; padding: 10px 12px; border: 1px solid #ebe6df; border-radius: 12px; background: #fff; color: #171717; font-size: 13px; text-align: left; }
+.uzu-jr-prevnext button.r { text-align: right; }
+.uzu-jr-prevnext small { color: #941b2b; font-size: 11px; font-weight: 600; }
+.uzu-jr-mine { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: #f5f2ed; }
+.uzu-jr-mine p { margin: 0; color: #444; font-size: 13px; }
+.uzu-jr-focus { padding: 14px 16px; border-radius: 14px; background: #171717; color: #fff; }
+.uzu-jr-focus span { color: #d9a5ad; font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+.uzu-jr-focus h2 { margin: 4px 0 0; font-size: 18px; }
+.uzu-jr-focus p { margin: 6px 0 0; color: #ddd; font-size: 13px; }
+.uzu-jr-techs { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; }
+.uzu-jr-pick { display: flex; width: 100%; min-height: 46px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px; border: 0; background: none; color: #171717; font-size: 13px; text-align: left; }
+.uzu-jr-add { flex: none; color: #941b2b; font-weight: 600; }
+.uzu-lib-chips button.on { background: #171717; color: #fff; }
+.uzu-jr-more { padding: 10px 14px; }
+.uzu-jr-more summary { min-height: 32px; color: #171717; font-size: 13px; font-weight: 600; cursor: pointer; }
+.uzu-jr-groups { display: flex; flex-direction: column; gap: 8px; }
+.uzu-rollcall-jr { align-self: stretch; }
+.uzu-jr-hint { margin-top: -8px; font-size: 12px; }

@@ -7,6 +7,7 @@ import { can } from "@/lib/uzu/permissions"
 import { addNote, assidOf, deleteNote, listNotes, removeStudent, reqText, verifyTechnique, type ClubData, type Note, type StudentRow } from "@/lib/uzu/club"
 import { BeltMark, Bar, Stars, TopList } from "@/components/uzu/progress"
 import { ClubHeading, ClubLoading, GrantForm, InvitePanel, initialsOf, normTxt, useClub, type ClubProps } from "@/components/uzu/club"
+import { StudentGroupsPanel } from "@/components/uzu/class-journal"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -116,6 +117,7 @@ function StudentSheet({ uid, ctx, data, st, onBack, onToast, onChanged }: { uid:
       <div className="uzu-belt-head"><BeltMark rank={st.belt.rank} stripes={st.belt.stripes} size={72} /><div><b>{C.beltLabel(st.belt)}, {C.stripesTxt(st.belt.stripes)}</b>
         <p className="uzu-text uzu-small">{st.belt.since ? "À ce grade depuis " + C.duration(st.belt.since) : "Date de passage non renseignée"}{k ? " · Système fort : " + C.SYSTEMS[k].n : ""}</p></div></div>
       <div className="uzu-counts uzu-counts--4"><div><b>{st.hours} h</b><small>de tapis au total</small></div><div><b>{st.n30}</b><small>séances sur 30 jours</small></div><div><b>{st.stars3}</b><small>techniques à 3 étoiles</small></div><div><b>{st.mast} %</b><small>maîtrise des systèmes</small></div></div>
+      <StudentGroupsPanel ctx={ctx} user={st.id} onToast={onToast} />
       <p className="uzu-text">Médailles : <b>{st.medals.or} or · {st.medals.argent} argent · {st.medals.bronze} bronze</b></p>
       {st.req && <p className="uzu-note wait">Demande en attente : {reqText(C, st.belt, st.req)}</p>}
       {g && g.decidedAt && <p className="uzu-text uzu-small uzu-muted">Dernière décision : {g.status || "validé"} le {C.frDate(String(g.decidedAt).slice(0, 10))}{g.comment ? ` · « ${g.comment} »` : ""}</p>}

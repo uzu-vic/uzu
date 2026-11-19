@@ -54,7 +54,7 @@ function useTeam(ctx: UzuContext | null) {
 const KIND_TONE: Record<string, string> = { cours: "wine", open: "dark", compet: "sand", prive: "sand" }
 const seasonLbl = () => { const d = new Date(), y = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; return `SAISON ${y}–${String(y + 1).slice(2)}` }
 
-export function ClubCourses({ ctx, onToast, onReloadCtx }: AdminProps) {
+export function ClubCourses({ ctx, onToast, onReloadCtx, tabs }: AdminProps & { tabs?: React.ReactNode }) {
   const { team, reload: reloadTeam } = useTeam(ctx)
   const [mc, setMc] = useState<MyCourses>({ assigned: [], section: [], staff: [] })
   const [mcTick, setMcTick] = useState(0)
@@ -88,6 +88,7 @@ export function ClubCourses({ ctx, onToast, onReloadCtx }: AdminProps) {
   return <>
     <div className="page-heading"><div><div className="eyebrow">{(ctx?.club?.name || "").toUpperCase()}<span className="eyebrow-dot" />{seasonLbl()}</div><h1>Les cours, en rythme<span className="heading-period">.</span></h1><p>Votre calendrier pédagogique et les rendez-vous de l&apos;académie.</p></div>
       {canEdit && <button className="button button--dark" onClick={() => { setEditing("new"); window.scrollTo(0, 0) }}><Plus size={16} />Créer un cours</button>}</div>
+    {tabs}
     {editing && <CourseEditor slot={editing === "new" ? null : editing} busy={busy} canStaff={editing !== "new" && canStaff(editing.id) && !!team}
       onCancel={() => setEditing(null)} onStaff={() => { if (editing !== "new") { setStaffFor(editing.id); setEditing(null) } }}
       onSave={x => editing === "new" ? saveSchedule(raw.concat([x]), "Cours ajouté au planning") : saveSchedule(raw.map(y => (y.id === x.id ? x : y)), "Cours modifié")}

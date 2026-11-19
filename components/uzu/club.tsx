@@ -6,6 +6,7 @@ import { Award, CalendarDays, CheckCircle2, ClipboardCheck, Search, Send, Trendi
 import type { UzuContext } from "@/lib/uzu/context"
 import { can } from "@/lib/uzu/permissions"
 import { nextClasses, slotTag } from "@/lib/uzu/training"
+import { journalGroups } from "@/lib/uzu/class-journal"
 import {
   courseAllowed, decideGrade, getMyCourses, getRollStudents, hasAbs, hasRoll, listProposals, loadClubData, proposeGrade, reqText, rollOptions,
   rollSummary, saveAttendance, type ClubData, type MyCourses, type Proposal, type RollOption, type StudentRow,
@@ -152,6 +153,9 @@ function RollCall({ uid, ctx, data, mc, onToast, onSaved }: { uid: string; ctx: 
   const [q, setQ] = useState("")
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState("")
+  // Après l'appel : passer au Journal des cours (si le script est en place et qu'un groupe est ouvert à l'écriture)
+  const [jr, setJr] = useState(false)
+  useEffect(() => { if (!can(ctx, "class_journal", "create")) return; let live = true; journalGroups().then(r => { if (live) setJr(r.ok && Array.isArray(r.data) && r.data.some(g => g.can_create)) }); return () => { live = false } }, [ctx])
   const o: RollOption | undefined = opts.find(x => x.key === sel) || opts[0]
   useEffect(() => {
     if (!o) return
@@ -198,6 +202,7 @@ function RollCall({ uid, ctx, data, mc, onToast, onSaved }: { uid: string; ctx: 
         return <li key={s.id}><span className="uzu-av" aria-hidden="true">{initialsOf(s.name)}</span><span className="uzu-roll-n"><b>{s.name}</b>{prev && <small>déjà noté pour ce cours</small>}</span>
           <span className="uzu-roll-btns" role="group" aria-label={s.name}><button type="button" className={v === false ? "abs" : ""} aria-pressed={v === false} disabled={!canWrite} onClick={() => mark(s.id, false)}>Absent</button><button type="button" className={v === true ? "pres" : ""} aria-pressed={v === true} disabled={!canWrite} onClick={() => mark(s.id, true)}>Présent</button></span></li> })}</ul>}
     {done && <p className="uzu-note ok" role="status">{done}</p>}
+    {done && jr && o && <button type="button" className="button button--outline uzu-rollcall-jr" onClick={() => window.dispatchEvent(new CustomEvent("uzu-nav", { detail: { page: "courses", arg: `journal:new:${o.course}:${o.date}` } }))}>Saisir la séance au Journal des cours</button>}
     {canWrite ? <button className="button button--dark uzu-wide" disabled={busy || list === null} onClick={save}>{busy ? "Enregistrement…" : p || a ? `Valider l'appel (${pl(p, "présent")}, ${pl(a, "absent")})` : "Valider l'appel"}</button>
       : <p className="uzu-note">Tu peux consulter cet appel mais pas le modifier.</p>}
     <p className="uzu-text uzu-small uzu-muted">Rien n'est enregistré avant « Valider l'appel ». Chaque élève présent reçoit une séance pré-remplie avec le focus du moment, qu'il pourra compléter.</p>

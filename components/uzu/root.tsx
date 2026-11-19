@@ -22,7 +22,8 @@ import { AthleteFeed, AthleteProfile } from "@/components/uzu/social"
 import { syncPending } from "@/lib/uzu/journal"
 import { ClubAttendance, ClubHome, ClubProgress } from "@/components/uzu/club"
 import { ClubStudents } from "@/components/uzu/club-students"
-import { ClubAcademy, ClubContents, ClubCourses, ClubTeam } from "@/components/uzu/club-admin"
+import { ClubAcademy, ClubContents, ClubTeam } from "@/components/uzu/club-admin"
+import { ClubCoursesPage } from "@/components/uzu/class-journal"
 import { BellButton, NotifCenter, useNotifs } from "@/components/uzu/notifications"
 import { Login, Recovery, Welcome } from "@/components/uzu/auth-screens"
 import { PENDING, acceptInvitation, captureInviteToken, cleanInviteUrl, dropInviteToken, inviteToken } from "@/lib/uzu/auth"
@@ -189,7 +190,8 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
   const greet = firstName(String(meta.name || meta.full_name || "") || storedName)
   const memberships = (ctx?.memberships ?? []).filter(m => m.status === "active")
   const [navArg, setNavArg] = useState("")
-  const go = (id: string, arg = "") => { setActive(id); setNavArg(arg); setMenuOpen(false); setComposing(false); setEditing(null); window.scrollTo(0, 0) }
+  const [prefill, setPrefill] = useState<{ date: string; note: string; type: string } | null>(null)
+  const go = (id: string, arg = "") => { setActive(id); setNavArg(arg); setMenuOpen(false); setComposing(false); setEditing(null); setPrefill(null); window.scrollTo(0, 0) }
   const changeSpace = (s: Space) => { setSpace(s); setActive("home"); setMenuOpen(false); setComposing(false) }
 
   // Ouverture depuis une notification : ?go=vue (appli fermée) ou message du service worker (appli ouverte)
@@ -210,9 +212,15 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
   }, [!!ctx, openGo]) // eslint-disable-line react-hooks/exhaustive-deps
   // Ouverture d'une fiche de la bibliothèque depuis un autre écran (ex. détail d'une séance)
   useEffect(() => {
-    const onNav = (e: Event) => { const d = (e as CustomEvent).detail || {}; if (d.page === "path") { setSpace("athlete"); go("path", String(d.arg || "")) } }
-    window.addEventListener("uzu-nav", onNav)
-    return () => window.removeEventListener("uzu-nav", onNav)
+    const onNav = (e: Event) => {
+      const d = (e as CustomEvent).detail || {}
+      if (d.page === "path") { setSpace("athlete"); go("path", String(d.arg || "")) }
+      else if (d.page === "courses" && staff) { setSpace("club"); go("courses", String(d.arg || "")) }
+    }
+    // « Noter dans mon journal » depuis un cours du groupe : saisie personnelle pré-remplie, rien d'enregistré d'office
+    const onCompose = (e: Event) => { const d = (e as CustomEvent).detail || {}; setSpace("athlete"); setActive("log"); setEditing(null); setPrefill({ date: String(d.date || ""), note: String(d.note || ""), type: String(d.type || "") }); setComposing(true); window.scrollTo(0, 0) }
+    window.addEventListener("uzu-nav", onNav); window.addEventListener("uzu-compose", onCompose)
+    return () => { window.removeEventListener("uzu-nav", onNav); window.removeEventListener("uzu-compose", onCompose) }
   }) // eslint-disable-line react-hooks/exhaustive-deps
   const [notifOpen, setNotifOpen] = useState(false)
   const notifs = useNotifs(session.user.id, ctx, n => showToast(n.title))
@@ -258,7 +266,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
         {ctx && !teamOn(ctx) && <div className="uzu-banner">La base de cet environnement n'a pas la migration « équipe » : affichage en mode simplifié.</div>}
         <ErrorBoundary key={space + ":" + (current?.id || "") + ":" + (composing ? "c" : "") + navArg + syncTick}>
         {space === "club" && isSuspended(ctx) ? <Suspended />
-          : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={(m, sid) => { setComposing(false); setEditing(null); setActive("log"); setNavArg(sid ? "journal:" + sid : "journal"); showToast(m); window.scrollTo(0, 0) }} />
+          : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new" + (prefill ? prefill.date + prefill.note : "")} uid={session.user.id} ctx={ctx} edit={editing} prefill={editing ? null : prefill} onCancel={() => { setComposing(false); setEditing(null); setPrefill(null) }} onDone={(m, sid) => { setComposing(false); setEditing(null); setPrefill(null); setActive("log"); setNavArg(sid ? "journal:" + sid : "journal"); showToast(m); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={greet} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick + navArg} uid={session.user.id} ctx={ctx} initial={navArg} onToast={showToast} />
           : space === "athlete" && current?.id === "progress" ? <AthleteProgress key={"p" + syncTick} uid={session.user.id} ctx={ctx} />
@@ -271,7 +279,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
           : space === "club" && teamOn(ctx) && current?.id === "students" ? <ClubStudents key={"cs" + ctx?.club?.id + navArg} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} initialFilter={navArg} />
           : space === "club" && teamOn(ctx) && current?.id === "progress" ? <ClubProgress key={"cp" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} />
           : space === "club" && teamOn(ctx) && current?.id === "contents" ? <ClubContents key={"cc" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
-          : space === "club" && teamOn(ctx) && current?.id === "courses" ? <ClubCourses key={"co" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
+          : space === "club" && teamOn(ctx) && current?.id === "courses" ? <ClubCoursesPage key={"co" + ctx?.club?.id + navArg} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} navArg={navArg} />
           : space === "club" && teamOn(ctx) && current?.id === "team" ? <ClubTeam key={"ct" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
           : space === "club" && teamOn(ctx) && current?.id === "academy" ? <ClubAcademy key={"ac" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} onReloadCtx={onReload} />
           : current && <Unavailable item={current} space={space} ctx={ctx} />}
