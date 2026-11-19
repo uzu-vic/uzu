@@ -59,6 +59,7 @@ ok("responsable : n'ouvre que le Grappling No-Gi", r.rows?.[0]?.v?.join() === "g
 ok("… l'élève ne voit plus que les 36 fiches No-Gi", await cnt(B1) === 36);
 ok("… et seulement les enchaînements FC3 et FC4", (await t(B1, "select string_agg(id, ',' order by id) s from public.lib_flows")).rows[0].s === "FC3,FC4");
 ok("… l'autre club garde tout son catalogue", await cnt(D1) === 70);
+ok("fermer toutes les disciplines refusé (la bibliothèque resterait inaccessible)", !!(await t(A1, "select public.library_set_disciplines(array[]::text[])")).err);
 ok("discipline inactive (MMA) refusée", !!(await t(A1, "select public.library_set_disciplines(array['mma'])")).err);
 ok("MMA invisible dans le catalogue tant qu'elle est inactive", (await t(B1, "select count(*)::int n from public.lib_disciplines where id='mma'")).rows[0].n === 0);
 await t(A1, "select public.library_set_disciplines(array['jjb_gi','grappling_nogi'])");
@@ -79,6 +80,9 @@ ok("accord des personnes filmées enregistré avec l'auteur et la date", (await 
 ok("relecteurs notifiés (responsable et prof autorisé, pas le prof sans droit)", (await db.query("select string_agg(user_id::text, ',' order by user_id) s from public.notifications where dedupe=$1", ["lib:" + it1])).rows[0].s === [A1, I1].sort().join(","));
 ok("prof autorisé : voit la proposition en attente", (await t(I1, "select count(*)::int n from public.club_lib_items where status='en_attente'")).rows[0].n === 1);
 ok("prof sans droit : ne la voit pas et ne peut pas la valider", (await t(I2, "select count(*)::int n from public.club_lib_items")).rows[0].n === 0 && !!(await t(I2, "select public.library_review_item($1,'publier','',null)", [it1])).err);
+r = await t(I1, "select public.library_review_queue() q"); const qq = r.rows?.[0]?.q;
+ok("file de validation : la proposition, avec le nom et le rôle de l'auteur", Array.isArray(qq) && qq.length === 1 && qq[0].author_role === "student" && !!qq[0].author_name, r);
+ok("file de validation refusée à un élève et au prof sans droit", !!(await t(B2, "select public.library_review_queue()")).err && !!(await t(I2, "select public.library_review_queue()")).err);
 ok("élève : ne peut pas valider", !!(await t(B2, "select public.library_review_item($1,'publier','',null)", [it1])).err);
 ok("auteur : ne peut plus modifier une proposition en attente", !!(await t(B1, "select public.library_save_item($1, $2::jsonb, false)", [it1, item({})])).err);
 ok("autre club : ne voit rien", (await t(D1, "select count(*)::int n from public.club_lib_items")).rows[0].n === 0);
@@ -86,7 +90,9 @@ ok("autre club : ne peut pas la valider", !!(await t(D1, "select public.library_
 ok("aucune écriture directe dans les contenus", !!(await t(B1, "update public.club_lib_items set status='publie'")).err && !!(await t(I1, "insert into public.club_lib_items (academy_id,kind,title,status) values ($1,'note','x','publie')", [CA])).err);
 ok("demande de précisions sans motif refusée", !!(await t(I1, "select public.library_review_item($1,'preciser','',null)", [it1])).err);
 r = await t(I1, "select public.library_review_item($1,'preciser','Préciser la prise de manche',null) s", [it1]);
-ok("demande de précisions → retour en brouillon avec motif", r.rows?.[0]?.s === "brouillon", r);
+ok("demande de précisions → « À compléter » avec motif", r.rows?.[0]?.s === "a_completer", r);
+ok("« À compléter » : l'auteur voit le motif, les autres élèves ne voient rien", (await t(B1, "select review_note from public.club_lib_items where id=$1", [it1])).rows?.[0]?.review_note === "Préciser la prise de manche" && (await t(B2, "select count(*)::int n from public.club_lib_items where id=$1", [it1])).rows[0].n === 0);
+ok("enregistrer sans renvoyer : reste « À compléter »", (await t(B1, "select public.library_save_item($1, $2::jsonb, false) j", [it1, item({ body: "brouillon", url: "https://youtu.be/abc", rights: true })])).rows?.[0]?.j?.status === "a_completer");
 ok("l'auteur est notifié de la demande", (await db.query("select 1 from public.notifications where user_id=$1 and dedupe=$2", [B1, "lib:" + it1 + ":preciser"])).rows.length === 1);
 await t(B1, "select public.library_save_item($1, $2::jsonb, true)", [it1, item({ body: "Avec saisie de la manche", url: "https://youtu.be/abc", rights: true })]);
 r = await t(I1, "select public.library_review_item($1,'publier','',$2::jsonb) s", [it1, JSON.stringify({ title: "Tripod depuis la Spider Guard" })]);
@@ -94,13 +100,15 @@ ok("validation avec correction du titre → publié", r.rows?.[0]?.s === "publie
 ok("publié : visible par tous les membres du club", (await t(B2, "select count(*)::int n from public.club_lib_items where status='publie'")).rows[0].n === 1);
 ok("… mais pas par l'autre club", (await t(D1, "select count(*)::int n from public.club_lib_items")).rows[0].n === 0);
 const ev = (await db.query("select string_agg(action, ',' order by id) s from public.club_lib_events where item_id=$1", [it1])).rows[0].s;
-ok("historique complet (création, envoi, précisions, envoi, validation)", ev === "creation,envoi,demande_precisions,envoi,validation", ev);
-ok("historique : lisible par les relecteurs, pas par les élèves", (await t(I1, "select count(*)::int n from public.club_lib_events")).rows[0].n === 5 && (await t(B2, "select count(*)::int n from public.club_lib_events")).rows[0].n === 0);
+ok("historique complet (création, envoi, précisions, modification, envoi, validation)", ev === "creation,envoi,demande_precisions,modification,envoi,validation", ev);
+ok("historique : lisible par les relecteurs, pas par les élèves", (await t(I1, "select count(*)::int n from public.club_lib_events")).rows[0].n === 6 && (await t(B2, "select count(*)::int n from public.club_lib_events")).rows[0].n === 0);
 r = await t(B2, "select public.library_save_item(null, $1::jsonb, true) j", [item({ kind: "astuce", title: "Astuce" })]); const it2 = r.rows?.[0]?.j?.id;
 ok("refus sans motif impossible", !!(await t(I1, "select public.library_review_item($1,'refuser','',null)", [it2])).err);
 ok("refus avec motif", (await t(I1, "select public.library_review_item($1,'refuser','Hors programme',null) s", [it2])).rows?.[0]?.s === "refuse");
 ok("refusé : visible de l'auteur avec le motif, pas des autres élèves", (await t(B2, "select review_note from public.club_lib_items where id=$1", [it2])).rows?.[0]?.review_note === "Hors programme" && (await t(B1, "select count(*)::int n from public.club_lib_items where id=$1", [it2])).rows[0].n === 0);
 r = await t(A1, "select public.library_save_item(null, $1::jsonb, true) j", [item({ kind: "note", title: "Note du responsable" })]);
+ok("question pédagogique sans fiche (discipline choisie) : envoyée en attente", (await t(B1, "select public.library_save_item(null, $1::jsonb, true) j", [JSON.stringify({ kind: "question", discipline_id: "grappling_nogi", title: "Quand préférer le Knee Cut ?", body: "" })])).rows?.[0]?.j?.status === "en_attente");
+ok("élève : annotation réservée à l'équipe", !!(await t(B1, "select public.library_save_item(null, $1::jsonb, false)", [item({ kind: "note", title: "x" })])).err);
 ok("responsable : publication directe", r.rows?.[0]?.j?.status === "publie", r);
 r = await t(I2, "select public.library_save_item(null, $1::jsonb, true) j", [item({ kind: "note", title: "Note prof sans droit" })]);
 ok("prof sans droit : passe par la validation", r.rows?.[0]?.j?.status === "en_attente", r);

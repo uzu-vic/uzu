@@ -51,7 +51,7 @@ function clubNav(ctx: UzuContext | null): NavItem[] {
     { id: "attendance", label: "Présences", icon: CheckCircle2, legacy: "prof", show: can(ctx, "attendance", "view") || can(ctx, "attendance", "create") },
     { id: "students", label: "Élèves", icon: Users, legacy: "prof", show: can(ctx, "students", "view") },
     { id: "progress", label: "Progression", icon: TrendingUp, legacy: "prof", show: can(ctx, "progression", "view") || can(ctx, "belts", "view") || can(ctx, "belts", "create") },
-    { id: "contents", label: "Contenus", icon: Newspaper, legacy: "prof", show: can(ctx, "contents", "view") || can(ctx, "communications", "view") || can(ctx, "communications", "create") },
+    { id: "contents", label: "Contenus", icon: Newspaper, legacy: "prof", show: can(ctx, "contents", "view") || can(ctx, "communications", "view") || can(ctx, "communications", "create") || can(ctx, "library", "approve") || can(ctx, "library", "manage") },
     { id: "courses", label: "Cours", icon: CalendarDays, legacy: "prof", show: can(ctx, "schedule", "view") || can(ctx, "courses", "view") },
     { id: "team", label: "Équipe", icon: GraduationCap, legacy: "prof", show: can(ctx, "instructors", "view") },
     { id: "academy", label: "Mon académie", icon: ShieldCheck, legacy: "prof", show: true },
@@ -260,7 +260,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
         {space === "club" && isSuspended(ctx) ? <Suspended />
           : space === "athlete" && composing ? <JournalForm key={editing ? editing.kind + editing.id : "new"} uid={session.user.id} ctx={ctx} edit={editing} onCancel={() => { setComposing(false); setEditing(null) }} onDone={(m, sid) => { setComposing(false); setEditing(null); setActive("log"); setNavArg(sid ? "journal:" + sid : "journal"); showToast(m); window.scrollTo(0, 0) }} />
           : space === "athlete" && current?.id === "home" ? <AthleteHome key={"h" + syncTick} uid={session.user.id} ctx={ctx} name={greet} onNavigate={go} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
-          : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick + navArg} uid={session.user.id} ctx={ctx} initial={navArg} />
+          : space === "athlete" && current?.id === "path" ? <AthleteTechniques key={"t" + syncTick + navArg} uid={session.user.id} ctx={ctx} initial={navArg} onToast={showToast} />
           : space === "athlete" && current?.id === "progress" ? <AthleteProgress key={"p" + syncTick} uid={session.user.id} ctx={ctx} />
           : space === "athlete" && current?.id === "log" ? <AthleteSessions key={"l" + syncTick + navArg} initialTab={navArg} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} onEdit={(kind, id) => { setEditing({ kind, id }); setComposing(true); window.scrollTo(0, 0) }} onToast={showToast} />
           : space === "athlete" && current?.id === "stats" ? <AthleteStats key={"st" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />

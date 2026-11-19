@@ -14,16 +14,17 @@ import { Stars } from "@/components/uzu/progress"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
 
-export function useLibrary(ctx: UzuContext | null): LibraryState {
+/** tick > 0 : recharge (après une modification) */
+export function useLibrary(ctx: UzuContext | null, tick = 0): LibraryState {
   const [st, setSt] = useState<LibraryState>({ status: "loading" })
   const key = ctx?.club?.id || ""
   useEffect(() => {
     if (!ctx) return
     if (!key || ctx.role === "solo") { setSt({ status: "unavailable" }); return }
     let live = true
-    loadLibrary(key).then(s => { if (live) setSt(s) })
+    loadLibrary(key, tick > 0).then(s => { if (live) setSt(s) })
     return () => { live = false }
-  }, [key, ctx?.role]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, ctx?.role, tick]) // eslint-disable-line react-hooks/exhaustive-deps
   return st
 }
 
@@ -47,7 +48,9 @@ function OriginBadges({ t }: { t: LibTechnique }) {
 
 // ---------------------------------------------------------------- Volet Bibliothèque
 type Filter = "all" | "ref" | "prop" | "club"
-export function LibraryPane({ lib, C, P, onOpen, initialQuery = "", initialLinked = "" }: { lib: Library; C: Any; P: Any; onOpen: (id: string) => void; initialQuery?: string; initialLinked?: string }) {
+export function LibraryPane({ lib, C, P, onOpen, onPropose, onMine, initialQuery = "", initialLinked = "" }: { lib: Library; C: Any; P: Any; onOpen: (id: string) => void; onPropose?: () => void; onMine?: () => void; initialQuery?: string; initialLinked?: string }) {
+  const [col, setCol] = useState("")
+  const collection = lib.collections.find(c => c.id === col) || null
   const [disc, setDisc] = useState(lib.disciplines[0]?.id || "")
   const [q, setQ] = useState(initialQuery)
   const [linked, setLinked] = useState(initialLinked)
@@ -65,7 +68,24 @@ export function LibraryPane({ lib, C, P, onOpen, initialQuery = "", initialLinke
   const filtered = searching || origin !== "all" || withVideo || mine
   const cats = lib.categories.filter(c => searching ? list.some(t => t.category_id === c.id) : c.discipline_id === disc)
   const discLabel = (id: string) => lib.disciplines.find(d => d.id === id)?.label || ""
+  if (collection) {
+    const ids = collection.items.map(x => x.technique_id).filter((x): x is string => !!x && !!lib.byId[x])
+    return <div className="uzu-lib">
+      <button type="button" className="uzu-lib-back" onClick={() => setCol("")}><ChevronLeft size={16} aria-hidden="true" />Toute la bibliothèque</button>
+      <div className="eyebrow">COLLECTION DU CLUB</div>
+      <h2 className="uzu-lib-title uzu-lib-title--flow">{collection.name}</h2>
+      {collection.description && <p className="uzu-text">{collection.description}</p>}
+      <ol className="uzu-lib-cards uzu-lib-cat">{ids.map((id, i) => { const t = lib.byId[id], nm = splitName(t.name); return <li key={id}><button type="button" className="uzu-lib-card" onClick={() => onOpen(id)}>
+        <span className="uzu-lib-card-top"><b>{i + 1}. {nm.main}</b><ChevronRight size={15} aria-hidden="true" /></span>{nm.sub && <small className="uzu-lib-card-sub">{nm.sub}</small>}</button></li> })}</ol>
+      {!ids.length && <p className="uzu-lib-empty">Cette collection est vide.</p>}
+    </div>
+  }
   return <div className="uzu-lib">
+    {(onPropose || onMine) && <div className="uzu-lib-actions uzu-lib-actions--left">
+      {onPropose && <button type="button" className="button button--dark" onClick={onPropose}>Proposer un contenu</button>}
+      {onMine && <button type="button" className="button button--outline" onClick={onMine}>Mes contributions</button>}
+    </div>}
+    {lib.collections.length > 0 && <div className="uzu-lib-colls"><span className="uzu-label">Collections du club</span><div className="uzu-chips uzu-chips--small">{lib.collections.map(c => <button key={c.id} type="button" onClick={() => setCol(c.id)}>{c.name}</button>)}</div></div>}
     {lib.disciplines.length > 1 && <div className="uzu-lib-disc" role="group" aria-label="Discipline">
       {lib.disciplines.map(d => <button key={d.id} type="button" aria-pressed={disc === d.id && !searching} className={disc === d.id && !searching ? "on" : ""} onClick={() => { setDisc(d.id); setQ("") }}>{d.label}</button>)}
     </div>}
@@ -110,7 +130,7 @@ export function LibraryPane({ lib, C, P, onOpen, initialQuery = "", initialLinke
 }
 
 // ---------------------------------------------------------------- Fiche technique
-export function FicheView({ lib, C, P, id, onBack, onOpenFlow }: { lib: Library; C: Any; P: Any; id: string; onBack: () => void; onOpenFlow: (flowId: string) => void }) {
+export function FicheView({ lib, C, P, id, onBack, onOpenFlow, onPropose }: { lib: Library; C: Any; P: Any; id: string; onBack: () => void; onOpenFlow: (flowId: string) => void; onPropose?: (init: { kind: "variante" | "lien" | "question"; technique_id: string; title?: string }) => void }) {
   const t = lib.byId[id]
   useEffect(() => { window.scrollTo(0, 0) }, [id])
   if (!t) return <section className="panel"><button type="button" className="text-link" onClick={onBack}><ChevronLeft size={15} />Bibliothèque</button><p className="uzu-text">Cette fiche n'est pas disponible dans ton club.</p></section>
@@ -146,6 +166,11 @@ export function FicheView({ lib, C, P, id, onBack, onOpenFlow }: { lib: Library;
         <b>{n.title}</b>{n.body && <p>{n.body}</p>}</div>)
         : <p className="uzu-lib-empty">Pas encore de variante ni de note du club.</p>}
     </section>
+    {onPropose && <div className="uzu-lib-actions">
+      <button type="button" className="button button--dark" onClick={() => onPropose({ kind: "variante", technique_id: t.id })}>Proposer une variante</button>
+      <button type="button" className="button button--outline" onClick={() => onPropose({ kind: "lien", technique_id: t.id })}>Proposer une vidéo</button>
+      <button type="button" className="text-link" onClick={() => onPropose({ kind: "question", technique_id: t.id, title: "Remarque sur la fiche " + t.id })}>Poser une question ou signaler une erreur</button>
+    </div>}
   </article>
 }
 

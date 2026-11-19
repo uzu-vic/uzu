@@ -105,7 +105,7 @@ create table if not exists public.club_lib_settings (
 create table if not exists public.club_lib_items (
   id                  uuid primary key default gen_random_uuid(),
   academy_id          uuid not null references public.clubs (id) on delete cascade,
-  kind                text not null check (kind in ('technique','variante','note','lien','astuce')),
+  kind                text not null check (kind in ('technique','variante','note','lien','astuce','question')),
   technique_id        text references public.lib_techniques (id) on delete set null,
   discipline_id       text references public.lib_disciplines (id),
   title               text not null check (length(btrim(title)) between 1 and 120),
@@ -113,7 +113,7 @@ create table if not exists public.club_lib_items (
   url                 text check (url is null or (length(url) <= 300 and url ~ '^https://')),
   rights_declared_at  timestamptz,
   rights_declared_by  uuid references auth.users (id) on delete set null,
-  status              text not null default 'brouillon' check (status in ('brouillon','en_attente','publie','refuse','archive')),
+  status              text not null default 'brouillon' check (status in ('brouillon','en_attente','a_completer','publie','refuse','archive')),
   author_id           uuid references auth.users (id) on delete set null,
   reviewer_id         uuid references auth.users (id) on delete set null,
   review_note         text not null default '' check (length(review_note) <= 1000),
@@ -123,6 +123,11 @@ create table if not exists public.club_lib_items (
   updated_at          timestamptz not null default now(),
   check (url is null or status in ('brouillon','archive') or rights_declared_at is not null)
 );
+-- Rejouable sur une base où une version antérieure du script a déjà créé la table
+alter table public.club_lib_items drop constraint if exists club_lib_items_kind_check;
+alter table public.club_lib_items add constraint club_lib_items_kind_check check (kind in ('technique','variante','note','lien','astuce','question'));
+alter table public.club_lib_items drop constraint if exists club_lib_items_status_check;
+alter table public.club_lib_items add constraint club_lib_items_status_check check (status in ('brouillon','en_attente','a_completer','publie','refuse','archive'));
 create index if not exists club_lib_items_academy_idx on public.club_lib_items (academy_id, status);
 create index if not exists club_lib_items_author_idx on public.club_lib_items (author_id);
 create index if not exists club_lib_items_tech_idx on public.club_lib_items (technique_id);
@@ -226,6 +231,13 @@ create or replace function public.uzu_lib_event(p_academy uuid, p_item uuid, p_a
 returns void language sql security definer set search_path = public as $$
   insert into public.club_lib_events (academy_id, item_id, actor_id, action, details)
   values (p_academy, p_item, auth.uid(), p_action, coalesce(p_details, '{}'::jsonb))
+$$;
+
+-- Membre actif de l'équipe (pas élève) de l'académie
+create or replace function public.uzu_is_coach_of_academy(p_academy uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select auth.uid() is not null and exists (select 1 from public.academy_members
+    where academy_id = p_academy and user_id = auth.uid() and role <> 'student' and status = 'active')
 $$;
 
 -- Lien vidéo accepté : YouTube ou Instagram, en https
@@ -335,6 +347,7 @@ begin
   select coalesce(array_agg(id order by position), '{}'::text[]) into v_list
     from public.lib_disciplines where active and id = any (coalesce(p_disciplines, '{}'::text[]));
   if cardinality(coalesce(p_disciplines, '{}'::text[])) <> cardinality(v_list) then raise exception 'Discipline inconnue ou inactive'; end if;
+  if cardinality(v_list) = 0 then raise exception 'Garde au moins une discipline ouverte'; end if;
   insert into public.club_lib_settings (academy_id, disciplines, updated_by, updated_at)
   values (v_a, v_list, v_uid, now())
   on conflict (academy_id) do update set disciplines = excluded.disciplines, updated_by = excluded.updated_by, updated_at = now();
@@ -344,7 +357,8 @@ end $$;
 
 -- Créer ou modifier une contribution, puis l'enregistrer en brouillon ou l'envoyer.
 -- p_item : {kind, technique_id, discipline_id, title, body, url, rights}
--- Un relecteur autorisé publie directement ; les autres passent par la validation.
+-- kind : technique (découverte), variante, lien (vidéo), question, astuce ; note = annotation de l'équipe
+-- Un relecteur autorisé publie directement ; les autres passent par la validation (jamais automatique).
 create or replace function public.library_save_item(p_id uuid, p_item jsonb, p_submit boolean) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
@@ -361,7 +375,8 @@ begin
   v_body  := btrim(coalesce(p_item->>'body', ''));
   v_url   := nullif(btrim(coalesce(p_item->>'url', '')), '');
   v_rights := coalesce((p_item->>'rights')::boolean, false);
-  if v_kind not in ('technique','variante','note','lien','astuce') then raise exception 'Type de contenu invalide'; end if;
+  if v_kind not in ('technique','variante','note','lien','astuce','question') then raise exception 'Type de contenu invalide'; end if;
+  if v_kind = 'note' and not public.uzu_is_coach_of_academy(v_a) then raise exception 'Les annotations sont réservées à l''équipe pédagogique'; end if;
   if length(v_title) not between 1 and 120 then raise exception 'Titre obligatoire (120 caractères au plus)'; end if;
   if length(v_body) > 4000 then raise exception 'Texte trop long (4000 caractères au plus)'; end if;
   if not public.uzu_lib_url_ok(v_url) then raise exception 'Lien accepté : YouTube ou Instagram, en https'; end if;
@@ -369,7 +384,7 @@ begin
   if v_tech is not null then
     select discipline_id into v_disc from public.lib_techniques where id = v_tech;
     if v_disc is null then raise exception 'Fiche inconnue'; end if;
-  elsif v_kind <> 'technique' then
+  elsif v_kind not in ('technique','question') then
     raise exception 'Choisis la fiche UZU concernée';
   end if;
   if v_disc is null or not (v_disc = any (public.uzu_lib_disciplines(v_a))) then raise exception 'Discipline non activée dans ce club'; end if;
@@ -380,12 +395,13 @@ begin
   if p_id is not null then
     select * into v_old from public.club_lib_items where id = p_id and academy_id = v_a for update;
     if v_old.id is null or v_old.author_id is distinct from v_uid then raise exception 'Contenu introuvable'; end if;
-    if v_old.status not in ('brouillon','refuse') then raise exception 'Ce contenu ne peut plus être modifié'; end if;
+    if v_old.status not in ('brouillon','refuse','a_completer') then raise exception 'Ce contenu ne peut plus être modifié'; end if;
   elsif (select count(*) from public.club_lib_items where author_id = v_uid and created_at > now() - interval '1 day') >= 30 then
     raise exception 'Trop de contenus créés aujourd''hui : réessaie demain';
   end if;
 
-  v_status := case when not coalesce(p_submit, false) then 'brouillon' when v_reviewer then 'publie' else 'en_attente' end;
+  v_status := case when not coalesce(p_submit, false) then (case when v_old.status = 'a_completer' then 'a_completer' else 'brouillon' end)
+                   when v_reviewer then 'publie' else 'en_attente' end;
   if p_id is null then
     insert into public.club_lib_items (academy_id, kind, technique_id, discipline_id, title, body, url,
                                        rights_declared_at, rights_declared_by, status, author_id,
@@ -406,13 +422,14 @@ begin
            submitted_at = case when v_status <> 'brouillon' then now() else submitted_at end,
            published_at = case when v_status = 'publie' then now() else null end,
            reviewer_id  = case when v_status = 'publie' then v_uid else null end,
-           review_note  = case when v_status = 'brouillon' then review_note else '' end,
+           review_note  = case when v_status in ('brouillon','a_completer') then review_note else '' end,
+           -- une proposition « à compléter » reste à compléter tant qu'elle n'est pas renvoyée
            updated_at = now()
      where id = v_id;
   end if;
   perform public.uzu_lib_event(v_a, v_id,
     case when p_id is null and v_status = 'brouillon' then 'creation'
-         when v_status = 'brouillon' then 'modification'
+         when v_status in ('brouillon','a_completer') then 'modification'
          when v_status = 'publie' then 'publication_directe' else 'envoi' end,
     jsonb_build_object('kind', v_kind, 'technique', v_tech, 'rights', v_url is not null and v_rights));
   if v_status = 'en_attente' then
@@ -443,7 +460,7 @@ begin
     v_body  := btrim(coalesce(p_patch->>'body', v_body));
     if length(v_title) not between 1 and 120 or length(v_body) > 4000 then raise exception 'Correction invalide'; end if;
   end if;
-  v_status := case p_decision when 'publier' then 'publie' when 'refuser' then 'refuse' else 'brouillon' end;
+  v_status := case p_decision when 'publier' then 'publie' when 'refuser' then 'refuse' else 'a_completer' end;
   update public.club_lib_items set status = v_status, title = v_title, body = v_body, reviewer_id = v_uid,
          review_note = v_note, published_at = case when v_status = 'publie' then now() else published_at end,
          updated_at = now()
@@ -457,6 +474,22 @@ begin
       'library', 'lib:' || p_id || ':' || p_decision);
   end if;
   return v_status;
+end $$;
+
+-- File de validation (relecteurs) : propositions en attente, avec l'auteur et son rôle dans l'académie
+create or replace function public.library_review_queue() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare v_uid uuid := public.uzu_require_auth(); v_a uuid := public.uzu_active_academy();
+begin
+  if v_a is null or not public.uzu_can(v_a, 'library', 'approve') then raise exception 'Action non autorisée'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object(
+      'id', i.id, 'kind', i.kind, 'technique_id', i.technique_id, 'discipline_id', i.discipline_id, 'title', i.title,
+      'body', i.body, 'url', i.url, 'rights_declared_at', i.rights_declared_at, 'submitted_at', i.submitted_at,
+      'author_name', coalesce(nullif(m.display_name, ''), 'Un membre'), 'author_role', coalesce(m.role, ''))
+      order by i.submitted_at)
+    from public.club_lib_items i
+    left join public.academy_members m on m.academy_id = i.academy_id and m.user_id = i.author_id
+   where i.academy_id = v_a and i.status = 'en_attente'), '[]'::jsonb);
 end $$;
 
 -- Archiver (l'auteur pour ses contenus, un relecteur pour tous) : rien n'est effacé
@@ -546,6 +579,8 @@ revoke all on function public.library_set_disciplines(text[]) from public, anon;
 revoke all on function public.library_save_item(uuid, jsonb, boolean) from public, anon;
 revoke all on function public.library_review_item(uuid, text, text, jsonb) from public, anon;
 revoke all on function public.library_archive_item(uuid) from public, anon;
+revoke all on function public.library_review_queue() from public, anon;
+revoke all on function public.uzu_is_coach_of_academy(uuid) from public, anon;
 revoke all on function public.library_set_hidden(text, boolean) from public, anon;
 revoke all on function public.library_save_collection(uuid, text, text, int, jsonb) from public, anon;
 revoke all on function public.library_delete_collection(uuid) from public, anon;
@@ -557,6 +592,8 @@ grant execute on function public.library_set_disciplines(text[]) to authenticate
 grant execute on function public.library_save_item(uuid, jsonb, boolean) to authenticated;
 grant execute on function public.library_review_item(uuid, text, text, jsonb) to authenticated;
 grant execute on function public.library_archive_item(uuid) to authenticated;
+grant execute on function public.library_review_queue() to authenticated;
+grant execute on function public.uzu_is_coach_of_academy(uuid) to authenticated;
 grant execute on function public.library_set_hidden(text, boolean) to authenticated;
 grant execute on function public.library_save_collection(uuid, text, text, int, jsonb) to authenticated;
 grant execute on function public.library_delete_collection(uuid) to authenticated;

@@ -18,6 +18,8 @@ import {
 } from "@/lib/uzu/club"
 import { ClubHeading, ClubLoading, InvitePanel, initialsOf } from "@/components/uzu/club"
 import { checkVideo, loadVideos, removeVideo, uploadVideo, videoSlots, type VideoMap } from "@/lib/uzu/videos"
+import { useLibrary } from "@/components/uzu/library"
+import { ClubLibrary, type ClubTab } from "@/components/uzu/library-contrib"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -529,7 +531,19 @@ export function ClubContents({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
       </div>
     </section>}
     {(can(ctx, "contents", "create") || can(ctx, "contents", "view")) && C && club && <VideosCard C={C} clubId={club.id} uid={uid} canEdit={ctx?.role === "coach" && can(ctx, "contents", "create")} onToast={onToast} />}
+    <ClubLibrarySection ctx={ctx} onToast={onToast} />
   </>
+}
+
+// Bibliothèque technique côté club : visible seulement si le script uzu-9 est appliqué et si l'on a un droit
+function ClubLibrarySection({ ctx, onToast }: { ctx: UzuContext | null; onToast: (m: string) => void }) {
+  const [tick, setTick] = useState(0)
+  const [tab, setTab] = useState<ClubTab | "">("")
+  const st = useLibrary(ctx, tick)
+  if (st.status !== "ok") return null
+  const c = st.lib.ctx
+  if (!c.can_review && !c.can_manage && !c.can_configure) return null
+  return <ClubLibrary key={tick} lib={st.lib} tab={tab} onTab={setTab} onToast={onToast} onChanged={() => setTick(x => x + 1)} />
 }
 
 // ================================================================ Mon académie

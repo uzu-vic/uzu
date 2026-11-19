@@ -18,13 +18,18 @@ export type LibFlow = { id: string; discipline_id: string; position: number; tit
 export type LibStep = { id: string; flow_id: string; position: number; parent_id: string | null; kind: StepKind; branch_label: string | null; label: string; origin: "document" | "proposition" }
 export type StepKind = "depart" | "action" | "reaction" | "transition" | "finalisation" | "alternative"
 export type LibStepTech = { step_id: string; technique_id: string; position: number; origin: "document" | "proposition" }
-export type ClubItem = { id: string; kind: "technique" | "variante" | "note" | "lien" | "astuce"; technique_id: string | null; discipline_id: string | null; title: string; body: string; url: string | null; status: string; published_at: string | null }
+export type ItemKind = "technique" | "variante" | "note" | "lien" | "astuce" | "question"
+export type ItemStatus = "brouillon" | "en_attente" | "a_completer" | "publie" | "refuse" | "archive"
+export type ClubItem = { id: string; kind: ItemKind; technique_id: string | null; discipline_id: string | null; title: string; body: string; url: string | null; status: ItemStatus; published_at: string | null; review_note?: string; updated_at?: string; rights_declared_at?: string | null }
+export type Collection = { id: string; name: string; description: string; position: number; items: { technique_id: string | null; item_id: string | null }[] }
 export type LibContext = { academy: string | null; disciplines: string[]; can_review: boolean; can_manage: boolean; can_configure: boolean; hidden: string[]; pending: number }
 
 export type Library = {
   disciplines: LibDiscipline[]; categories: LibCategory[]; techniques: LibTechnique[]; flows: LibFlow[]
-  steps: LibStep[]; stepTechs: LibStepTech[]; items: ClubItem[]; ctx: LibContext
+  steps: LibStep[]; stepTechs: LibStepTech[]; items: ClubItem[]; ctx: LibContext; collections: Collection[]
   byId: Record<string, LibTechnique>
+  /** Toutes les fiches des disciplines ouvertes, masquées comprises (réglages du club) */
+  all: LibTechnique[]
 }
 export type LibraryState = { status: "loading" } | { status: "unavailable" } | { status: "error"; msg: string } | { status: "ok"; lib: Library }
 
@@ -47,7 +52,7 @@ async function fetchLibrary(): Promise<LibraryState> {
   if (ctxR.error) return absent(ctxR.error) ? { status: "unavailable" } : { status: "error", msg: ctxR.error.message }
   const ctx = (ctxR.data || {}) as LibContext
   if (!ctx.academy || !Array.isArray(ctx.disciplines) || !ctx.disciplines.length) return { status: "unavailable" }
-  const [d, c, t, f, s, st, it] = await Promise.all([
+  const [d, c, t, f, s, st, it, co, ci] = await Promise.all([
     db.from("lib_disciplines").select("id,label,long_label,position").order("position"),
     db.from("lib_categories").select("id,discipline_id,position,label").order("position"),
     db.from("lib_techniques").select("id,discipline_id,category_id,position,name,aliases,source_text,proposed_text,origin,level,validation_status,validation_refs,restricted,uzu_links").order("id"),
@@ -55,12 +60,15 @@ async function fetchLibrary(): Promise<LibraryState> {
     db.from("lib_flow_steps").select("id,flow_id,position,parent_id,kind,branch_label,label,origin").order("position"),
     db.from("lib_flow_step_techniques").select("step_id,technique_id,position,origin").order("position"),
     db.from("club_lib_items").select("id,kind,technique_id,discipline_id,title,body,url,status,published_at").eq("status", "publie").order("published_at", { ascending: false }),
+    db.from("club_lib_collections").select("id,name,description,position").order("position"),
+    db.from("club_lib_collection_items").select("collection_id,position,technique_id,item_id").order("position"),
   ])
-  for (const r of [d, c, t, f, s, st, it]) if (r.error) return absent(r.error) ? { status: "unavailable" } : { status: "error", msg: r.error.message }
+  for (const r of [d, c, t, f, s, st, it, co, ci]) if (r.error) return absent(r.error) ? { status: "unavailable" } : { status: "error", msg: r.error.message }
   const open = new Set(ctx.disciplines)
   const hidden = new Set(ctx.hidden || [])
-  const techniques = ((t.data || []) as LibTechnique[]).filter(x => open.has(x.discipline_id) && !hidden.has(x.id))
+  const all = ((t.data || []) as LibTechnique[]).filter(x => open.has(x.discipline_id))
     .map(x => ({ ...x, aliases: x.aliases || [], validation_refs: x.validation_refs || [], uzu_links: Array.isArray(x.uzu_links) ? x.uzu_links : [] }))
+  const techniques = all.filter(x => !hidden.has(x.id))
   const byId: Record<string, LibTechnique> = {}
   for (const x of techniques) byId[x.id] = x
   const flows = ((f.data || []) as LibFlow[]).filter(x => open.has(x.discipline_id))
@@ -73,7 +81,8 @@ async function fetchLibrary(): Promise<LibraryState> {
       techniques, flows, steps,
       stepTechs: ((st.data || []) as LibStepTech[]).filter(x => byId[x.technique_id]),
       items: ((it.data || []) as ClubItem[]).filter(x => x.status === "publie"),
-      ctx, byId,
+      collections: ((co.data || []) as Collection[]).map(x => ({ ...x, items: ((ci.data || []) as { collection_id: string; technique_id: string | null; item_id: string | null }[]).filter(y => y.collection_id === x.id) })),
+      ctx, byId, all,
     },
   }
 }
@@ -151,3 +160,37 @@ export function videoSource(url: string | null): "YouTube" | "Instagram" | null 
     return h === "youtube.com" || h === "youtu.be" ? "YouTube" : h === "instagram.com" ? "Instagram" : null
   } catch { return null }
 }
+
+// ---------------------------------------------------------------- Contributions et gestion (lot C)
+// Toutes les écritures passent par les fonctions serveur du script uzu-9 (droits vérifiés côté serveur).
+type R<T> = { ok: true; data: T } | { ok: false; msg: string }
+async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<R<T>> {
+  try {
+    const { data, error } = await uzu().rpc(name, args)
+    if (error) return { ok: false, msg: error.message || "Action refusée" }
+    clearLibraryCache()
+    return { ok: true, data: data as T }
+  } catch (e) { return { ok: false, msg: (e as Error).message || "Réseau indisponible" } }
+}
+export type ItemInput = { kind: ItemKind; technique_id?: string | null; discipline_id?: string | null; title: string; body: string; url?: string | null; rights?: boolean }
+export const saveItem = (id: string | null, item: ItemInput, submit: boolean) => rpc<{ id: string; status: ItemStatus }>("library_save_item", { p_id: id, p_item: item, p_submit: submit })
+export const reviewItem = (id: string, decision: "publier" | "refuser" | "preciser", note: string, patch?: { title?: string; body?: string } | null) => rpc<ItemStatus>("library_review_item", { p_id: id, p_decision: decision, p_note: note, p_patch: patch || null })
+export const archiveItem = (id: string) => rpc<boolean>("library_archive_item", { p_id: id })
+export const setHidden = (technique: string, hidden: boolean) => rpc<boolean>("library_set_hidden", { p_technique: technique, p_hidden: hidden })
+export const setDisciplines = (ids: string[]) => rpc<string[]>("library_set_disciplines", { p_disciplines: ids })
+export const saveCollection = (id: string | null, name: string, description: string, position: number, items: ({ t: string } | { i: string })[]) => rpc<string>("library_save_collection", { p_id: id, p_name: name, p_description: description, p_position: position, p_items: items })
+export const deleteCollection = (id: string) => rpc<boolean>("library_delete_collection", { p_id: id })
+export type QueueItem = ClubItem & { author_name: string; author_role: string; submitted_at: string }
+export const reviewQueue = () => rpc<QueueItem[]>("library_review_queue")
+/** Mes contributions (tous statuts) : la base ne renvoie que les miennes et les publiées */
+export async function myItems(uid: string): Promise<R<ClubItem[]>> {
+  const { data, error } = await uzu().from("club_lib_items").select("id,kind,technique_id,discipline_id,title,body,url,status,published_at,review_note,updated_at,rights_declared_at").eq("author_id", uid).order("updated_at", { ascending: false })
+  return error ? { ok: false, msg: error.message } : { ok: true, data: (data || []) as ClubItem[] }
+}
+/** Contenus du club pour l'équipe (publiés et archivés) */
+export async function clubItems(): Promise<R<ClubItem[]>> {
+  const { data, error } = await uzu().from("club_lib_items").select("id,kind,technique_id,discipline_id,title,body,url,status,published_at,review_note,updated_at").in("status", ["publie", "archive"]).order("updated_at", { ascending: false })
+  return error ? { ok: false, msg: error.message } : { ok: true, data: (data || []) as ClubItem[] }
+}
+export const STATUS_TXT: Record<ItemStatus, string> = { brouillon: "Brouillon", en_attente: "En attente", a_completer: "À compléter", publie: "Validée", refuse: "Refusée", archive: "Archivée" }
+export const KIND_TXT: Record<ItemKind, string> = { technique: "Découverte technique", variante: "Variante", lien: "Vidéo ou lien", question: "Question pédagogique", astuce: "Astuce", note: "Annotation du professeur" }
