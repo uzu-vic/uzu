@@ -76,6 +76,10 @@ begin
     return query select '!'::text, 'Arrêt : Class Media (uzu-13) n''est pas installé sur cette base.'::text, '✖'::text, ''::text; return;
   end if;
 
+  if to_regprocedure('public.set_student_groups(uuid,uuid,uuid[])') is null then
+    v_res := v_res || jsonb_build_array(jsonb_build_object('n', 'i', 'test', 'à noter : complément Journal J2 absent (uzu-10b) ; sans effet sur ces contrôles', 'ok', null, 'detail', ''));
+  end if;
+
   begin   -- ======== tout ce bloc est annulé à la fin ========
 
   -- ---------- Mise en place fictive ----------
@@ -194,10 +198,14 @@ begin
   -- ---------- R-2 : coupures pendant la lecture ----------
   tk := pg_temp.cm_j(B1, format('select public.media_ticket(%L::uuid)', r1->>'id'))->>'token';
   k := pg_temp.cm_check(tk);
-  perform pg_temp.cm_j(A, format('select to_jsonb(public.set_student_groups(%L::uuid, %L::uuid, ''{}''::uuid[]))', B1, NG));
+  if to_regprocedure('public.set_student_groups(uuid,uuid,uuid[])') is not null then
+    perform pg_temp.cm_j(A, format('select to_jsonb(public.set_student_groups(%L::uuid, %L::uuid, ''{}''::uuid[]))', B1, NG));
+  else   -- complément J2 absent : même changement fait directement
+    update public.academy_members set section_id = NG where user_id = B1 and academy_id = CA;
+  end if;
   k2 := pg_temp.cm_check(tk);
   v_res := v_res || pg_temp.cm_l('R-2a', 'élève retiré du groupe : refus dès la requête suivante', (k->>'ok')::boolean and (k2->>'ok')::boolean is false, (k2 - 'path')::text);
-  perform pg_temp.cm_j(A, format('select to_jsonb(public.set_student_groups(%L::uuid, %L::uuid, ''{}''::uuid[]))', B1, GI));
+  update public.academy_members set section_id = GI where user_id = B1 and academy_id = CA;
 
   tk := pg_temp.cm_j(B1, format('select public.media_ticket(%L::uuid)', r2->>'id'))->>'token';
   k := pg_temp.cm_check(tk);
@@ -263,7 +271,7 @@ begin
     n = 0 and not exists (select 1 from public.clubs where invite_code in (upper('CMT-' || v_tag), upper('CMA-' || v_tag))), n::text || ' personne(s) restante(s)');
 
   return query
-    select x->>'n', x->>'test', case when (x->>'ok')::boolean then '✔' else '✖' end, x->>'detail'
+    select x->>'n', x->>'test', case when x->'ok' = 'null'::jsonb then 'ℹ' when (x->>'ok')::boolean then '✔' else '✖' end, x->>'detail'
     from jsonb_array_elements(v_res) with ordinality t(x, i) order by i;
 end $f$;
 
