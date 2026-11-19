@@ -18,9 +18,10 @@ def sess(uid, email, name): return {"access_token": jwt(uid, email), "token_type
 CLUB = {"id": "c1", "name": "Académie de test", "invite_code": "TEST2026",
         "schedule": [{"id": "x1", "d": WD, "s": "00:01", "e": "23:59", "t": "JJB Gi adultes", "disc": "jjb"}, {"id": "x2", "d": WD, "s": "00:00", "e": "23:58", "t": "Grappling", "disc": "grappling"}],
         "tactical_focus": {"weekTheme": "Front headlock"}, "profile": {}}
+PERMS = {"owner": None, "instructor": {"schedule": {"view": "academy"}, "courses": {"view": "academy"}, "class_journal": {"view": "assigned_courses", "create": "assigned_courses", "approve": "assigned_courses"}}}
 def ctx(role):
     return {"role": "student" if role == "student" else "coach", "share_activity": False, "club": CLUB, "academy_role": role, "member_status": "active", "member_id": "m0",
-            "section_id": None, "perms": None, "memberships": [{"academy_id": "c1", "name": CLUB["name"], "role": role, "status": "active"}]}
+            "section_id": None, "perms": PERMS.get(role), "memberships": [{"academy_id": "c1", "name": CLUB["name"], "role": role, "status": "active"}]}
 TABLES = {
  "lib_disciplines": [dict(id=x["id"], label=x["label"], long_label=x["long"], position=x["pos"]) for x in CAT["disciplines"] if x["active"]],
  "lib_categories": [dict(id=c["id"], discipline_id=c["discipline"], position=c["pos"], label=c["label"]) for c in CAT["categories"]],
@@ -40,8 +41,8 @@ def S(id, sec, course, day, theme, status, techs, **k):
     o.update(k); return o
 
 class Mock:
-    def __init__(s, role, journal=True, uid=OWNER):
-        s.role, s.journal, s.uid, s.calls = role, journal, uid, []
+    def __init__(s, role, journal=True, uid=OWNER, empty_overview=False):
+        s.role, s.journal, s.uid, s.calls, s.empty_ov = role, journal, uid, [], empty_overview
         s.sessions = [S("s1", GI, "x1", 7, "Gardes ouvertes", "publie", ["G17"], objective="Ouvrir la garde"),
                       S("s2", GI, "x1", 14, "Passages de garde", "publie", ["G18", "Passage en X"], exercises="Situations 3 × 3 min", comment="Très bonne intensité"),
                       S("s3", NG, "x2", 1, "Front headlock", "brouillon", [])]
@@ -83,6 +84,17 @@ class Mock:
                 for x in s.sessions:
                     if x["id"] == a["p_id"]: x["status"] = a["p_status"]
                 return J(a["p_status"])
+            if name == "journal_overview":
+                if s.role != "owner": return J({"code": "P0001", "message": "Droit requis : vue d'ensemble du Journal"}, 400)
+                if s.empty_ov: return J({"scope": "academy", "section": None, "from": d(30), "to": d(0), "totals": {"published": 0, "drafts": 0, "calls": 0, "missing": 0, "techniques": 0, "free_texts": 0},
+                                         "groups": [{"id": GI, "name": "Adultes Gi", "discipline": "jjb_gi", "published": 0, "last": None, "days": None, "coverage": {"total": 30, "covered": 0, "never": [{"id": "G17", "name": NAME["G17"]}]}}], "drafts": [], "missing": [], "top": [], "authors": []})
+                return J({"scope": "academy", "section": a.get("p_section"), "from": a.get("p_from") or d(30), "to": d(0),
+                          "totals": {"published": 2, "drafts": 1, "calls": 4, "missing": 2, "techniques": 2, "free_texts": 1},
+                          "groups": [{"id": GI, "name": "Adultes Gi", "discipline": "jjb_gi", "published": 2, "last": d(7), "days": 7, "coverage": {"total": 30, "covered": 2, "never": [{"id": "G1", "name": NAME.get("G1", "Garde fermée")}]}},
+                                     {"id": NG, "name": "No-Gi", "discipline": "grappling_nogi", "published": 0, "last": d(20), "days": 20, "coverage": None}],
+                          "drafts": [{"id": "s3", "date": d(1), "group": "No-Gi", "theme": "Front headlock", "author": "Paul Prof"}],
+                          "missing": [{"date": d(5), "course": "x1", "title": "JJB Gi adultes", "group": "Adultes Gi"}, {"date": d(10), "course": "x2", "title": "Grappling", "group": "No-Gi"}],
+                          "top": [{"id": "G18", "name": NAME["G18"], "n": 2}, {"id": "G17", "name": NAME["G17"], "n": 1}], "authors": [{"name": "Paul Prof", "n": 2}]})
             if name == "student_groups": return J(s.sg)
             if name == "set_student_groups": s.sg = dict(s.sg, primary=a["p_primary"], secondary=a["p_secondary"]); return J(len(a["p_secondary"]))
             if name == "get_team": return J({"members": [], "invitations": [], "sections": [{"id": GI, "name": "Adultes Gi", "discipline": "jjb_gi"}], "course_staff": [], "course_meta": []})
@@ -170,6 +182,22 @@ with sync_playwright() as p:
     pg.evaluate(f"window.dispatchEvent(new CustomEvent('uzu-nav', {{ detail: {{ page: 'courses', arg: 'journal:new:x2:{d(1)}' }} }}))"); pg.wait_for_timeout(1800)
     f = pg.locator("form.uzu-lib-form")
     check("depuis l'appel : saisie ouverte, cours, groupe et date du cours repris", f.count() == 1 and f.get_by_label("Cours du planning").input_value() == "x2" and f.get_by_label("Groupe").input_value() == NG and f.locator("input[type=date]").input_value() == d(1))
+    # Vue d'ensemble (J3)
+    pg.locator(".primary-nav .nav-item", has_text="Cours").first.click(); pg.wait_for_timeout(1500)
+    pg.get_by_role("tab", name="Vue d'ensemble").click(); pg.wait_for_timeout(1200)
+    t = pg.inner_text(".page-content")
+    check("vue d'ensemble : chiffres du serveur (2 publiées, 1 brouillon, 2 cours sans séance sur 4 appels, 2 fiches)", all(x in t for x in ["séances publiées", "brouillon en attente", "cours sans séance saisie", "sur 4 appels", "fiches abordées", "+ 1 technique en texte libre"]) and [x.inner_text().split("\n")[0] for x in pg.locator(".uzu-jv-tile").all()] == ["2", "1", "2", "2"], t[:600])
+    check("groupes : dernière séance, alerte après 14 jours, couverture de la Bibliothèque", "il y a 7 jours" in t and "plus de 14 jours sans séance publiée" in t and "2 fiches abordées sur 30" in t)
+    check("techniques les plus travaillées et saisies par professeur (barres + valeurs écrites)", pg.locator(".uzu-jv-bar", has_text="G18").count() == 1 and "2 séances" in pg.locator(".uzu-jv-bar", has_text="G18").inner_text() and pg.locator(".uzu-jv-bar", has_text="Paul Prof").count() == 1)
+    check("rappel : rien sur la progression individuelle", "ne modifient aucune maîtrise" in t)
+    pg.screenshot(path="/tmp/jv_desktop.png", full_page=True)
+    pg.get_by_role("button", name="90 jours").click(); pg.wait_for_timeout(800)
+    pg.get_by_label("Groupe", exact=True).select_option(GI); pg.wait_for_timeout(800)
+    ovc = m.last("journal_overview")
+    check("filtres période et groupe transmis au serveur", ovc[-1]["p_section"] == GI and ovc[-1]["p_from"] == (T - timedelta(days=90)).isoformat() and ovc[-2]["p_section"] is None, ovc[-2:])
+    pg.locator(".uzu-jv-list li", has_text="Grappling").get_by_role("button", name="Saisir ›").click(); pg.wait_for_timeout(1500)
+    f = pg.locator("form.uzu-lib-form")
+    check("cours sans séance → « Saisir » ouvre la saisie du bon cours, à la bonne date", f.count() == 1 and f.get_by_label("Cours du planning").input_value() == "x2" and f.locator("input[type=date]").input_value() == d(10))
     # Fiche élève : groupes
     pg.locator(".primary-nav .nav-item", has_text="Élèves").first.click(); pg.wait_for_timeout(1800)
     pg.locator(".uzu-pcard", has_text="Alice Martin").click(); pg.wait_for_timeout(1200)
@@ -179,6 +207,21 @@ with sync_playwright() as p:
     sg = m.last("set_student_groups")
     check("groupes de l'élève : principal No-Gi + secondaire Adultes Gi envoyés au serveur", sg and sg[-1] == {"p_user": S1, "p_primary": NG, "p_secondary": [GI]} and "No-Gi (principal) · Adultes Gi" in g.inner_text(), sg)
     check("responsable : aucune erreur JavaScript", not errs, errs); c.close()
+
+    # ---------------- Vue d'ensemble vide (téléphone)
+    m = Mock("owner", empty_overview=True); c, pg, errs = open_page(b, m, OWNER, "prof@test.fr", "Paul Prof", {"width": 390, "height": 844})
+    pg.locator(".mobile-space-bar .mobile-switcher button").click(); pg.wait_for_timeout(1200)
+    pg.locator(".mobile-menu-trigger").click(); pg.wait_for_timeout(300); pg.locator(".primary-nav .nav-item", has_text="Cours").first.click(); pg.wait_for_timeout(1500)
+    pg.get_by_role("tab", name="Vue d'ensemble").click(); pg.wait_for_timeout(1200)
+    t = pg.inner_text(".page-content")
+    check("vue d'ensemble sans donnée : zéros réels et message, aucun chiffre estimé", "Rien n'est estimé" in t and "aucun appel sur la période" in t and "Aucune séance publiée pour l'instant" in t and pg.locator(".uzu-jv-bar").count() == 0, t[:400])
+    pg.screenshot(path="/tmp/jv_empty_mob.png", full_page=True)
+    check("vue vide : aucune erreur JavaScript", not errs, errs); c.close()
+
+    # ---------------- Professeur (portée ses cours) : Journal oui, vue d'ensemble non
+    m = Mock("instructor"); c, pg, errs = open_page(b, m, OWNER, "prof@test.fr", "Paul Prof", {"width": 1280, "height": 900}); courses(pg)
+    check("professeur (ses cours) : onglet Journal, pas de vue d'ensemble, aucun appel à la vue d'ensemble", pg.get_by_role("tab", name="Journal des cours").count() == 1 and pg.get_by_role("tab", name="Vue d'ensemble").count() == 0 and not m.last("journal_overview"))
+    check("professeur : aucune erreur JavaScript", not errs, errs); c.close()
 
     # ---------------- Base sans le script du Journal
     m = Mock("owner", journal=False); c, pg, errs = open_page(b, m, OWNER, "prof@test.fr", "Paul Prof", {"width": 1280, "height": 900}); courses(pg)

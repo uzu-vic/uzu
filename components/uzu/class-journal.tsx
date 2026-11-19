@@ -6,10 +6,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Plus, Search, Video, X } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
-import { can } from "@/lib/uzu/permissions"
+import { can, scopeOf } from "@/lib/uzu/permissions"
 import { normSched } from "@/lib/uzu/training"
 import {
-  setStudentGroups, studentGroups, type StudentGroups,
+  journalOverview, setStudentGroups, studentGroups, type Overview, type StudentGroups,
   byMonth, dayBadge, journalFeed, journalGroups, libDiscOfCourse, longDate, monthLabel, myRollKeys, saveSession, setSessionStatus, shortDate, STATUS_LBL,
   type JGroup, type JInput, type JSession,
 } from "@/lib/uzu/class-journal"
@@ -311,10 +311,12 @@ export function GroupJournal({ uid, groups }: { uid: string; groups: JGroup[] })
 }
 
 // ---------------------------------------------------------------- Page Club › Cours : onglets
-export type CoursesTab = "week" | "journal"
-export function CoursesTabs({ tab, onTab }: { tab: CoursesTab; onTab: (t: CoursesTab) => void }) {
+export type CoursesTab = "week" | "journal" | "overview"
+/** Vue d'ensemble : responsable, ou droit « consulter » du Journal de portée académie ou section (vérifié aussi par le serveur) */
+export const overviewOpen = (ctx: UzuContext | null) => { const s = scopeOf(ctx, "class_journal", "view"); return s === "academy" || s === "section" }
+export function CoursesTabs({ tab, onTab, overview }: { tab: CoursesTab; onTab: (t: CoursesTab) => void; overview?: boolean }) {
   return <div className="subnav"><div className="subnav-tabs" role="tablist" aria-label="Cours">
-    {([["week", "Cours de la semaine"], ["journal", "Journal des cours"]] as [CoursesTab, string][]).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "active" : ""} onClick={() => onTab(k)}>{l}</button>)}
+    {([["week", "Cours de la semaine"], ["journal", "Journal des cours"], ...(overview ? [["overview", "Vue d'ensemble"]] : [])] as [CoursesTab, string][]).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "active" : ""} onClick={() => onTab(k)}>{l}</button>)}
   </div></div>
 }
 /** Le Journal est-il ouvert à ce membre de l'équipe ? (script appliqué et au moins un droit) */
@@ -365,11 +367,101 @@ export function ClubCoursesPage(props: { uid: string; ctx: UzuContext | null; on
   const G = useJournalGroups(ctx)
   const init = parseJournalArg(navArg || "")
   const [tab, setTab] = useState<CoursesTab>(init || (navArg || "").startsWith("journal") ? "journal" : "week")
-  const open = journalOpen(ctx, G)
-  if (!open || tab === "week") return <ClubCourses {...props} tabs={open ? <CoursesTabs tab="week" onTab={setTab} /> : null} />
+  const [jinit, setJinit] = useState<{ k: number; init: EditorInit | null }>({ k: 0, init })
+  const open = journalOpen(ctx, G), ov = open && overviewOpen(ctx)
+  if (!open || tab === "week") return <ClubCourses {...props} tabs={open ? <CoursesTabs tab="week" onTab={setTab} overview={ov} /> : null} />
+  const head = tab === "overview" ? <ClubHeading eyebrow={(ctx?.club?.name || "").toUpperCase()} title="Vue d'ensemble" sub="Ce qui a été enseigné, calculé uniquement à partir des séances saisies." />
+    : <ClubHeading eyebrow={(ctx?.club?.name || "").toUpperCase()} title="Journal des cours" sub="La mémoire pédagogique du club : ce qui a été enseigné, groupe par groupe." />
   return <>
-    <ClubHeading eyebrow={(ctx?.club?.name || "").toUpperCase()} title="Journal des cours" sub="La mémoire pédagogique du club : ce qui a été enseigné, groupe par groupe." />
-    <CoursesTabs tab="journal" onTab={setTab} />
-    <StaffJournal ctx={ctx} onToast={onToast} init={init} />
+    {head}
+    <CoursesTabs tab={tab} onTab={t => { setTab(t); if (t === "journal") setJinit(j => ({ k: j.k + 1, init: null })) }} overview={ov} />
+    {tab === "overview" && ov ? <JournalOverview ctx={ctx} groups={G.groups} onNew={i => { setJinit(j => ({ k: j.k + 1, init: i })); setTab("journal") }} />
+      : <StaffJournal key={jinit.k} ctx={ctx} onToast={onToast} init={jinit.init} />}
   </>
+}
+
+// ---------------------------------------------------------------- Vue d'ensemble (lot J3)
+type Period = "30" | "90" | "season"
+const periodFrom = (p: Period) => {
+  const d = new Date()
+  if (p === "season") { const y = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-09-01` }
+  d.setDate(d.getDate() - (p === "30" ? 30 : 90))
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+const pl2 = (n: number, w: string, ws?: string) => `${n} ${n > 1 ? ws || w + "s" : w}`
+
+function Tile({ n, label, sub, tone }: { n: number | string; label: string; sub?: string; tone?: "alert" }) {
+  return <div className={`uzu-jv-tile${tone ? " " + tone : ""}`}><b>{n}</b><span>{label}</span>{sub && <small>{sub}</small>}</div>
+}
+/** Barre horizontale d'une seule série (longueur = valeur), valeur écrite à côté */
+function HBar({ label, n, max, onClick, suffix }: { label: string; n: number; max: number; onClick?: () => void; suffix: string }) {
+  const w = max > 0 ? Math.max(4, Math.round((n / max) * 100)) : 0
+  const inner = <><span className="uzu-jv-bl">{label}</span><span className="uzu-jv-track" aria-hidden="true"><i style={{ width: w + "%" }} /></span><span className="uzu-jv-bn">{n} {suffix}</span></>
+  return onClick ? <button type="button" className="uzu-jv-bar" onClick={onClick} title={`${label} : ${n} ${suffix}`}>{inner}</button> : <div className="uzu-jv-bar" title={`${label} : ${n} ${suffix}`}>{inner}</div>
+}
+
+export function JournalOverview({ ctx, groups, onNew }: { ctx: UzuContext | null; groups: JGroup[]; onNew: (i: EditorInit) => void }) {
+  const [period, setPeriod] = useState<Period>("30")
+  const [section, setSection] = useState("")
+  const [o, setO] = useState<Overview | null>(null)
+  const [err, setErr] = useState("")
+  const academyWide = scopeOf(ctx, "class_journal", "view") === "academy"
+  useEffect(() => {
+    let live = true; setO(null); setErr("")
+    journalOverview(periodFrom(period), null, section || null).then(r => { if (!live) return; if (r.ok) setO(r.data); else setErr(r.msg) })
+    return () => { live = false }
+  }, [period, section])
+  const T = o?.totals
+  const empty = !!T && T.published === 0 && T.drafts === 0 && T.calls === 0
+  const maxTop = Math.max(0, ...(o?.top || []).map(x => x.n)), maxAuth = Math.max(0, ...(o?.authors || []).map(x => x.n))
+  return <div className="uzu-jr uzu-jv">
+    <div className="uzu-jv-filters">
+      <div className="uzu-seg" role="group" aria-label="Période">{([["30", "30 jours"], ["90", "90 jours"], ["season", "Saison"]] as [Period, string][]).map(([k, l]) =>
+        <button key={k} type="button" className={period === k ? "on" : ""} aria-pressed={period === k} onClick={() => setPeriod(k)}>{l}</button>)}</div>
+      {academyWide && groups.length > 1 && <label className="uzu-field"><span className="sr-only">Groupe</span><select className="uzu-input" aria-label="Groupe" value={section} onChange={e => setSection(e.target.value)}><option value="">Tous les groupes</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>}
+    </div>
+    {err && <div className="uzu-banner uzu-banner--error" role="alert">{err}</div>}
+    {!o && !err && <p className="uzu-text uzu-muted" aria-busy="true">Calcul…</p>}
+    {o && T && <>
+      {o.scope === "section" && <p className="uzu-text uzu-small uzu-muted">Ta section seulement : {o.groups.map(g => g.name).join(", ") || "aucun groupe"}.</p>}
+      <div className="uzu-jv-tiles">
+        <Tile n={T.published} label={T.published > 1 ? "séances publiées" : "séance publiée"} sub={`du ${shortDate(o.from)} au ${shortDate(o.to)}`} />
+        <Tile n={T.drafts} label={T.drafts > 1 ? "brouillons en attente" : "brouillon en attente"} />
+        <Tile n={T.missing} label="cours sans séance saisie" sub={T.calls ? `sur ${pl2(T.calls, "appel")}` : "aucun appel sur la période"} tone={T.missing ? "alert" : undefined} />
+        <Tile n={T.techniques} label={T.techniques > 1 ? "fiches abordées" : "fiche abordée"} sub={T.free_texts ? `+ ${pl2(T.free_texts, "technique")} en texte libre` : undefined} />
+      </div>
+      {empty && <p className="uzu-lib-empty">Aucune séance ni aucun appel sur cette période : les indicateurs se rempliront avec les séances saisies au Journal. Rien n'est estimé.</p>}
+
+      {o.missing.length > 0 && <section className="panel uzu-panel-col" aria-labelledby="jv-miss"><div className="section-title"><h2 id="jv-miss">Cours sans séance saisie</h2><span className="uzu-muted uzu-small">appel fait, rien au Journal</span></div>
+        <ul className="uzu-jv-list">{o.missing.map(m => <li key={m.date + m.course}><span><b>{shortDate(m.date)} · {m.title || m.course}</b><small>{m.group || "Cours sans groupe rattaché"}</small></span>
+          <button type="button" className="text-link" onClick={() => onNew({ course: m.course, date: m.date })}>Saisir ›</button></li>)}</ul>
+        {T.missing > o.missing.length && <p className="uzu-text uzu-small uzu-muted">Et {T.missing - o.missing.length} autres, plus anciens.</p>}</section>}
+
+      {o.drafts.length > 0 && <section className="panel uzu-panel-col" aria-labelledby="jv-dr"><div className="section-title"><h2 id="jv-dr">Brouillons en attente</h2></div>
+        <ul className="uzu-jv-list">{o.drafts.map(d => <li key={d.id}><span><b>{shortDate(d.date)} · {d.theme}</b><small>{d.group} · {d.author}</small></span></li>)}</ul></section>}
+
+      <section className="panel uzu-panel-col" aria-labelledby="jv-gr"><div className="section-title"><h2 id="jv-gr">Groupes</h2></div>
+        {!o.groups.length ? <p className="uzu-text uzu-muted">Aucun groupe dans l'académie.</p> : <ul className="uzu-jv-groups">{o.groups.map(g => {
+          const late = g.days !== null && g.days > 14, cv = g.coverage
+          return <li key={g.id}>
+            <div className="uzu-jv-gh"><b>{g.name}</b><span className="uzu-muted uzu-small">{pl2(g.published, "séance publiée", "séances publiées")}</span></div>
+            <p className={`uzu-text uzu-small${late ? " uzu-jv-late" : ""}`}>{g.last ? <>Dernière séance : {shortDate(g.last)}{g.days !== null ? ` (il y a ${pl2(g.days, "jour")})` : ""}{late ? " · plus de 14 jours sans séance publiée" : ""}</> : "Aucune séance publiée pour l'instant"}</p>
+            {cv && cv.total > 0 && <>
+              <div className="uzu-jv-cov" role="img" aria-label={`${cv.covered} fiches abordées sur ${cv.total}`}><i style={{ width: Math.round((cv.covered / cv.total) * 100) + "%" }} /></div>
+              <small className="uzu-muted">Bibliothèque : {cv.covered} fiche{cv.covered > 1 ? "s" : ""} abordée{cv.covered > 1 ? "s" : ""} sur {cv.total}, depuis la première séance</small>
+              {cv.never.length > 0 && <details className="uzu-jv-never"><summary>Jamais abordées ({cv.total - cv.covered})</summary>
+                <div className="uzu-lib-badges">{cv.never.map(x => <button key={x.id} type="button" className="uzu-lib-badge uzu-lib-badge--plain" onClick={() => openFiche(x.id)}>{x.id} {splitName(x.name).main}</button>)}{cv.total - cv.covered > cv.never.length && <span className="uzu-lib-badge uzu-lib-badge--plain">+ {cv.total - cv.covered - cv.never.length}</span>}</div></details>}
+            </>}
+          </li> })}</ul>}
+      </section>
+
+      {o.top.length > 0 && <section className="panel uzu-panel-col" aria-labelledby="jv-top"><div className="section-title"><h2 id="jv-top">Techniques les plus travaillées</h2><span className="uzu-muted uzu-small">nombre de séances</span></div>
+        <div className="uzu-jv-bars">{o.top.map(x => <HBar key={x.id} label={`${x.id} ${splitName(x.name).main}`} n={x.n} max={maxTop} suffix={x.n > 1 ? "séances" : "séance"} onClick={() => openFiche(x.id)} />)}</div></section>}
+
+      {o.authors.length > 0 && <section className="panel uzu-panel-col" aria-labelledby="jv-au"><div className="section-title"><h2 id="jv-au">Saisies par professeur</h2><span className="uzu-muted uzu-small">séances publiées</span></div>
+        <div className="uzu-jv-bars">{o.authors.map(a => <HBar key={a.name} label={a.name} n={a.n} max={maxAuth} suffix={a.n > 1 ? "séances" : "séance"} />)}</div></section>}
+
+      <p className="uzu-text uzu-small uzu-muted">Ces chiffres décrivent ce qui a été enseigné aux groupes. Ils ne disent rien de la progression d'un élève et ne modifient aucune maîtrise.</p>
+    </>}
+  </div>
 }

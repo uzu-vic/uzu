@@ -688,3 +688,36 @@ textarea.uzu-input { resize: vertical; line-height: 1.5; }
 .uzu-jr-groups { display: flex; flex-direction: column; gap: 8px; }
 .uzu-rollcall-jr { align-self: stretch; }
 .uzu-jr-hint { margin-top: -8px; font-size: 12px; }
+
+/* ---------- Journal des cours : vue d'ensemble (lot J3) ---------- */
+.uzu-jv-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.uzu-jv-filters .uzu-field { min-width: 200px; }
+.uzu-jv-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 720px) { .uzu-jv-tiles { grid-template-columns: 1fr 1fr; } }
+.uzu-jv-tile { display: flex; flex-direction: column; gap: 3px; padding: 14px; border: 1px solid #ebe6df; border-radius: 14px; background: #fff; }
+.uzu-jv-tile b { color: #171717; font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.uzu-jv-tile span { color: #171717; font-size: 13px; }
+.uzu-jv-tile small { color: #777; font-size: 12px; }
+.uzu-jv-tile.alert b { color: #941b2b; }
+.uzu-jv-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.uzu-jv-list li { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; }
+.uzu-jv-list li + li { border-top: 1px solid #f0ede8; }
+.uzu-jv-list li > span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.uzu-jv-list small { color: #777; font-size: 12px; }
+.uzu-jv-groups { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.uzu-jv-groups li { display: flex; flex-direction: column; gap: 6px; }
+.uzu-jv-groups li + li { padding-top: 14px; border-top: 1px solid #f0ede8; }
+.uzu-jv-gh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.uzu-jv-late { color: #941b2b; }
+.uzu-jv-cov { height: 8px; overflow: hidden; border-radius: 4px; background: #eee9e2; }
+.uzu-jv-cov i { display: block; height: 100%; border-radius: 4px; background: #941b2b; }
+.uzu-jv-never summary { min-height: 32px; color: #171717; font-size: 13px; cursor: pointer; }
+.uzu-jv-never button { border: 0; cursor: pointer; }
+.uzu-jv-bars { display: flex; flex-direction: column; gap: 2px; }
+.uzu-jv-bar { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(60px, 1fr) auto; gap: 10px; align-items: center; min-height: 40px; padding: 0; border: 0; background: none; color: #171717; font-size: 13px; text-align: left; }
+button.uzu-jv-bar { cursor: pointer; }
+button.uzu-jv-bar:hover .uzu-jv-bl { text-decoration: underline; }
+.uzu-jv-bl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uzu-jv-track { height: 10px; border-radius: 0 4px 4px 0; background: transparent; }
+.uzu-jv-track i { display: block; height: 100%; border-radius: 0 4px 4px 0; background: #941b2b; }
+.uzu-jv-bn { min-width: 76px; color: #5c5650; font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }

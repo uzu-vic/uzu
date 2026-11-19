@@ -30,6 +30,16 @@ export type FeedFilter = { section?: string | null; discipline?: string | null; 
 export const journalFeed = (f: FeedFilter = {}) => rpc<JSession[]>("journal_feed", { p_section: f.section || null, p_discipline: f.discipline || null, p_from: f.from || null, p_to: f.to || null, p_query: (f.q || "").trim() || null, p_limit: f.limit || 200 })
 export const saveSession = (id: string | null, p: JInput, publish: boolean) => rpc<{ id: string; status: JSession["status"] }>("journal_save_session", { p_id: id, p, p_publish: publish })
 export const setSessionStatus = (id: string, status: "publie" | "depublie") => rpc<string>("journal_set_status", { p_id: id, p_status: status })
+export type Overview = {
+  scope: "academy" | "section"; section: string | null; from: string; to: string
+  totals: { published: number; drafts: number; calls: number; missing: number; techniques: number; free_texts: number }
+  groups: { id: string; name: string; discipline: string; published: number; last: string | null; days: number | null; coverage: { total: number; covered: number; never: { id: string; name: string }[] } | null }[]
+  drafts: { id: string; date: string; group: string; theme: string; author: string }[]
+  missing: { date: string; course: string; title: string; group: string | null }[]
+  top: { id: string; name: string; n: number }[]
+  authors: { name: string; n: number }[]
+}
+export const journalOverview = (from: string | null, to: string | null, section: string | null) => rpc<Overview>("journal_overview", { p_from: from, p_to: to, p_section: section })
 export type StudentGroups = { member: string; student: boolean; primary: string | null; secondary: string[]; can_edit: boolean }
 export const studentGroups = (user: string) => rpc<StudentGroups>("student_groups", { p_user: user })
 export const setStudentGroups = (user: string, primary: string | null, secondary: string[]) => rpc<number>("set_student_groups", { p_user: user, p_primary: primary, p_secondary: secondary })
