@@ -197,6 +197,7 @@ export const PERM_CAT: [string, string, string[], string[]][] = [
   ["academy_audit_logs", "Journal d'activité", ["view"], ["academy"]],
   ["library", "Bibliothèque technique", ["approve", "manage"], ["academy"]],
   ["class_journal", "Journal des cours", ["view", "create", "update", "approve"], ["academy", "section", "assigned_courses"]],
+  ["minor_groups", "Groupes de mineurs", ["update"], ["academy"]],
 ]
 export const ACT_LBL: Record<string, string> = { view: "Consulter", create: "Créer", update: "Modifier", delete: "Supprimer", approve: "Valider", manage: "Gérer" }
 export const ACT_OVR: Record<string, Record<string, string>> = {
@@ -206,6 +207,7 @@ export const ACT_OVR: Record<string, Record<string, string>> = {
   communications: { create: "Publier une annonce", delete: "Retirer une annonce" },
   library: { approve: "Valider les contributions", manage: "Collections et fiches masquées" },
   class_journal: { view: "Consulter", create: "Ajouter et modifier ses séances", update: "Modifier les séances des autres", approve: "Publier ou dépublier" },
+  minor_groups: { update: "Marquer un groupe comme groupe de mineurs" },
 }
 export const actLabel = (r: string, a: string) => ACT_OVR[r]?.[a] || ACT_LBL[a] || a
 const T = (l: string) => l.split(" ").map(x => { const p = x.split(":"); return { r: p[0], a: p[1], s: p[2] || "academy" } })

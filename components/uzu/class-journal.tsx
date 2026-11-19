@@ -17,6 +17,8 @@ import { matches, splitName, type Library } from "@/lib/uzu/library"
 import { useLibrary } from "@/components/uzu/library"
 import { ClubCourses } from "@/components/uzu/club-admin"
 import { ClubHeading } from "@/components/uzu/club"
+import { MediaGallery, MediaManager, MediaQueueBlock } from "@/components/uzu/class-media"
+import { reconcileSession } from "@/lib/uzu/class-media"
 import { FocusCard } from "@/components/uzu/group-focus"
 
 type Toast = (m: string) => void
@@ -54,7 +56,7 @@ function SessionCard({ s, staff, presence, hot, onOpen }: { s: JSession; staff: 
         {more > 0 && <span className="uzu-lib-badge uzu-lib-badge--plain">+ {more}</span>}
         {staff && <span className={`uzu-lib-badge uzu-jr-st--${s.status}`}>{STATUS_LBL[s.status]}</span>}
       </span>}
-      {!staff && (s.media > 0 || presence) && <small className="uzu-jr-meta">{s.media > 0 && <><Video size={13} aria-hidden="true" />Vidéo</>}{s.media > 0 && presence ? " · " : ""}{presence === "present" ? "Tu étais présent" : presence === "absent" ? "Tu étais absent" : ""}</small>}
+      {!staff && (s.media > 0 || presence) && <small className="uzu-jr-meta">{s.media > 0 && <><Video size={13} aria-hidden="true" />Médias</>}{s.media > 0 && presence ? " · " : ""}{presence === "present" ? "Tu étais présent" : presence === "absent" ? "Tu étais absent" : ""}</small>}
     </span>
   </button></li>
 }
@@ -67,10 +69,12 @@ function Timeline({ list, staff, presence, onOpen }: { list: JSession[]; staff: 
 }
 
 // ---------------------------------------------------------------- Détail d'une séance
-export function ClassSessionDetail({ s, all, onBack, onOpen, staff, onEdit, onStatus, presence, onNote }: {
+export function ClassSessionDetail({ s, all, onBack, onOpen, staff, onEdit, onStatus, presence, onNote, onToast }: {
   s: JSession; all: JSession[]; onBack: () => void; onOpen: (s: JSession) => void; staff?: boolean
-  onEdit?: () => void; onStatus?: (st: "publie" | "depublie") => void; presence?: "present" | "absent" | null; onNote?: () => void
+  onEdit?: () => void; onStatus?: (st: "publie" | "depublie") => void; presence?: "present" | "absent" | null; onNote?: () => void; onToast?: Toast
 }) {
+  const [note, setNote] = useState("")
+  const toast = onToast || setNote
   useEffect(() => { window.scrollTo(0, 0) }, [s.id])
   const same = all.filter(x => x.section_id === s.section_id && (staff || x.status === "publie")).sort((a, b) => a.session_date < b.session_date ? -1 : a.session_date > b.session_date ? 1 : 0)
   const i = same.findIndex(x => x.id === s.id)
@@ -91,6 +95,8 @@ export function ClassSessionDetail({ s, all, onBack, onOpen, staff, onEdit, onSt
     </section>}
     {s.exercises && <section className="uzu-lib-sec" aria-labelledby="jr-exo"><h3 id="jr-exo">Exercices et situations</h3><div className="panel uzu-lib-text"><p>{s.exercises}</p></div></section>}
     {s.comment && <section className="uzu-lib-sec" aria-labelledby="jr-com"><h3 id="jr-com">Le mot du professeur</h3><div className="panel uzu-lib-text"><p>{s.comment}</p></div></section>}
+    <MediaGallery sessionId={s.id} staff={!!staff} onToast={toast} />
+    {note && <p className="uzu-note ok" role="status">{note}</p>}
     {(prev || next) && <nav className="uzu-jr-prevnext" aria-label="Séances voisines">
       {prev ? <button type="button" onClick={() => onOpen(prev)}><small>‹ Séance précédente</small><span>{shortDate(prev.session_date)} · {prev.theme}</span></button> : <span />}
       {next ? <button type="button" className="r" onClick={() => onOpen(next)}><small>Séance suivante ›</small><span>{shortDate(next.session_date)} · {next.theme}</span></button> : <span />}
@@ -110,9 +116,9 @@ export function ClassSessionDetail({ s, all, onBack, onOpen, staff, onEdit, onSt
 
 // ---------------------------------------------------------------- Saisie d'une séance
 export type EditorInit = { course?: string; date?: string }
-function SessionEditor({ ctx, lib, groups, sessions, edit, init, onDone, onCancel }: {
+function SessionEditor({ ctx, lib, groups, sessions, edit, init, onDone, onCancel, onToast }: {
   ctx: UzuContext | null; lib: Library | null; groups: JGroup[]; sessions: JSession[]; edit?: JSession | null; init?: EditorInit
-  onDone: (msg: string) => void; onCancel: () => void
+  onDone: (msg: string) => void; onCancel: () => void; onToast: Toast
 }) {
   const slots = useMemo(() => normSched(ctx?.club?.schedule), [ctx])
   const writable = groups.filter(g => g.can_create || (edit && g.id === edit.section_id))
@@ -199,7 +205,7 @@ function SessionEditor({ ctx, lib, groups, sessions, edit, init, onDone, onCance
     <label className="uzu-field"><span className="uzu-label">Objectif du cours</span><input className="uzu-input" maxLength={500} value={objective} onChange={e => setObjective(e.target.value)} placeholder="Ex. Enchaîner Torreando et Knee Cut" /></label>
     <details className="panel uzu-jr-more" open={!!comment}><summary>Plus de détails (facultatif)</summary>
       <label className="uzu-field"><span className="uzu-label">Commentaire du professeur</span><textarea className="uzu-input" rows={3} maxLength={2000} value={comment} onChange={e => setComment(e.target.value)} /></label>
-      <p className="uzu-text uzu-small uzu-muted">Vidéo ou photo de séance : prochaine étape (stockage privé du club, avec la déclaration d'accord).</p>
+      <MediaManager sessionId={edit?.id || null} onToast={onToast} />
     </details>
     <label className="uzu-field"><span className="uzu-label">Suite de la séance</span>
       <select className="uzu-input" value={prev} onChange={e => setPrev(e.target.value)}>
@@ -247,12 +253,13 @@ export function StaffJournal({ ctx, onToast, init }: { ctx: UzuContext | null; o
   const refresh = () => { setTick(x => x + 1) }
   // La saisie se pré-remplit à partir des groupes et de la Bibliothèque : on attend qu'ils soient chargés
   if (edit && (G.status === "loading" || libState.status === "loading")) return <p className="uzu-text uzu-muted" aria-busy="true">Chargement…</p>
-  if (edit) return <SessionEditor ctx={ctx} lib={lib} groups={groups} sessions={all} edit={edit === "new" ? null : edit} init={edit === "new" ? init || undefined : undefined}
+  if (edit) return <SessionEditor ctx={ctx} lib={lib} groups={groups} sessions={all} onToast={onToast} edit={edit === "new" ? null : edit} init={edit === "new" ? init || undefined : undefined}
     onCancel={() => setEdit(null)} onDone={m => { onToast(m); setEdit(null); setView(null); refresh() }} />
   if (view) {
     const cur = (list || []).find(x => x.id === view.id) || view
     return <ClassSessionDetail s={cur} all={all.length ? all : list || []} staff onBack={() => setView(null)} onOpen={s => setView(s)} onEdit={() => setEdit(cur)}
-      onStatus={async st => { const r = await setSessionStatus(cur.id, st); onToast(r.ok ? (st === "publie" ? "Séance publiée pour le groupe" : "Séance dépubliée : les adhérents ne la voient plus") : r.msg); if (r.ok) { setView({ ...cur, status: st }); refresh() } }} />
+      onToast={onToast}
+      onStatus={async st => { const r = await setSessionStatus(cur.id, st); onToast(r.ok ? (st === "publie" ? "Séance publiée pour le groupe" : "Séance dépubliée : les adhérents ne la voient plus") : r.msg); if (r.ok) { reconcileSession(cur.id); setView({ ...cur, status: st }); refresh() } }} />
   }
   const drafts = (list || []).filter(s => s.status === "brouillon" && (s.mine || s.can_edit))
   const shown = (list || []).filter(s => s.status !== "brouillon")
@@ -266,6 +273,7 @@ export function StaffJournal({ ctx, onToast, init }: { ctx: UzuContext | null; o
     <label className="uzu-search"><Search size={16} aria-hidden="true" /><span className="sr-only">Rechercher un thème ou une technique</span>
       <input className="uzu-input" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Thème ou technique (ex. knee cut)" /></label>
     {err && <div className="uzu-banner uzu-banner--error" role="alert">{err}</div>}
+    <MediaQueueBlock onOpen={id => { const x = (all.length ? all : list || []).find(s => s.id === id); if (x) setView(x) }} />
     {drafts.length > 0 && <section className="uzu-jr-todo" aria-labelledby="jr-todo"><h2 id="jr-todo">À finir · {drafts.length} brouillon{drafts.length > 1 ? "s" : ""}</h2>
       {drafts.map(s => <button key={s.id} type="button" onClick={() => setEdit(s)}><span>{shortDate(s.session_date)} · {s.group_name} · {s.theme}</span><span>Reprendre ›</span></button>)}</section>}
     {list === null ? <p className="uzu-text uzu-muted" aria-busy="true">Chargement…</p>

@@ -731,3 +731,23 @@ button.uzu-jv-bar:hover .uzu-jv-bl { text-decoration: underline; }
 .uzu-gf-hist { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0; padding: 0; color: #5c5650; font-size: 12px; list-style: none; }
 .uzu-gf-form { display: flex; flex-direction: column; gap: 14px; }
 .uzu-jr-focus .uzu-jr-sys { color: #e9e2dc; }
+
+/* ---------- Class Media : photos et vidéos des séances ---------- */
+.uzu-cm { display: flex; flex-direction: column; gap: 12px; }
+.uzu-cm-item { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.uzu-cm-photo, .uzu-cm-video { display: block; width: 100%; max-height: 70vh; border-radius: 14px; background: #171717; object-fit: contain; -webkit-user-select: none; user-select: none; }
+.uzu-cm-wait { width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; background: #ebe6df; }
+.uzu-cm-gone { display: flex; align-items: center; gap: 8px; padding: 16px; border: 1px dashed #d8d1c7; border-radius: 14px; color: #777; font-size: 13px; }
+.uzu-cm-req { align-self: flex-start; color: #941b2b; font-size: 13px; }
+.uzu-cm-reqform { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: #f5f2ed; }
+.uzu-cm-actions { display: flex; flex-direction: column; gap: 6px; }
+.uzu-cm-st--ready { background: #e9f2ea; color: #2f6b3a; }
+.uzu-cm-st--quarantined, .uzu-cm-st--deleted { background: #eeeeee; color: #555; }
+.uzu-cm-st--uploading { background: #f3ece2; color: #7a5b2e; }
+.uzu-cm-va--approved { background: #e9f2ea; color: #2f6b3a; }
+.uzu-cm-va--pending_validation { background: #f3ece2; color: #7a5b2e; }
+.uzu-cm-va--rejected { background: #f6e3e6; color: #941b2b; }
+.uzu-cm-manager { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0ede8; }
+.uzu-cm-head { display: flex; align-items: baseline; justify-content: space-between; }
+.uzu-cm-row { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 8px; }
+.uzu-cm-row > span { display: inline-flex; flex: 1; align-items: center; gap: 6px; }
