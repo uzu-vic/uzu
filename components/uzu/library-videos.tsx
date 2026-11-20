@@ -4,7 +4,7 @@
 // qui ont « valider » ou « gérer » la Bibliothèque (vérifié par le serveur, script uzu-9b).
 // Stockage pédagogique existant (« videos ») : aucune vidéo de Class Media ici.
 import { useEffect, useRef, useState } from "react"
-import { ArrowDown, ArrowUp, Play, Plus } from "lucide-react"
+import { ArrowDown, ArrowUp, Check, Play, Plus } from "lucide-react"
 import type { Library } from "@/lib/uzu/library"
 import {
   addLibVideo, fmtDuration, libSignedUrl, LIB_VIDEO_PER_TARGET, loadLibVideos, removeLibVideo, STEP_TXT, updateLibVideo, videosOf,
@@ -19,24 +19,27 @@ export function LibVideos({ lib, kind, target, label }: { lib: Library; kind: Li
   const [list, setList] = useState<LibVideo[]>(() => videosOf(lib.videos || [], kind, target))
   const [form, setForm] = useState<{ replaces: LibVideo | null } | null>(null)
   const [toast, setToast] = useState("")
-  useEffect(() => { setList(videosOf(lib.videos || [], kind, target)); setForm(null); setToast("") }, [lib, kind, target])
+  const libVideos = lib.videos
+  useEffect(() => { setList(videosOf(libVideos || [], kind, target)) }, [libVideos, kind, target])
+  useEffect(() => { setForm(null); setToast("") }, [kind, target])
   const refresh = async (msg: string) => { setList(await loadLibVideos(kind, target)); setToast(msg) }
   if (!list.length && !canEdit) return null
   const id = `vid-${kind}-${target}`
   return <section className="uzu-lib-sec uzu-lib-vids" aria-labelledby={id}>
     <h3 id={id}>Vidéos pédagogiques</h3>
     {list.length ? <ul className="uzu-lib-vlist">{list.map((v, i) => <VideoCard key={v.id} v={v} n={i + 1} label={label} canEdit={canEdit} first={i === 0} last={i === list.length - 1}
-        onReplace={() => setForm({ replaces: v })} onChanged={refresh} />)}</ul>
+        onReplace={() => { setToast(""); setForm({ replaces: v }) }} onChanged={refresh}
+        replaceForm={canEdit && form?.replaces?.id === v.id ? <VideoForm kind={kind} target={target} replaces={v} onCancel={() => setForm(null)} onDone={(msg) => { setForm(null); refresh(msg) }} /> : null} />)}</ul>
       : <p className="uzu-lib-empty">Aucune vidéo pour l'instant. Ajoute une démonstration filmée au téléphone ou depuis l'ordinateur.</p>}
     {toast && <p className="uzu-text uzu-small" role="status">{toast}</p>}
     {canEdit && !form && list.length < LIB_VIDEO_PER_TARGET && <button type="button" className="button button--outline uzu-lib-self" onClick={() => { setToast(""); setForm({ replaces: null }) }}><Plus size={16} aria-hidden="true" />Ajouter une vidéo</button>}
     {canEdit && !form && list.length >= LIB_VIDEO_PER_TARGET && <p className="uzu-text uzu-small uzu-muted">{LIB_VIDEO_PER_TARGET} vidéos au plus : remplace ou supprime une vidéo pour en ajouter une autre.</p>}
-    {canEdit && form && <VideoForm kind={kind} target={target} replaces={form.replaces} onCancel={() => setForm(null)}
+    {canEdit && form && !form.replaces && <VideoForm kind={kind} target={target} replaces={null} onCancel={() => setForm(null)}
       onDone={(msg) => { setForm(null); refresh(msg) }} />}
   </section>
 }
 
-function VideoCard({ v, n, label, canEdit, first, last, onReplace, onChanged }: { v: LibVideo; n: number; label: string; canEdit: boolean; first: boolean; last: boolean; onReplace: () => void; onChanged: (msg: string) => void }) {
+function VideoCard({ v, n, label, canEdit, first, last, onReplace, onChanged, replaceForm }: { v: LibVideo; n: number; label: string; canEdit: boolean; first: boolean; last: boolean; onReplace: () => void; onChanged: (msg: string) => void; replaceForm: React.ReactNode }) {
   const [poster, setPoster] = useState("")
   const [src, setSrc] = useState("")
   const [state, setState] = useState<"idle" | "loading" | "error">("idle")
@@ -78,6 +81,7 @@ function VideoCard({ v, n, label, canEdit, first, last, onReplace, onChanged }: 
       </>}
     </div>}
     {err && <div className="uzu-banner uzu-banner--error" role="alert">{err}</div>}
+    {replaceForm}
   </li>
 }
 
@@ -87,8 +91,8 @@ function VideoForm({ kind, target, replaces, onCancel, onDone }: { kind: LibVide
   const [rights, setRights] = useState(false)
   const [step, setStep] = useState<LibUploadStep | null>(null)
   const [err, setErr] = useState("")
-  const ref = useRef<HTMLInputElement>(null)
-  useEffect(() => { ref.current?.focus() }, [])
+  const ref = useRef<HTMLFormElement>(null)
+  useEffect(() => { ref.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" }) }, [])
   const send = async () => {
     setErr("")
     if (!file) { setErr("Choisis d'abord une vidéo."); return }
@@ -98,15 +102,16 @@ function VideoForm({ kind, target, replaces, onCancel, onDone }: { kind: LibVide
     onDone((replaces ? "Vidéo remplacée" : "Vidéo ajoutée") + (r.data.hevc ? ". " + HEVC_NOTE : ""))
   }
   const busy = !!step && step !== "done"
-  return <form className="uzu-lib-form uzu-lib-vform" onSubmit={e => { e.preventDefault(); send() }} aria-label={replaces ? "Remplacer la vidéo" : "Ajouter une vidéo"}>
+  return <form ref={ref} className="uzu-lib-form uzu-lib-vform" onSubmit={e => { e.preventDefault(); send() }} aria-label={replaces ? "Remplacer la vidéo" : "Ajouter une vidéo"}>
     <b>{replaces ? `Remplacer « ${replaces.title || "la vidéo"} »` : "Ajouter une vidéo"}</b>
     <label className="uzu-field"><span className="uzu-label">Vidéo (MP4, MOV ou WebM, 50 Mo au plus)</span>
-      <input ref={ref} className="uzu-input" type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.m4v,.webm" disabled={busy} onChange={e => setFile(e.target.files?.[0] || null)} />
+      <input className="uzu-input" type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.m4v,.webm" disabled={busy} onChange={e => setFile(e.target.files?.[0] || null)} />
       <small className="uzu-muted">Sur téléphone : choisis une vidéo de la galerie ou filme directement. Une séquence courte (30 s à 2 min) se charge plus vite.</small></label>
     <label className="uzu-field"><span className="uzu-label">Titre {replaces ? "(vide : garde le titre actuel)" : "(facultatif)"}</span>
       <input className="uzu-input" maxLength={120} value={title} disabled={busy} onChange={e => setTitle(e.target.value)} placeholder="Ex. Démonstration vue de face" /></label>
-    <label className="uzu-lib-consent"><input type="checkbox" checked={rights} disabled={busy} onChange={e => setRights(e.target.checked)} />
-      <span>Les personnes filmées, et les représentants légaux des mineurs, ont donné leur accord pour cette vidéo.</span></label>
+    <button type="button" role="checkbox" aria-checked={rights} disabled={busy} className={"uzu-lib-consent uzu-lib-consentbtn" + (rights ? " is-on" : "")} onClick={() => setRights(r => !r)}>
+      <span className="uzu-lib-tick" aria-hidden="true">{rights && <Check size={16} strokeWidth={3} />}</span>
+      <span>Les personnes filmées, et les représentants légaux des mineurs, ont donné leur accord pour cette vidéo.</span></button>
     {step && <p className="uzu-text uzu-small" role="status" aria-live="polite">{STEP_TXT[step]}</p>}
     {err && <div className="uzu-banner uzu-banner--error" role="alert">{err}</div>}
     <div className="uzu-lib-actions"><button type="button" className="button button--outline" disabled={busy} onClick={onCancel}>Annuler</button>

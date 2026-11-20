@@ -167,15 +167,15 @@ with sync_playwright() as p:
         check(f"[{name}] professeur : outils Monter, Descendre, Renommer, Remplacer, Supprimer ; bouton Ajouter", sec.locator(".uzu-lib-vtools").count() == 2 and sec.get_by_role("button", name="Ajouter une vidéo").count() == 1)
         sec.get_by_role("button", name="Ajouter une vidéo").click(); pg.wait_for_timeout(300)
         fm = sec.locator(".uzu-lib-vform")
-        fm.locator("input[type=file]").set_input_files("/tmp/pas-une-video.mp4"); fm.locator("input[type=checkbox]").check()
+        fm.locator("input[type=file]").set_input_files("/tmp/pas-une-video.mp4"); fm.get_by_role("checkbox").click()
         fm.get_by_role("button", name="Envoyer la vidéo").click(); pg.wait_for_timeout(800)
         check(f"[{name}] fichier qui n'est pas une vidéo (image renommée .mp4) : refusé avant tout envoi", "Format non accepté" in fm.inner_text() and not [x for x in m.rpc if x[0] == "library_video_reserve"], fm.inner_text())
         fm.locator("input[type=file]").set_input_files(FX + "hevc10_hdr_iphone_like.mov"); fm.get_by_role("button", name="Envoyer la vidéo").click(); pg.wait_for_timeout(1000)
         check(f"[{name}] vidéo HDR 10 bits (iPhone) : refusée avec explication, rien d'envoyé", "HDR" in fm.inner_text() and not m.uploads, fm.inner_text())
-        fm.locator("input[type=file]").set_input_files(FX + "h264_control.mp4"); fm.locator("input[type=checkbox]").uncheck()
+        fm.locator("input[type=file]").set_input_files(FX + "h264_control.mp4"); (fm.get_by_role("checkbox").click() if fm.get_by_role("checkbox").get_attribute("aria-checked") == "true" else None)
         fm.get_by_role("button", name="Envoyer la vidéo").click(); pg.wait_for_timeout(400)
         check(f"[{name}] sans la déclaration d'accord : envoi bloqué", "accord" in fm.inner_text() and not m.uploads)
-        fm.locator("input[type=checkbox]").check(); fm.locator("input[maxlength='120']").fill("Vue de dos")
+        fm.get_by_role("checkbox").click(); fm.locator("input[maxlength='120']").fill("Vue de dos")
         fm.get_by_role("button", name="Envoyer la vidéo").click(); pg.wait_for_timeout(4000)
         res = [a for f_, a in m.rpc if f_ == "library_video_reserve"]
         up1 = m.uploads.get("c1/lib/n1.mp4", {}); upp = m.uploads.get("c1/lib/n1.jpg", {})
@@ -198,8 +198,12 @@ with sync_playwright() as p:
         # Remplacer
         sec.locator(".uzu-lib-vcard").first.get_by_role("button", name="Remplacer").click(); pg.wait_for_timeout(300)
         fm = sec.locator(".uzu-lib-vform")
-        check(f"[{name}] remplacer : formulaire dédié", "Remplacer « Démonstration de face »" in fm.inner_text())
-        fm.locator("input[type=file]").set_input_files(FX + "clip.webm"); fm.locator("input[type=checkbox]").check()
+        check(f"[{name}] remplacer : formulaire affiché sous la vidéo concernée", "Remplacer « Démonstration de face »" in fm.inner_text() and sec.locator(".uzu-lib-vcard").first.locator(".uzu-lib-vform").count() == 1)
+        cb = fm.get_by_role("checkbox"); bb = cb.bounding_box()
+        (cb.tap() if name == "mob" else cb.click()); on = cb.get_attribute("aria-checked")
+        (cb.tap() if name == "mob" else cb.click()); off = cb.get_attribute("aria-checked")
+        check(f"[{name}] case d'accord du remplacement : se coche et se décoche au toucher, zone tactile ≥ 44 px", on == "true" and off == "false" and bb["height"] >= 44, (on, off, bb))
+        fm.locator("input[type=file]").set_input_files(FX + "clip.webm"); fm.get_by_role("checkbox").click()
         fm.get_by_role("button", name="Remplacer la vidéo").click(); pg.wait_for_timeout(4000)
         res = [a for f_, a in m.rpc if f_ == "library_video_reserve"][-1]
         tt = [x for x in sec.locator(".uzu-lib-vmeta b").all_inner_texts()]
@@ -212,7 +216,7 @@ with sync_playwright() as p:
         check(f"[{name}] suppression : la vidéo disparaît, son fichier est effacé du stockage", sec.locator(".uzu-lib-vcard").count() == 2 and "c1/lib/v2.mp4" in m.deleted and "Saisie des genoux" not in sec.inner_text(), (m.deleted, sec.inner_text()[:200]))
         # Vidéo HEVC (iPhone « Haute efficacité ») acceptée avec avertissement
         sec.get_by_role("button", name="Ajouter une vidéo").click(); pg.wait_for_timeout(200)
-        fm = sec.locator(".uzu-lib-vform"); fm.locator("input[type=file]").set_input_files(FX + "hevc_iphone_like.mov"); fm.locator("input[type=checkbox]").check()
+        fm = sec.locator(".uzu-lib-vform"); fm.locator("input[type=file]").set_input_files(FX + "hevc_iphone_like.mov"); fm.get_by_role("checkbox").click()
         fm.get_by_role("button", name="Envoyer la vidéo").click(); pg.wait_for_timeout(4000)
         k = max(int(x.split("/n")[1].split(".")[0]) for x in m.uploads if x.endswith(".mp4"))
         check(f"[{name}] vidéo MOV HEVC de l'iPhone : acceptée, enregistrée en MP4, avertissement de compatibilité", f"c1/lib/n{k}.mp4" in m.uploads and m.uploads[f"c1/lib/n{k}.mp4"]["ctype"] == "video/mp4" and "HEVC" in sec.inner_text(), (m.uploads, sec.inner_text()[:300]))
@@ -230,7 +234,7 @@ with sync_playwright() as p:
         fs = pg.locator(".uzu-lib-vids")
         check(f"[{name}] enchaînement sans vidéo (professeur) : invitation à en ajouter", fs.count() == 1 and "Aucune vidéo" in fs.inner_text())
         fs.get_by_role("button", name="Ajouter une vidéo").click(); fm = fs.locator(".uzu-lib-vform")
-        fm.locator("input[type=file]").set_input_files(FX + "h264_control.mp4"); fm.locator("input[type=checkbox]").check(); fm.locator("input[maxlength='120']").fill("Transitions A et B")
+        fm.locator("input[type=file]").set_input_files(FX + "h264_control.mp4"); fm.get_by_role("checkbox").click(); fm.locator("input[maxlength='120']").fill("Transitions A et B")
         fm.get_by_role("button", name="Envoyer la vidéo").click(); pg.wait_for_timeout(4000)
         res = [a for f_, a in m.rpc if f_ == "library_video_reserve"][-1]
         check(f"[{name}] enchaînement FC2 : vidéo ajoutée et lisible", res["p_target_kind"] == "flow" and res["p_target"] == "FC2" and "Transitions A et B" in fs.inner_text(), (res, fs.inner_text()[:200]))
