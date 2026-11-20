@@ -1,5 +1,6 @@
 // Class Media — tests de la fonction serveur et du module de formats, sans réseau (node tests/class_media_unit.mjs)
-import { detectMime, photoHasMetadata, moovHasLocation, neutralizeLocation, findTopBox, parseRange } from "../supabase/functions/_shared/media-format.ts"
+import { detectMime, photoHasMetadata, moovHasLocation, neutralizeLocation, findTopBox, parseRange, videoCodec } from "../supabase/functions/_shared/media-format.ts"
+import { readFileSync } from "node:fs"
 import { makeHandler } from "../supabase/functions/class-media/handler.ts"
 import { storeTicket, relayVideo } from "../lib/uzu/cm-proxy.ts"
 
@@ -181,6 +182,16 @@ ok("quarantaine : repli copie puis effacement si le déplacement est refusé", f
 ok("reconcile sans session : 401", (await post("reconcile", { session: "00000000-0000-0000-0000-000000000002" })).status === 401)
 ok("purge : appelle la purge puis le rapprochement", (await post("purge", {}, { "x-cron-secret": CRON })).status === 200 && calls.some(c => c.path.endsWith("media_purge")))
 
+// Android / HEVC : détection du codec (fichiers produits par ffmpeg, comme un iPhone)
+{
+  const F = n => new Uint8Array(readFileSync(new URL("./fixtures/class-media/" + n, import.meta.url)))
+  const hv = F("hevc_iphone_like.mov"), hv10 = F("hevc10_hdr_iphone_like.mov"), avc = F("h264_control.mp4")
+  ok("codec · MOV HEVC 8 bits (iPhone « Haute efficacité ») : reconnu HEVC, type MOV", videoCodec(hv) === "hevc" && detectMime(hv.subarray(0, 65536)) === "video/quicktime")
+  ok("codec · MOV HEVC 10 bits HDR (iPhone récent) : reconnu HEVC", videoCodec(hv10) === "hevc")
+  ok("codec · MP4 H.264 : reconnu H.264", videoCodec(avc) === "h264" && detectMime(avc.subarray(0, 65536)) === "video/mp4")
+  ok("codec · fichier sans moov : inconnu", videoCodec(webm) === null)
+}
+
 // Relais vidéo du site (lib/uzu/cm-proxy.ts) : aucun jeton dans une adresse, de bout en bout
 {
   const SITE = "https://uzu.example", MID = "0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9"
@@ -206,6 +217,10 @@ ok("purge : appelle la purge puis le rapprochement", (await post("purge", {}, { 
   ok("relais · HEAD (sonde iPhone) : en-têtes sans corps", r.status === 206 && r.body === null && r.headers.get("content-length") === "2")
   r = await play("uzu_cmv=" + tokenOk, "n'importe quoi")
   ok("relais · plage invalide : non transmise", r.status === 206 && !seen[seen.length - 1].h.has("range"))
+  db.mime = "video/quicktime"
+  r = await play("uzu_cmv=" + tokenOk, "bytes=0-1")
+  ok("relais · MOV de l'iPhone annoncé video/mp4 (lisible par Chrome, Android compris)", r.status === 206 && r.headers.get("content-type") === "video/mp4")
+  db.mime = "video/mp4"
   db.allowed = false
   r = await play("uzu_cmv=" + tokenOk, "bytes=4194304-")
   ok("relais · R-1 : droits retirés en base, le morceau suivant est refusé", r.status === 403 && /no-store/.test(r.headers.get("cache-control")))

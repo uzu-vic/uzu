@@ -144,6 +144,19 @@ export function moovHasLocation(moov: Uint8Array): boolean {
 }
 
 /** Position d'une boîte de premier niveau dans un fichier entier (navigateur) */
+/**
+ * Codec vidéo d'un MP4/MOV, lu dans la description des pistes (moov) : HEVC (dont Dolby Vision) ou H.264.
+ * Sert seulement à prévenir l'auteur : certaines vidéos HEVC d'iPhone ne se lisent pas sur tous les Android.
+ */
+export function videoCodec(b: Uint8Array): "hevc" | "h264" | "other" | null {
+  const mv = findTopBox(b, "moov"); if (!mv) return null
+  const m = b.subarray(mv.start, Math.min(b.length, mv.start + mv.size))
+  const has = (t: string) => { const c = [...t].map(x => x.charCodeAt(0)); for (let i = 0; i + 4 <= m.length; i++) if (m[i] === c[0] && m[i + 1] === c[1] && m[i + 2] === c[2] && m[i + 3] === c[3]) return true; return false }
+  if (has("hvc1") || has("hev1") || has("dvh1") || has("dvhe")) return "hevc"
+  if (has("avc1") || has("avc3")) return "h264"
+  return "other"
+}
+
 export function findTopBox(b: Uint8Array, type: string): { start: number; size: number; header: number } | null {
   let o = 0
   for (let n = 0; n < 200 && o + 8 <= b.length; n++) {

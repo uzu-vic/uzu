@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import { Camera, Film, ShieldAlert } from "lucide-react"
 import { saveSection } from "@/lib/uzu/club"
 import {
-  addMedia, handleRequest, mediaQueue, mediaTicket, photoBlobUrl, removeMedia, requestRemoval, restoreMedia, sectionMinorsList, sessionMedia,
+  addMedia, handleRequest, mediaQueue, mediaTicket, photoBlobUrl, probeVideo, FORMAT_MSG, HEVC_NOTE, removeMedia, requestRemoval, restoreMedia, sectionMinorsList, sessionMedia,
   setSectionMinors, validateMedia, videoSrc, REQ_LBL, STATE_LBL, VALID_LBL, type MediaItem, type QueueItem, type SessionMedia, type UploadStep,
 } from "@/lib/uzu/class-media"
 
@@ -60,7 +60,14 @@ function VideoView({ m, onGone }: { m: MediaItem; onGone: () => void }) {
   if (!src) return <div className="uzu-cm-wait" aria-busy="true" aria-label="Chargement de la vidéo" />
   // Jeton expiré ou droits retirés : le serveur refuse le morceau suivant ; on redemande un jeton une fois.
   return <video ref={ref} className="uzu-cm-video" controls playsInline preload="metadata" src={src} controlsList="nodownload noremoteplayback" disablePictureInPicture
-    onContextMenu={e => e.preventDefault()} onError={() => { if (retries.current++ < 1) load(true); else { setErr("Vidéo retirée ou plus accessible"); onGone() } }} aria-label="Vidéo de la séance" />
+    onLoadedMetadata={e => { if (e.currentTarget.videoWidth === 0 && e.currentTarget.videoHeight === 0) setErr(FORMAT_MSG) /* son seul, écran noir : piste image non décodable (HEVC sans décodeur) */ }}
+    onContextMenu={e => e.preventDefault()} onError={async () => {
+      // Accès retiré ou jeton expiré (403) : un nouveau jeton une fois, puis « retirée ». Format non décodable : le dire, sans masquer le média.
+      const why = await probeVideo(src)
+      if (why === "format") { setErr(FORMAT_MSG); return }
+      if (why === "denied" && retries.current++ < 1) { load(true); return }
+      setErr(why === "denied" ? "Vidéo retirée ou plus accessible" : "Lecture de la vidéo impossible pour le moment"); if (why === "denied") onGone()
+    }} aria-label="Vidéo de la séance" />
 }
 
 // ---------------------------------------------------------------- Détail d'une séance : galerie
@@ -133,7 +140,7 @@ export function MediaManager({ sessionId, onToast }: { sessionId: string | null;
   const [tick, setTick] = useState(0)
   const st = useSessionMedia(sessionId, tick)
   const [rights, setRights] = useState(false), [minorsOk, setMinorsOk] = useState(false)
-  const [step, setStep] = useState<UploadStep | null>(null), [err, setErr] = useState("")
+  const [step, setStep] = useState<UploadStep | null>(null), [err, setErr] = useState(""), [note, setNote] = useState("")
   const photo = useRef<HTMLInputElement | null>(null), video = useRef<HTMLInputElement | null>(null)
   if (!sessionId) return <p className="uzu-text uzu-small uzu-muted">Photos et vidéos : enregistre d'abord la séance (au moins en brouillon), puis rouvre-la pour en ajouter.</p>
   if (st.status === "absent") return null
@@ -142,11 +149,12 @@ export function MediaManager({ sessionId, onToast }: { sessionId: string | null;
   const d = st.data, full = d.used >= d.max, ready = rights && (!d.minors || minorsOk) && !step && !full
   const send = async (file: File | undefined, kind: "photo" | "video") => {
     if (!file) return
-    setErr("")
+    setErr(""); setNote("")
     const r = await addMedia(sessionId, file, kind, rights, minorsOk, d.max_bytes, s => setStep(s))
     setStep(null)
     if (!r.ok) { setErr(r.msg); setTick(x => x + 1); return }
     onToast(r.data.validation === "pending_validation" ? "Média vérifié : en attente de validation par un responsable" : "Média ajouté à la séance")
+    setNote(r.data.hevc ? HEVC_NOTE : "")
     setTick(x => x + 1)
   }
   return <div className="uzu-cm-manager">
@@ -171,6 +179,7 @@ export function MediaManager({ sessionId, onToast }: { sessionId: string | null;
     {full && <p className="uzu-text uzu-small uzu-muted">Limite de {d.max} médias atteinte pour cette séance.</p>}
     {step && <p className="uzu-note wait" role="status">{STEP_LBL[step]}</p>}
     {err && <div className="uzu-banner uzu-banner--error" role="alert">{err}</div>}
+    {note && <p className="uzu-note wait uzu-cm-hevc" role="status">{note}</p>}
   </div>
 }
 

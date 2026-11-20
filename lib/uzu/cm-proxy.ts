@@ -54,5 +54,7 @@ export async function relayVideo(req: Request, media: string, supabaseUrl: strin
   catch { return deny(502, "upstream") }
   const out: Record<string, string> = { ...NO_STORE, "Content-Disposition": "inline" }
   for (const k of ["content-type", "content-length", "content-range", "accept-ranges"]) { const v = up.headers.get(k); if (v) out[k] = v }
+  // MOV (iPhone) annoncé en MP4 : même structure de fichier ; Chrome (Android compris) refuse certains MOV annoncés video/quicktime
+  if (out["content-type"] === "video/quicktime") out["content-type"] = "video/mp4"
   return new Response(req.method === "HEAD" ? null : up.body, { status: up.status, headers: out })
 }

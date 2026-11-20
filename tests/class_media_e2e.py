@@ -22,6 +22,7 @@ class MediaMock(Mock):
     def __init__(s, role, media=True, minors=False, **k):
         super().__init__(role, **k)
         s.media_on, s.minors, s.denied, s.uploads, s.fn_calls, s.reads = media, minors, set(), [], [], []
+        s.body_of = {}  # contenu vidéo servi par média (défaut : WebM lisible)
         s.items = {
             "s2": [dict(id="p1", kind="photo", position=1, state="ready", location="main", validation="approved", mime="image/png", size=len(PNG)),
                    dict(id="v1", kind="video", position=2, state="ready", location="main", validation="approved", mime="video/webm", size=len(WEBM)),
@@ -50,8 +51,9 @@ class MediaMock(Mock):
         s.fn_calls.append(("stream", r.method, {"range": h.get("range", ""), "x-media-ticket": ck.get("uzu_cmv", ""), "via": "site", "url": u}, None))
         tok = ck.get("uzu_cmv", "")
         if tok != HEX(mid) or mid in s.denied: return route.fulfill(status=403, content_type="application/json", headers={"Cache-Control": "no-store, private"}, body=json.dumps({"error": "Accès refusé", "code": "denied"}))
-        rg = re.match(r"bytes=(\d+)-(\d*)", h.get("range", "") or "bytes=0-"); a = int(rg.group(1)); e = min(int(rg.group(2) or len(WEBM) - 1), a + 262143, len(WEBM) - 1)
-        return route.fulfill(status=206, headers={"Content-Type": "video/webm", "Content-Range": f"bytes {a}-{e}/{len(WEBM)}", "Accept-Ranges": "bytes", "Cache-Control": "no-store, private"}, body=WEBM[a:e + 1])
+        data, ct = (s.body_of.get(mid) or (WEBM, "video/webm"))
+        rg = re.match(r"bytes=(\d+)-(\d*)", h.get("range", "") or "bytes=0-"); a = int(rg.group(1)); e = min(int(rg.group(2) or len(data) - 1), a + 262143, len(data) - 1)
+        return route.fulfill(status=206, headers={"Content-Type": ct, "Content-Range": f"bytes {a}-{e}/{len(data)}", "Accept-Ranges": "bytes", "Cache-Control": "no-store, private"}, body=data[a:e + 1])
     def handle(s, route):
         r = route.request; u = r.url
         J = lambda o, st=200: route.fulfill(status=st, content_type="application/json", headers={"Access-Control-Allow-Origin": "http://127.0.0.1:3100", "Access-Control-Allow-Headers": "*", "Cache-Control": "no-store, private"}, body=json.dumps(o))
@@ -194,6 +196,12 @@ with sync_playwright() as p:
     upv = m.uploads[-1]; orig = open(FIX + "android_like.mp4", "rb").read()
     check("D3 · vidéo : type réel lu (MP4), localisation neutralisée, taille et contenu image inchangés, sans conversion",
           m.last("media_reserve")[-1]["p_mime"] == "video/mp4" and len(upv["body"]) == len(orig) and b"earth" in orig and b"earth" not in upv["body"] and upv["body"][-2000:] == orig[-2000:] if orig.find(b"moov") < orig.find(b"mdat") else True)
+    if not pg.locator(".uzu-cm-manager input[type=checkbox]").first.is_checked(): pg.locator(".uzu-cm-manager input[type=checkbox]").first.check()
+    check("Android · vidéo H.264 : aucun avertissement de format", pg.locator(".uzu-cm-hevc").count() == 0)
+    with pg.expect_file_chooser() as fc: pg.locator(".uzu-cm-manager").get_by_role("button", name="Ajouter une vidéo").click()
+    fc.value.set_files(FIX + "hevc_iphone_like.mov"); pg.wait_for_timeout(2500)
+    nt = pg.locator(".uzu-cm-hevc")
+    check("Android · vidéo HEVC d'iPhone envoyée : avertissement et réglage « Le plus compatible » indiqués", m.last("media_reserve")[-1]["p_mime"] == "video/quicktime" and nt.count() == 1 and "HEVC" in nt.inner_text() and "Le plus compatible" in nt.inner_text())
     pg.screenshot(path="/tmp/cm_editor.png", full_page=True)
     # Équipe : groupes de mineurs
     pg.locator(".primary-nav .nav-item", has_text="Équipe").first.click(); pg.wait_for_timeout(1800)
@@ -252,6 +260,20 @@ with sync_playwright() as p:
     check("lecture adhérent : aucune requête vers le stockage, aucune adresse signée", not m.reads, m.reads)
     check("adhérent : aucune action d'équipe tentée", not m.last("media_remove") and not m.last("media_validate") and not m.last("media_reserve"))
     check("adhérent : aucune erreur JavaScript", not errs, errs); c.close()
+
+    # ---------------- Android : vidéo que l'appareil ne sait pas décoder (accès toujours autorisé)
+    for label, body in (("contenu non décodable", (bytes(range(256)) * 400, "video/mp4")), ("HEVC d'iPhone (Chrome sans décodeur HEVC)", (open(FIX + "hevc_iphone_like.mov", "rb").read(), "video/mp4"))):
+        m = MediaMock("student", uid=S1); m.body_of["v1"] = body; c, pg, errs = open_page(b, m, S1, "alice@test.fr", "Alice Martin", {"width": 390, "height": 844})
+        pg.locator(".mobile-bottom-nav button", has_text="Séances").click(); pg.wait_for_timeout(1500)
+        pg.locator(".subnav-tabs button", has_text="Cours du groupe").click(); pg.wait_for_timeout(1200)
+        pg.locator(".uzu-jr-card", has_text="Passages de garde").click(); pg.wait_for_timeout(2500)
+        pg.evaluate("(() => { const v = document.querySelector('video.uzu-cm-video'); if (v) { v.muted = true; return v.play().catch(() => 0) } })()"); pg.wait_for_timeout(3500)
+        g = pg.locator(".uzu-cm"); txt = g.inner_text()
+        played = pg.evaluate("(() => { const v = document.querySelector('video.uzu-cm-video'); return !!v && v.videoWidth > 0 && !v.error })()")
+        if label.startswith("HEVC") and played: print("   (ce Chrome de test sait décoder le HEVC : la vidéo se lit, pas de message attendu)")
+        else: check(f"Android · {label} : message « format non pris en charge », média non déclaré retiré", "ne peut pas être lue sur cet appareil" in txt and "retirée" not in txt and g.locator(".uzu-cm-item").count() == 2, txt[:300])
+        check(f"Android · {label} : aucune demande de nouveau jeton en boucle", len(m.last("media_ticket")) <= 3, len(m.last("media_ticket")))
+        check(f"Android · {label} : aucune erreur JavaScript", not errs, errs); c.close()
 
     # ---------------- Base sans le script Class Media
     m = MediaMock("owner", media=False); c, pg, errs = open_page(b, m, OWNER, "prof@test.fr", "Paul Prof", {"width": 1280, "height": 900}); courses(pg)
