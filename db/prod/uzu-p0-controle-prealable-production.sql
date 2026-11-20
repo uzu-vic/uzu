@@ -9,7 +9,7 @@
 --   E. aucun secret Class Media déjà présent dans le coffre.
 -- Résultat attendu : toutes les lignes à « ✔ ». Une seule ligne « ✖ » = on ne déploie pas, on analyse.
 -- =====================================================================================
-begin transaction read only;
+begin transaction read only;  -- toute écriture serait refusée par PostgreSQL
 
 with
 deps(f) as (values
@@ -70,10 +70,4 @@ c(n, controle, ok, detail) as (
     to_regclass('vault.decrypted_secrets') is not null and not exists (select 1 from vault.secrets where name like 'class_media_%'), ''
 )
 select n as num, controle, case when ok then '✔' else '✖' end as resultat, detail from c order by n;
-
--- Informations (sans donnée personnelle) : volume des tables existantes concernées
-select 'info' as type, relname as table_existante, n_live_tup as lignes_estimees
-  from pg_stat_user_tables where schemaname = 'public' and relname in ('academy_members','academy_sections','clubs','course_meta','docs')
- order by 2;
-
-rollback;
+-- Pas de « commit » : la transaction en lecture seule est abandonnée à la fin de la connexion (rien ne peut être écrit).

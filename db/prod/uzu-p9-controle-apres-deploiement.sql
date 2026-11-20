@@ -5,7 +5,7 @@
 -- Compare l'état de la production à l'instantané uzu-p1 pris juste avant le déploiement.
 -- Résultat attendu : toutes les lignes à « ✔ ». Une ligne « ✖ » sur la sécurité = coupure (uzu-pR1).
 -- =====================================================================================
-begin transaction read only;
+begin transaction read only;  -- toute écriture serait refusée par PostgreSQL
 
 with
 nouvelles(t) as (values
@@ -69,5 +69,4 @@ c(n, controle, ok, detail) as (
       and table_name in ('class_media_tickets', 'class_media_removal_requests', 'class_media_settings') and grantee in ('anon', 'authenticated')), ''
 )
 select n as num, controle, case when ok then '✔' else '✖' end as resultat, detail from c order by n;
-
-rollback;
+-- Pas de « commit » : la transaction en lecture seule est abandonnée à la fin de la connexion (rien ne peut être écrit).
