@@ -819,3 +819,4 @@ button.uzu-jv-bar:hover .uzu-jv-bl { text-decoration: underline; }
 .uzu-dir-slots { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .uzu-dir-slot-opts { display: grid; gap: 8px; margin: 8px 0 4px 34px; }
 @media (max-width: 520px) { .uzu-dir-slot-opts { margin-left: 0; } .uzu-dir-days li { grid-template-columns: 1fr; } .uzu-dir-days li span { grid-column: 1; } }
+.text-link.uzu-dir-link { display: inline-flex; min-height: 44px; align-items: center; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }

@@ -52,7 +52,7 @@ export function CommunePicker({ value, onPick, label = "Ville ou code postal", i
     <div className="uzu-search"><Search size={15} aria-hidden="true" /><input id={id} className="uzu-input" autoComplete="off" inputMode="search" placeholder="Ex. Évry, 91000" value={q} onChange={e => setQ(e.target.value)} /></div>
     {err && <p className="uzu-text uzu-small" role="alert">{err}</p>}
     {list.length > 0 && <ul className="uzu-dir-sugg" role="listbox" aria-label="Communes trouvées">{list.map(c => <li key={c.insee}><button type="button" role="option" aria-selected={false} onClick={() => { onPick(c); setOpen(false); setQ(""); setList([]) }}><b>{c.nom}</b><small>{c.departement} · {c.code_postal}</small></button></li>)}</ul>}
-    {value && <button type="button" className="text-link" onClick={() => setOpen(false)}>Garder {value.nom}</button>}
+    {value && <button type="button" className="text-link uzu-dir-link" onClick={() => setOpen(false)}>Garder {value.nom}</button>}
   </div>
 }
 
@@ -90,7 +90,7 @@ export function ClubsPane({ tabs, onToast }: { tabs: React.ReactNode; onToast: (
         <p className="uzu-text uzu-small uzu-muted" role="status">{res.clubs.length ? `${res.clubs.length} club${res.clubs.length > 1 ? "s" : ""} à moins de ${res.radius} km de ${res.commune.nom}` : `Aucun club référencé à moins de ${res.radius} km de ${res.commune.nom} pour l'instant.`}</p>
         <ul className="uzu-dir-list">{res.clubs.map(c => <li key={c.slug}><ClubCard c={c} onOpen={() => setOpen(c.slug)} /></li>)}</ul>
       </section>}
-    <p className="uzu-text uzu-small uzu-muted">Un club manque ? <button type="button" className="text-link" onClick={() => setSuggest({ slug: null })}>Propose-le à l&apos;équipe UZU</button></p>
+    <p className="uzu-text uzu-small uzu-muted">Un club manque ? <button type="button" className="text-link uzu-dir-link" onClick={() => setSuggest({ slug: null })}>Propose-le à l&apos;équipe UZU</button></p>
   </>
 }
 
@@ -144,7 +144,7 @@ export function ClubSheet({ slug, onBack, onSuggest }: { slug: string; onBack: (
         {c.instagram && <a className="button button--outline uzu-small-btn" href={`https://www.instagram.com/${encodeURIComponent(c.instagram)}/`} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} aria-hidden="true" />@{c.instagram}</a>}
       </div>
     </section>
-    <p className="uzu-text uzu-small uzu-muted">{c.uzu ? "Horaires tenus à jour par le club" : "Fiche vérifiée par l'équipe UZU"}{c.verified_at ? ` · ${fmtDate(c.verified_at)}` : ""} · <button type="button" className="text-link" onClick={() => onSuggest(c.name)}>Signaler une erreur</button></p>
+    <p className="uzu-text uzu-small uzu-muted">{c.uzu ? "Horaires tenus à jour par le club" : "Fiche vérifiée par l'équipe UZU"}{c.verified_at ? ` · ${fmtDate(c.verified_at)}` : ""} · <button type="button" className="text-link uzu-dir-link" onClick={() => onSuggest(c.name)}>Signaler une erreur</button></p>
   </article>
 }
 
