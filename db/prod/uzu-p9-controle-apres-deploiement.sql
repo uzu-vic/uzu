@@ -13,7 +13,7 @@ nouvelles(t) as (values
   ('class_session_events'), ('class_session_media'), ('class_session_techniques'), ('class_sessions'),
   ('club_lib_collection_items'), ('club_lib_collections'), ('club_lib_events'), ('club_lib_hidden'), ('club_lib_items'),
   ('club_lib_settings'), ('club_lib_technique_details'), ('group_focus'), ('lib_categories'), ('lib_disciplines'),
-  ('lib_flow_step_techniques'), ('lib_flow_steps'), ('lib_flows'), ('lib_techniques')),
+  ('lib_flow_step_techniques'), ('lib_flow_steps'), ('lib_flows'), ('lib_techniques'), ('club_lib_videos')),
 serveur(f) as (values
   ('public.media_stream_check(text)'), ('public.media_finalize_info(uuid,uuid)'), ('public.media_mark_ready(uuid,text,bigint)'),
   ('public.media_mark_failed(uuid,text)'), ('public.media_set_location(uuid,text)'), ('public.media_reconcile(uuid,integer)'),
@@ -39,9 +39,17 @@ c(n, controle, ok, detail) as (
        'communications','academy_settings','pedagogical_notes','academy_audit_logs','academy_statistics')) = 15, ''
   union all select 'X5', 'Espace des vidéos pédagogiques inchangé',
     (select public::text from storage.buckets where id = 'videos') is not distinct from (select definition from snap where kind = 'bucket' and name = 'videos'), ''
+  union all select 'X6', 'Vidéos pédagogiques existantes : fichiers identiques (hors sous-dossiers Bibliothèque <club>/lib/)',
+    (select md5(coalesce(string_agg(id::text || name || coalesce(metadata::text, '') || coalesce(updated_at::text, ''), '|' order by name), '')) from storage.objects
+      where bucket_id = 'videos' and name not like '%/lib/%') is not distinct from (select definition from snap where kind = 'videos_files'), ''
+  union all select 'X7', 'Règles d''accès existantes : définitions identiques (lecture, envoi, suppression)',
+    not exists (select 1 from snap s join pg_policies p on p.schemaname || '.' || p.tablename || '#' || p.policyname = s.name
+      where s.kind = 'policy_def' and md5(coalesce(p.qual, '') || '|' || coalesce(p.with_check, '') || '|' || p.roles::text) <> s.definition),
+    coalesce((select string_agg(s.name, ', ') from snap s join pg_policies p on p.schemaname || '.' || p.tablename || '#' || p.policyname = s.name
+      where s.kind = 'policy_def' and md5(coalesce(p.qual, '') || '|' || coalesce(p.with_check, '') || '|' || p.roles::text) <> s.definition), '')
   -- Installation
-  union all select 'I1', 'Les 22 nouvelles tables existent, règles d''accès (RLS) activées',
-    (select count(*) from nouvelles n join pg_class c on c.relname = n.t and c.relnamespace = 'public'::regnamespace where c.relrowsecurity) = 22, ''
+  union all select 'I1', 'Les 23 nouvelles tables existent, règles d''accès (RLS) activées',
+    (select count(*) from nouvelles n join pg_class c on c.relname = n.t and c.relnamespace = 'public'::regnamespace where c.relrowsecurity) = 23, ''
   union all select 'I2', 'Deux espaces Class Media privés, 50 Mo au plus',
     (select count(*) from storage.buckets where id in ('class-media', 'class-media-quarantine') and not public and file_size_limit = 52428800) = 2, ''
   union all select 'I3', 'Deux tâches planifiées actives (rattrapage 5 min, purge nocturne)',
@@ -64,6 +72,14 @@ c(n, controle, ok, detail) as (
   union all select 'Z4', 'Règle d''envoi limitée à l''espace class-media et à l''emplacement réservé',
     exists (select 1 from pg_policies where policyname = 'uzu_class_media_insert' and cmd = 'INSERT'
       and with_check like '%class-media%' and with_check like '%uzu_media_upload_ok%'), ''
+  union all select 'Z6', 'Vidéos Bibliothèque : 2 règles de stockage ajoutées, limitées à « videos » et aux fichiers déclarés',
+    (select count(*) from pg_policies where schemaname = 'storage' and (
+        (policyname = 'uzu_lib_video_insert' and cmd = 'INSERT' and with_check like '%''videos''%' and with_check like '%uzu_lib_video_upload_ok%')
+     or (policyname = 'uzu_lib_video_delete' and cmd = 'DELETE' and qual like '%''videos''%' and qual like '%uzu_lib_video_delete_ok%'))) = 2
+    and not exists (select 1 from pg_policies where policyname like 'uzu_lib_video%' and coalesce(qual, '') || coalesce(with_check, '') like '%class-media%'), ''
+  union all select 'Z7', 'Table des vidéos Bibliothèque : aucune écriture directe pour les comptes',
+    not exists (select 1 from information_schema.role_table_grants where table_schema = 'public' and table_name = 'club_lib_videos'
+      and grantee in ('anon', 'authenticated') and privilege_type in ('INSERT', 'UPDATE', 'DELETE')), ''
   union all select 'Z5', 'Tables Class Media sensibles (jetons, demandes, réglages) fermées aux comptes',
     not exists (select 1 from information_schema.role_table_grants where table_schema = 'public'
       and table_name in ('class_media_tickets', 'class_media_removal_requests', 'class_media_settings') and grantee in ('anon', 'authenticated')), ''

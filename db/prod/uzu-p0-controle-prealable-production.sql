@@ -40,6 +40,7 @@ c(n, controle, ok, detail) as (
   select 'A1', 'Bibliothèque pas encore installée', to_regclass('public.club_lib_items') is null and to_regclass('public.lib_techniques') is null, ''
   union all select 'A2', 'Journal des cours pas encore installé', to_regclass('public.class_sessions') is null and to_regprocedure('public.journal_save_session(uuid,jsonb,boolean)') is null, ''
   union all select 'A3', 'Class Media pas encore installé', to_regclass('public.class_media_tickets') is null and not exists (select 1 from storage.buckets where id like 'class-media%'), ''
+  union all select 'A5', 'Vidéos de la Bibliothèque (uzu-9b) pas encore installées', to_regclass('public.club_lib_videos') is null, ''
   union all select 'A4', 'Instantané uzu-p1 pas encore pris (ou à reprendre le jour J)', to_regclass('uzu_deploy.snapshot') is null, 'si ✖ : un instantané existe déjà, vérifier sa date'
   -- B. Dépendances
   union all select 'B1', 'Fonctions existantes nécessaires présentes avec la bonne signature (15)',
@@ -58,6 +59,9 @@ c(n, controle, ok, detail) as (
     exists (select 1 from storage.buckets where id = 'videos'),
     coalesce((select 'public=' || public::text from storage.buckets where id = 'videos'), 'absent')
   union all select 'C4', 'Aucune règle d''envoi Class Media déjà présente', not exists (select 1 from pg_policies where policyname = 'uzu_class_media_insert'), ''
+  union all select 'C5', 'Aucune règle de stockage Bibliothèque déjà présente', not exists (select 1 from pg_policies where policyname like 'uzu_lib_video%'), ''
+  union all select 'C6', 'Les 3 règles existantes du stockage pédagogique sont présentes (elles ne seront pas modifiées)',
+    (select count(*) from pg_policies where schemaname = 'storage' and policyname in ('uzu_videos_select', 'uzu_videos_insert', 'uzu_videos_delete')) = 3, ''
   -- D. Extensions
   union all select 'D1', 'pg_cron disponible', exists (select 1 from pg_available_extensions where name = 'pg_cron'),
     coalesce((select 'installée ' || installed_version from pg_available_extensions where name = 'pg_cron' and installed_version is not null), 'à activer')

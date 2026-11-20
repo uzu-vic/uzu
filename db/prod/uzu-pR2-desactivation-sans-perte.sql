@@ -56,8 +56,15 @@ do $$ declare r record; begin
     execute format('revoke execute on function %s from public, anon, authenticated', r.f);
   end loop; end $$;
 
--- 4. Règle d'envoi Class Media
+-- 4. Règles de stockage ajoutées par le déploiement (Class Media, vidéos de la Bibliothèque) :
+--    toute règle du stockage absente de l'instantané est retirée ; les règles existantes ne sont pas touchées
 drop policy if exists uzu_class_media_insert on storage.objects;
+do $$ declare r record; begin
+  for r in select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects'
+             and ('storage.objects#' || policyname) not in (select name from uzu_deploy.snapshot where kind = 'policy') loop
+    execute format('drop policy %I on storage.objects', r.policyname);
+    raise notice 'Règle de stockage retirée : %', r.policyname;
+  end loop; end $$;
 
 -- 5. Fonctions existantes : retour à la définition et aux droits exacts d'avant
 do $$ declare r record; cur text; begin
@@ -93,4 +100,7 @@ union all
 select 'fonctions_ajoutees_accessibles_aux_comptes', count(*), null from pg_proc p join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and p.prokind = 'f'
    and p.oid::regprocedure::text not in (select name from uzu_deploy.snapshot where kind = 'function')
-   and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute'));
+   and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute'))
+union all
+select 'regles_stockage_ajoutees_restantes', count(*), null from pg_policies
+ where schemaname = 'storage' and ('storage.' || tablename || '#' || policyname) not in (select name from uzu_deploy.snapshot where kind = 'policy');

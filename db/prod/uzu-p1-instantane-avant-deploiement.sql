@@ -26,7 +26,8 @@ revoke all on uzu_deploy.snapshot from public, anon, authenticated;
 do $$ begin
   if to_regprocedure('public.journal_save_session(uuid,jsonb,boolean)') is not null
      or to_regclass('public.club_lib_items') is not null
-     or to_regclass('public.class_media_tickets') is not null then
+     or to_regclass('public.class_media_tickets') is not null
+     or to_regclass('public.club_lib_videos') is not null then
     raise exception 'Arrêt : la Bibliothèque, le Journal ou Class Media sont déjà installés. L''instantané doit être pris AVANT le déploiement.';
   end if;
 end $$;
@@ -42,7 +43,14 @@ select 'table', table_schema || '.' || table_name from information_schema.tables
 insert into uzu_deploy.snapshot (kind, name, definition)
 select 'policy', schemaname || '.' || tablename || '#' || policyname, cmd from pg_policies where schemaname in ('public', 'storage');
 insert into uzu_deploy.snapshot (kind, name, definition)
+select 'policy_def', schemaname || '.' || tablename || '#' || policyname, md5(coalesce(qual, '') || '|' || coalesce(with_check, '') || '|' || roles::text)
+  from pg_policies where schemaname in ('public', 'storage');
+insert into uzu_deploy.snapshot (kind, name, definition)
 select 'bucket', id, public::text from storage.buckets;
+-- Fichiers du stockage pédagogique existant : empreinte (preuve qu'aucune vidéo existante n'est touchée)
+insert into uzu_deploy.snapshot (kind, name, definition)
+select 'videos_files', 'storage.objects#videos', md5(coalesce(string_agg(id::text || name || coalesce(metadata::text, '') || coalesce(updated_at::text, ''), '|' order by name), ''))
+  from storage.objects where bucket_id = 'videos';
 insert into uzu_deploy.snapshot (kind, name, definition) values ('meta', 'pris_le', now()::text);
 commit;
 
