@@ -383,6 +383,23 @@ begin
   return true;
 end $$;
 
+-- Personnes que je ne vois plus : prénom et initiale, clé opaque (jamais l'identifiant du compte)
+create or replace function public.rouler_my_blocks() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('key', md5(b.blocker_id::text || b.blocked_id::text), 'name', public.rouler_name(b.blocked_id), 'at', b.created_at)
+           order by b.created_at desc), '[]'::jsonb)
+    from public.user_blocks b where b.blocker_id = public.uzu_require_auth()
+$$;
+
+create or replace function public.rouler_unblock(p_key text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := public.uzu_require_auth();
+begin
+  delete from public.user_blocks where blocker_id = v_uid and md5(blocker_id::text || blocked_id::text) = p_key;
+  if not found then raise exception 'Introuvable'; end if;
+  return true;
+end $$;
+
 create or replace function public.rouler_report(p_handle uuid, p_reason text, p_details text default '') returns boolean
 language plpgsql security definer set search_path = public as $$
 declare v_uid uuid := public.uzu_require_auth(); v_target uuid; n int;
@@ -402,7 +419,7 @@ begin
    where target_id = v_target and created_at > now() - interval '30 days' and status in ('open','kept');
   if n >= 3 then
     update public.rouler_profiles set status = 'paused', paused_at = now(), updated_at = now() where user_id = v_target and status = 'active';
-    if found then perform public.dir_mod_log('rouler.paused_auto', left(v_target::text, 8), jsonb_build_object('reports', n)); end if;
+    if found then perform public.dir_mod_log('rouler.paused_auto', public.rouler_name(v_target), jsonb_build_object('reports', n)); end if;
   end if;
   return true;
 end $$;
@@ -445,7 +462,7 @@ begin
     update public.rouler_reports set status = case when p_decision = 'restore' then 'restored' else 'dismissed' end,
            resolved_at = now(), resolved_by = v_uid where target_id = v_target and status in ('open','kept');
   end if;
-  perform public.dir_mod_log('rouler.' || p_decision, left(v_target::text, 8));
+  perform public.dir_mod_log('rouler.' || p_decision, public.rouler_name(v_target));
   return true;
 end $$;
 
@@ -501,6 +518,8 @@ revoke all on function public.rouler_end_availability(uuid) from public, anon;
 revoke all on function public.rouler_search(text, int, date, date, text, text, text, text) from public, anon;
 revoke all on function public.rouler_block(uuid) from public, anon;
 revoke all on function public.rouler_report(uuid, text, text) from public, anon;
+revoke all on function public.rouler_my_blocks() from public, anon;
+revoke all on function public.rouler_unblock(text) from public, anon;
 revoke all on function public.rouler_admin_reports(text) from public, anon;
 revoke all on function public.rouler_admin_resolve(uuid, text) from public, anon;
 grant execute on function public.rouler_me() to authenticated;
@@ -513,6 +532,8 @@ grant execute on function public.rouler_end_availability(uuid) to authenticated;
 grant execute on function public.rouler_search(text, int, date, date, text, text, text, text) to authenticated;
 grant execute on function public.rouler_block(uuid) to authenticated;
 grant execute on function public.rouler_report(uuid, text, text) to authenticated;
+grant execute on function public.rouler_my_blocks() to authenticated;
+grant execute on function public.rouler_unblock(text) to authenticated;
 grant execute on function public.rouler_admin_reports(text) to authenticated;
 grant execute on function public.rouler_admin_resolve(uuid, text) to authenticated;
 

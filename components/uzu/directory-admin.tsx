@@ -3,19 +3,21 @@
 // chaque action est de toute façon vérifiée côté serveur et inscrite au journal de modération.
 import { useEffect, useState } from "react"
 import { ArrowLeft, Plus, Trash2 } from "lucide-react"
+import { REASONS, roulerAdminReports, roulerAdminResolve, type RoulerReport } from "@/lib/uzu/rouler"
 import {
   DAYS, DISC_LBL, KIND_SHORT, STATUS_LBL, adminList, adminLog, adminResolve, adminSave, adminSetStatus, adminSuggestions, getClub,
   type AdminClub, type Commune, type DirClub, type DirDisc, type DirKind, type ModLog, type StaffSession, type Suggestion, type Welcome,
 } from "@/lib/uzu/directory"
 import { CommunePicker, Tick } from "@/components/uzu/directory"
 
-type View = "sugg" | "clubs" | "log"
+type View = "sugg" | "clubs" | "reports" | "log"
 type Edit = { slug: string | null; prefill?: { name?: string; details?: string; contact?: string }; fromSuggestion?: string }
 const fmt = (s: string | null) => s ? new Date(s).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : ""
 const fmtT = (s: string) => new Date(s).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
 const ACTION_LBL: Record<string, string> = {
   "club.created": "Fiche créée", "club.updated": "Fiche modifiée", "suggestion.accepted": "Proposition traitée",
   "suggestion.rejected": "Proposition rejetée", "suggestion.open": "Proposition rouverte", "moderator.granted": "Référent désigné", "moderator.revoked": "Référent retiré",
+  "rouler.paused_auto": "Partenaire mis en pause automatiquement", "rouler.keep": "Pause de partenaire maintenue", "rouler.restore": "Partenaire rétabli", "rouler.dismiss": "Signalements de partenaire classés",
 }
 const STATUS_ACT: Record<string, string> = { draft: "Mise en brouillon", published: "Publication", hidden: "Masquage", moderated: "Masquage de modération", unmoderated: "Masquage de modération levé" }
 const logLine = (l: ModLog) => l.action === "club.status" ? STATUS_ACT[String(l.details?.status || "")] || "Changement d'état" : ACTION_LBL[l.action] || l.action
@@ -23,6 +25,8 @@ const logLine = (l: ModLog) => l.action === "club.status" ? STATUS_ACT[String(l.
 export function ModerationPane({ onBack, onToast }: { onBack: () => void; onToast: (m: string) => void }) {
   const [view, setView] = useState<View>("sugg"), [edit, setEdit] = useState<Edit | null>(null), [client, setClient] = useState<string | null>(null)
   const back = () => { setEdit(null); setClient(null) }
+  const [openReports, setOpenReports] = useState(0), [rtick, setRtick] = useState(0)
+  useEffect(() => { let live = true; roulerAdminReports("open").then(r => { if (live) setOpenReports(r.ok ? r.data.length : 0) }); return () => { live = false } }, [rtick])
   return <section className="uzu-dir-admin" aria-label="Espace référent UZU">
     <div className="uzu-dir-admin-head">
       <div><div className="eyebrow">ANNUAIRE · RÉFÉRENT UZU</div><h2 className="uzu-dir-title">Espace référent</h2>
@@ -33,12 +37,13 @@ export function ModerationPane({ onBack, onToast }: { onBack: () => void; onToas
       : client ? <ClientModeration slug={client} onToast={onToast} onDone={back} />
       : <>
         <div className="uzu-chips" role="group" aria-label="Rubriques du référent">
-          {([["sugg", "Propositions"], ["clubs", "Fiches"], ["log", "Journal"]] as [View, string][]).map(([k, l]) =>
+          {([["sugg", "Propositions"], ["clubs", "Fiches"], ["reports", openReports ? `Signalements · ${openReports}` : "Signalements"], ["log", "Journal"]] as [View, string][]).map(([k, l]) =>
             <button key={k} type="button" className={view === k ? "on" : ""} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}
         </div>
         {view === "sugg" && <SuggestionsView onToast={onToast} onCreate={(s) => setEdit({ slug: null, prefill: s.payload, fromSuggestion: s.id })}
           onOpen={(s) => s.slug && (s.uzu ? setClient(s.slug) : setEdit({ slug: s.slug, fromSuggestion: s.id }))} />}
         {view === "clubs" && <ClubsView onNew={() => setEdit({ slug: null })} onOpen={(c) => c.uzu ? setClient(c.slug) : setEdit({ slug: c.slug })} />}
+        {view === "reports" && <ReportsView onToast={onToast} onChanged={() => setRtick(t => t + 1)} />}
         {view === "log" && <LogView />}
       </>}
   </section>
@@ -212,6 +217,38 @@ function ClientModeration({ slug, onToast, onDone }: { slug: string; onToast: (m
 }
 
 // ---------------------------------------------------------------- Journal
+// ---------------------------------------------------------------- Signalements de partenaires (uzu-14b)
+const REASON_LBL = Object.fromEntries(REASONS)
+const PSTATUS: Record<string, string> = { active: "Actif", paused: "En pause", deleted: "Profil supprimé" }
+function ReportsView({ onToast, onChanged }: { onToast: (m: string) => void; onChanged: () => void }) {
+  const [open, setOpen] = useState(true), [list, setList] = useState<RoulerReport[] | null>(null), [err, setErr] = useState(""), [tick, setTick] = useState(0)
+  useEffect(() => { let live = true; roulerAdminReports(open ? "open" : null).then(r => { if (!live) return; if (r.ok) { setList(r.data); setErr("") } else setErr(r.msg) }); return () => { live = false } }, [open, tick])
+  const decide = async (x: RoulerReport, d: "keep" | "restore" | "dismiss") => {
+    const r = await roulerAdminResolve(x.key, d)
+    onToast(r.ok ? (d === "keep" ? `Pause maintenue pour ${x.name}` : d === "restore" ? `${x.name} est rétabli` : "Signalements classés") : r.msg)
+    if (r.ok) { setTick(t => t + 1); onChanged() }
+  }
+  return <div className="uzu-panel-col uzu-grid-gap">
+    <div className="uzu-chips uzu-chips--small" role="group" aria-label="État des signalements">
+      <button type="button" className={open ? "on" : ""} aria-pressed={open} onClick={() => setOpen(true)}>À traiter</button>
+      <button type="button" className={!open ? "on" : ""} aria-pressed={!open} onClick={() => setOpen(false)}>Tous</button>
+    </div>
+    {err ? <div className="uzu-banner uzu-banner--error" role="alert">{err}</div>
+      : !list ? <div className="uzu-banner" aria-busy="true">Chargement…</div>
+      : !list.length ? <p className="uzu-text uzu-muted">{open ? "Aucun signalement à traiter." : "Aucun signalement."}</p>
+      : <ul className="uzu-dir-list">{list.map(x => <li key={x.key}><article className="uzu-dir-card uzu-dir-card--static" aria-label={`Signalement : ${x.name}`}>
+        <span className="uzu-dir-card-top"><b>{x.name}</b><span className={"uzu-dir-badge" + (x.profile_status === "paused" ? " uzu-dir-badge--warn" : " uzu-dir-badge--ref")}>{PSTATUS[x.profile_status] || x.profile_status}</span></span>
+        <span className="uzu-dir-meta">{x.reporters} personne{x.reporters > 1 ? "s" : ""} · {Object.entries(x.reasons || {}).map(([k, n]) => `${(REASON_LBL[k] || k).toLowerCase()} (${n})`).join(", ")}</span>
+        <span className="uzu-dir-meta">Dernier : {fmt(x.last_at)}{x.last_details ? ` · « ${x.last_details} »` : ""}</span>
+        {open && <span className="uzu-actions uzu-actions--start">
+          {x.profile_status !== "deleted" && <button type="button" className="button button--dark uzu-small-btn" onClick={() => decide(x, "keep")}>Maintenir la pause</button>}
+          {x.profile_status !== "deleted" && <button type="button" className="button button--outline uzu-small-btn" onClick={() => decide(x, "restore")}>Rétablir</button>}
+          <button type="button" className="button button--outline uzu-small-btn" onClick={() => decide(x, "dismiss")}>Classer</button></span>}
+      </article></li>)}</ul>}
+    <p className="uzu-text uzu-small uzu-muted">Le référent ne voit ni l&apos;adresse électronique, ni les séances, ni l&apos;identité des personnes qui signalent. Chaque décision est inscrite au journal de modération.</p>
+  </div>
+}
+
 function LogView() {
   const [list, setList] = useState<ModLog[] | null>(null), [err, setErr] = useState("")
   useEffect(() => { let live = true; adminLog(80).then(r => { if (!live) return; if (r.ok) setList(r.data); else setErr(r.msg) }); return () => { live = false } }, [])

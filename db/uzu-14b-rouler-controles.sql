@@ -238,6 +238,13 @@ begin
     pg_temp.rb_names(P1, q10) not like '%Sarah%' and pg_temp.rb_names(P2, q10) not like '%Karim%'
     and exists (select 1 from public.user_blocks where blocker_id = P1 and blocked_id = P2)
     and pg_temp.rb_err(P2, format('select public.rouler_block(%L::uuid)', h2)) is not null);
+  j := pg_temp.rb_j(P1, 'select public.rouler_my_blocks()');
+  v_res := v_res || pg_temp.rb_l('27b', 'liste « ne plus voir » : prénom et initiale, clé opaque sans identifiant ; annuler rétablit la visibilité, clé d''un autre refusée',
+    j->0->>'name' = 'Sarah B.' and j::text not like '%' || P2::text || '%' and j::text not like '%@%'
+    and pg_temp.rb_err(P2, format('select public.rouler_unblock(%L)', j->0->>'key')) ilike '%introuvable%'
+    and (pg_temp.rb_j(P1, format('select to_jsonb(public.rouler_unblock(%L))', j->0->>'key')))::text = 'true'
+    and pg_temp.rb_names(P1, q10) like '%Sarah%', left(j::text, 200));
+  perform pg_temp.rb_j(P1, format('select to_jsonb(public.rouler_block(%L::uuid))', h2));
 
   -- ---------- Signalement et pause automatique ----------
   v_res := v_res || pg_temp.rb_l('28', 'signalement : motif inconnu ou soi-même refusés',

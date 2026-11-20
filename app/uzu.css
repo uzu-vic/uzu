@@ -829,3 +829,23 @@ button.uzu-jv-bar:hover .uzu-jv-bl { text-decoration: underline; }
 .uzu-dir-sess-edit { display: grid; gap: 8px; padding: 12px; border: 1px solid #e9e4dd; border-radius: 12px; background: #fbf9f6; }
 .uzu-dir-log { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
 .uzu-dir-log li { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid #e9e4dd; border-radius: 12px; background: #fff; }
+
+/* « Où rouler ? » étape 2 — partenaires de roulage */
+.uzu-rl-box { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: #f7f4f0; }
+.uzu-rl-box--never { background: #fbecee; }
+.uzu-rl-box b { font-size: 14px; }
+.uzu-rl-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.uzu-rl-dates label { display: grid; gap: 4px; font-size: 13px; color: #5c5650; }
+.uzu-rl-dates .uzu-input { min-height: 44px; }
+.uzu-rl-years { max-width: 120px; }
+.uzu-rl-preview { display: grid; gap: 3px; padding: 12px 14px; border: 1px dashed #d9b9be; border-radius: 14px; background: #fff; }
+.uzu-rl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.uzu-rl-menu { margin: 4px 0 10px; }
+.uzu-rl-danger { color: #7a1623; }
+.uzu-rl-remind { margin: 0; }
+.uzu-rl-belt { display: inline-flex; flex: none; align-items: center; min-height: 22px; padding: 0 9px; border-radius: 999px; border: 1px solid #d6d0c8; font-size: 11px; font-weight: 700; background: #fff; color: #292522; }
+.uzu-rl-belt--bleue { background: #1f4fa3; border-color: #1f4fa3; color: #fff; }
+.uzu-rl-belt--violette { background: #5b2d8c; border-color: #5b2d8c; color: #fff; }
+.uzu-rl-belt--marron { background: #6b3f1d; border-color: #6b3f1d; color: #fff; }
+.uzu-rl-belt--noire { background: #171717; border-color: #171717; color: #fff; }
+.uzu-dir-card .uzu-dir-meta svg { vertical-align: -1px; }

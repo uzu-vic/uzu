@@ -4,6 +4,7 @@
 // localisation à la commune ; distances par tranches ; aucune donnée de membre.
 import { useEffect, useRef, useState } from "react"
 import { ModerationPane } from "@/components/uzu/directory-admin"
+import { PartnersPane } from "@/components/uzu/rouler"
 import { ArrowLeft, Check, ExternalLink, Mail, MapPin, Phone, Search, ShieldCheck } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
 import {
@@ -21,19 +22,6 @@ export function TatamiTabs({ value, onChange }: { value: TatamiVolet; onChange: 
 
 function Heading({ title, sub }: { title: string; sub: string }) {
   return <div className="page-heading"><div><div className="eyebrow">TATAMI · OÙ ROULER ?</div><h1>{title}<span className="heading-period">.</span></h1><p>{sub}</p></div></div>
-}
-
-// ---------------------------------------------------------------- Partenaires (étape 2)
-export function PartnersPane({ tabs }: { tabs: React.ReactNode }) {
-  return <>
-    <Heading title="Partenaires" sub="Trouve un partenaire de roulage, chez toi ou en déplacement." />
-    {tabs}
-    <section className="panel uzu-panel-col uzu-grid-gap">
-      <h2 className="uzu-h2">Bientôt dans UZU</h2>
-      <p className="uzu-text">Tu pourras indiquer tes disponibilités, ta ville habituelle ou ta ville de déplacement, et proposer un roulage à d&apos;autres pratiquants. Rien n&apos;est visible sans ton accord.</p>
-      <p className="uzu-text uzu-small uzu-muted">En attendant, cherche un club ou un open mat dans le volet Clubs.</p>
-    </section>
-  </>
 }
 
 // ---------------------------------------------------------------- Choix d'une commune
@@ -179,7 +167,7 @@ export function TatamiSpace({ initial, ctx, onToast, renderFeed }: { initial?: s
   const tabs = <TatamiTabs value={vol} onChange={v => { setVol(v); window.scrollTo(0, 0) }} />
   void ctx
   if (vol === "clubs") return <ClubsPane tabs={tabs} onToast={onToast} />
-  if (vol === "partners") return <PartnersPane tabs={tabs} />
+  if (vol === "partners") return <PartnersPane tabs={tabs} onToast={onToast} />
   return <>{renderFeed(tabs)}</>
 }
 

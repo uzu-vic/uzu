@@ -16,6 +16,7 @@ export default function Page() {
       <li><b>Tranche d&apos;âge et sexe</b> : facultatifs, utilisés seulement dans les statistiques anonymes du club.</li>
       <li><b>Notifications</b> : tes préférences et, si tu les actives, l&apos;identifiant technique de ton téléphone pour les recevoir.</li>
       <li><b>Modération</b> : les signalements que tu envoies et les membres que tu masques.</li>
+      <li><b>Partenaires de roulage</b> (seulement si tu actives ce profil) : ta ville habituelle, tes disciplines et roulages acceptés, ce que tu choisis de montrer (ceinture, club, années de pratique), tes disponibilités (ville, dates, jours, moments, lieu, un mot), la date de ta déclaration de majorité et de ton accord, et pendant 24 h l&apos;heure de tes recherches pour limiter les abus.</li>
       <li><b>Rapports techniques</b> : si un écran plante, la page concernée (sans paramètres), le message d&apos;erreur, le type de navigateur et la version de l&apos;application, pour corriger le problème. Aucune donnée saisie. Conservés 90 jours.</li>
     </ul>
     <h2>Pourquoi et sur quelle base</h2>
@@ -23,6 +24,7 @@ export default function Page() {
       <li>Faire fonctionner ton carnet, ton club et ton compte : exécution du service que tu as demandé.</li>
       <li>Données de santé et partage de ton activité dans le fil du club : ton consentement, que tu peux retirer à tout moment depuis Mon profil.</li>
       <li>Sécurité et modération du fil : intérêt légitime à protéger les membres.</li>
+      <li>Partenaires de roulage : ton consentement, donné à l&apos;activation et retirable à tout moment en supprimant ton profil de roulage.</li>
     </ul>
     <h2>Qui voit quoi</h2>
     <ul>
@@ -31,6 +33,8 @@ export default function Page() {
       <li><b>Les membres de ton club</b> : seulement si tu actives le fil, et seulement tes séances (durée, tenue, système), étapes, podiums et grades.</li>
       <li><b>Nos prestataires techniques</b> : Supabase (base de données, connexion, stockage, hébergés dans l&apos;Union européenne) et Vercel (pages de l&apos;application). Pour les notifications, le service de ton navigateur ou de ton téléphone reçoit le texte de la notification.</li>
     </ul>
+    <h2>Partenaires de roulage</h2>
+    <p>Ton profil de roulage est invisible par défaut. Si tu choisis « Mes clubs », seuls les pratiquants de tes clubs, eux aussi visibles, voient tes disponibilités ; avec « Tout UZU », les pratiquants qui ont fait le même choix te voient aussi. Ils voient ton prénom et l&apos;initiale de ton nom, tes disciplines, tes créneaux et une distance approximative ; ta ceinture, ton club et tes années de pratique seulement si tu le choisis. Jamais ton adresse, ta position, ton e-mail, ton téléphone, tes séances, tes notes ni tes données de santé. Cette fonction est réservée aux majeurs et fermée aux membres d&apos;un groupe de mineurs. Les signalements vont au référent UZU, qui ne voit ni ton e-mail ni tes séances. Une disponibilité expire seule à sa date de fin et est effacée 30 jours plus tard ; sans disponibilité pendant 6 mois, ton profil redevient invisible ; les signalements traités sont effacés après 12 mois.</p>
     <p>Aucune donnée n&apos;est vendue ni utilisée pour de la publicité. L&apos;application n&apos;utilise aucun traceur publicitaire ni cookie : le stockage de ton navigateur sert seulement à garder ta session et ton carnet hors connexion. Une mesure d&apos;audience anonyme (Vercel Web Analytics) compte les pages vues, sans cookie et sans identifier les personnes ; les adresses sont transmises sans leurs paramètres.</p>
     <h2>Combien de temps</h2>
     <p>Tant que ton compte existe. Quand tu supprimes ton compte, tes données sont effacées immédiatement. Le journal d&apos;activité de ton club garde la trace des actions passées sans ton identité, et les signalements te concernant sont rendus anonymes. Les sauvegardes techniques de l&apos;hébergeur sont écrasées selon leur cycle normal.</p>
