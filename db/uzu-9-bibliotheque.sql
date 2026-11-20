@@ -644,6 +644,7 @@ revoke all on function public.library_delete_collection(uuid) from public, anon;
 revoke all on function public.library_set_details(text, text, text, int) from public, anon;
 revoke all on function public.uzu_is_platform_admin() from public, anon;
 revoke all on function public.uzu_lib_tech_ok(uuid, text) from public, anon;
+revoke all on function public.uzu_lib_url_ok(text) from public, anon;  -- durcissement du 20/11 : rien d'accessible sans connexion
 grant execute on function public.uzu_lib_member(uuid) to authenticated;
 grant execute on function public.uzu_lib_disciplines(uuid) to authenticated;
 grant execute on function public.uzu_lib_visible(text) to authenticated;
@@ -657,6 +658,7 @@ grant execute on function public.uzu_is_coach_of_academy(uuid) to authenticated;
 grant execute on function public.library_set_hidden(text, boolean) to authenticated;
 grant execute on function public.library_save_collection(uuid, text, text, int, jsonb) to authenticated;
 grant execute on function public.library_delete_collection(uuid) to authenticated;
+grant execute on function public.uzu_lib_url_ok(text) to authenticated;
 grant execute on function public.library_set_details(text, text, text, int) to authenticated;
 grant execute on function public.uzu_is_platform_admin() to authenticated;
 grant execute on function public.uzu_lib_tech_ok(uuid, text) to authenticated;

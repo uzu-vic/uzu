@@ -1,0 +1,725 @@
+F|public.accept_invitation(p_token text)|7aa262608fe9b0e1b207e8f7a59d12a5|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.answer_tag(p_id uuid, p_ok boolean)|3ac626bcbac369122c02bd60dfa5e1cc|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.cancel_grade_proposal(p_id uuid)|879d951d29afe3a15d8709316f2a756b|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.class_media_cfg()|0d330070054b0d39506f61fc038f8320|true|{postgres=X/postgres}
+F|public.class_media_settings_get()|7eeadb1a0f15ab53626d42c2f4845bef|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.class_media_settings_set(p jsonb)|f17185e800e12aee6c6a8012b66dbabb|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.create_invitation(p_email text, p_role text, p_section uuid, p_perms jsonb)|045a636b9cfac86c56ecaa64e83794f5|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.create_new_club(club_name text, invite_code_input text)|ad1f039024024c258653947eccd0e54e|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.decide_grade(p_student uuid, p_rank text, p_stripes integer, p_since text, p_status text, p_comment text)|ccd599386407a14abc41db18a8f11e3f|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.delete_my_account()|5d1280c475da0ff5052a792bdd4a57b3|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.docs_can_read(p text)|383783e11451d59d767e9fb859f5aa05|false|
+F|public.get_allow_tag()|e3e7a58a88b2c676e711bb1ab720a6c5|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.get_audit_log(p_limit integer, p_before bigint)|a269f36dcf8c33b53452a86693a57d15|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.get_my_context()|987685edc13fda2b7a14dd4bd22793d6|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.get_my_courses()|5b1bd4b77c2c9de58ce0d3adc4d2cf11|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.get_notif_prefs()|60651a43fc3edb936f636b24dcfc1383|true|{=X/postgres,postgres=X/postgres,authenticated=X/postgres}
+F|public.get_roll_students(p_course text)|a43cb5caf86c49954914e45b319c5608|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.get_team()|ae2fd0e0624f05a35195e423bdda5108|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.group_focus_board()|bb9ad662a4995ff4474742915835af98|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.handle_signup()|fffe4c7c7d7223a583f20202c7b40e5b|true|
+F|public.invite_code_available(code text)|2707749e96ff45769981cfeefed2f2a9|true|{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres}
+F|public.is_prof()|124741f0793903ef0435d22d02482885|true|
+F|public.join_club_by_code(invite_code_input text)|f7f5e1d78d9ca9ac0922ab3f8dfc999e|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.journal_feed(p_section uuid, p_discipline text, p_from date, p_to date, p_query text, p_limit integer)|16635f27c420c7298ff8d4a319ab8f4f|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.journal_groups()|c4764507430bea7f8b5a10b2ad4c75c1|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.journal_overview(p_from date, p_to date, p_section uuid)|650a23c5b62d1c4fd9652391df16728c|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.journal_save_session(p_id uuid, p jsonb, p_publish boolean)|c2ba802a17da99f07e0b5dc2b0a74ca0|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.journal_set_status(p_id uuid, p_status text)|bfaacc5c6f4133b57f12ea2201e1cb73|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.leave_academy()|99d87a4743cec564b4e23987baeb1527|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_archive_item(p_id uuid)|7c040686c0bbe7e5e60c25d63992201d|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_context()|0fc3eb03392feee83a41818df6f4b92a|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_delete_collection(p_id uuid)|5a00b60bd60efc7fb3732ccf94439f6d|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_review_item(p_id uuid, p_decision text, p_note text, p_patch jsonb)|9db86d17e87409af56966f055c487031|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_review_queue()|0aab918508dfc969f15a56d9df7de8b0|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_save_collection(p_id uuid, p_name text, p_description text, p_position integer, p_items jsonb)|572c1911299e6d2bad09052ea9e69415|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_save_item(p_id uuid, p_item jsonb, p_submit boolean)|eeb27461be2c7578871183874f46c0c0|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_set_details(p_technique text, p_steps text, p_vigilance text, p_level integer)|ddd2c7682843055c1df7a7a798d52b54|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_set_disciplines(p_disciplines text[])|b819be153f3f88fa3660f1128d2a23f3|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.library_set_hidden(p_technique text, p_hidden boolean)|728b49530c5008f5c1c544deb47da6a4|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.list_my_blocks()|63e146de46155ea23c0176fe8058a4c8|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.list_reports()|1148f69728818fe8fbfd8e8cade65272|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.list_tag_candidates()|25a3dda78a54c4bce29e12e27caf5a71|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.log_client_error(p_kind text, p_page text, p_message text, p_stack text, p_agent text, p_version text)|9e214a21b8d5a9cf64d0a0f71bf02b8a|true|{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres}
+F|public.media_finalize_info(p_media uuid, p_user uuid)|0a00d5b67245912f5a60a06266cbe632|true|{postgres=X/postgres,service_role=X/postgres}
+F|public.media_handle_request(p_request uuid, p_status text, p_note text)|442d22c6087fc6c3f8f1787c656dd99a|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.media_mark_failed(p_media uuid, p_error text)|f4e7c30e99845ad1a24222a72427cdaf|true|{postgres=X/postgres,service_role=X/postgres}
+F|public.media_mark_ready(p_media uuid, p_mime text, p_size bigint)|d64fc16212744c0d2c06b45846cf007d|true|{postgres=X/postgres,service_role=X/postgres}
+F|public.media_purge()|e378e39df94f5d4f3726fe851128aa69|true|{postgres=X/postgres,service_role=X/postgres}
+F|public.media_queue()|f7ad5a8ea91688f536f478267da3c9b6|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.media_reconcile(p_session uuid, p_limit integer)|22ee9bc9d345d1c5712fbead5b39b45a|true|{postgres=X/postgres,service_role=X/postgres}
+F|public.media_remove(p_media uuid, p_reason text)|3b88adab375e1170212a65d74759b563|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.media_request_removal(p_media uuid, p_reason text)|0e7005ffcbd8653cb1b12ee8b2c3b581|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.media_reserve(p_session uuid, p_kind text, p_mime text, p_size bigint, p_rights boolean, p_minors boolean)|a8c3ef79fe08e2b0fc441695e5ff6ff0|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.media_restore(p_media uuid, p_rights boolean, p_minors boolean, p_note text)|624c1a2deb17487ec1bd032ad164dba0|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.media_set_location(p_media uuid, p_location text)|e1a1552994bb2195529b87eebbbb090c|true|{postgres=X/postgres,service_role=X/postgres}
+F|public.media_stream_check(p_token_hash text)|4dc2d990466af2abc44f2f68d8bec23f|true|{postgres=X/postgres,service_role=X/postgres}
+F|public.media_ticket(p_media uuid, p_seconds integer)|a9e42b7648dff3e71b352d14600337fe|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.media_validate(p_media uuid, p_decision text, p_note text)|1aadcb12ec4b27c5083cac40411d4ead|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.my_session_partners(p_since date)|737305306c617ea795771ef950d885bb|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.preview_invitation(p_token text)|31ea8d8ca41c4e69ee55bc3307257380|true|{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres}
+F|public.propose_grade(p_student uuid, p_rank text, p_stripes integer, p_since text, p_comment text)|66230a9e3e714d33e7f97a4abc0437b0|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.remove_student(p_student uuid)|4689802785e70a02a3578025f4cb41d5|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.report_content(p_target uuid, p_item_key text, p_item_text text, p_reason text, p_details text)|54b47e79d1729ce6038c1e4e38076217|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.resend_invitation(p_id uuid)|8e211736838e2df404a174387ba94d62|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.resolve_report(p_id uuid, p_status text)|50775939de01af3d784f47256171f678|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.revoke_invitation(p_id uuid)|491f012befeaafeba263e3c985075a42|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.section_minors_list()|44f2b819fdd6c6f4dda405820fb783af|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.session_media(p_session uuid)|f966b1c620731c3f7d4c05ba725119f9|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_allow_tag(p_on boolean)|e7d9ca2d6cc8c89fa02b4828ca179695|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_attendance(p_course text, p_date date, p_title text, p_dur integer, p_theme text, p_sys text, p_marks jsonb)|b16c25dfcb1533fa05e4cdf2aa5937dd|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_course_meta(p_course text, p_section uuid, p_discipline text, p_level text)|651373701bc2fd3774cf8b7f1e5a3af1|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_course_staff(p_course text, p_date date, p_staff jsonb)|ed15d2fd18569017b79024bbbc8853a2|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_group_focus(p_section uuid, p_focus jsonb)|f468c9a2f781dcaead58bbe0473829e2|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_member_groups(p_member uuid, p_sections uuid[])|a99b294ab1502eb7d384de4635e60dc7|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_member_permissions(p_member uuid, p_perms jsonb)|d9945586bac3965ce1cd46dae487dee9|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_member_role(p_member uuid, p_role text, p_section uuid)|a848d7a53be6d7af9b3d04c25882c0e7|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_member_status(p_member uuid, p_status text)|0530a6c17fd970f1446b83e88588e979|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_notif_prefs(prefs jsonb)|aafc2f1e8c44f445202f1b013f711a5a|true|{=X/postgres,postgres=X/postgres,authenticated=X/postgres}
+F|public.set_section_minors(p_section uuid, p_minors boolean)|5a47d4207538cbf19fa89022a087d9e3|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_session_partners(p_key text, p_date date, p_summary text, p_partners uuid[])|faa56e6c11ef229a5a8b2812f1a0cf84|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_share_activity(on_off boolean)|8d3e3fad444bbf4d48ed39f70f0c1577|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_student_access(p_member uuid, p_students uuid[])|2f8fa87a211c30a4541e0dd871d72ea5|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_student_groups(p_user uuid, p_primary uuid, p_secondary uuid[])|01f564e9b7c22ee7ee54b9439dafc804|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.set_user_block(p_target uuid, p_on boolean)|3cefe2ec91067bf214f3bc87ab042e98|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.student_groups(p_user uuid)|3d871323c0b5b2a95d9a377ed724b98b|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.switch_academy(p_academy uuid)|552e917d3ab4ddd7acfbe236f8b3992e|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.tags_for_me()|cca7aef838c1937ebdd6cc4352055d53|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.transfer_ownership(p_member uuid)|8acdfd18840a9f35e664849e79a481fd|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.update_academy(p_patch jsonb)|ea881d43e56a497b8585ee5281cf10cb|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.update_invite_code(new_code text)|06164d5a471bcc79cc51b94c26bd78bc|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.upsert_section(p_id uuid, p_name text, p_discipline text)|0fc4464a6786d611fcaf87310137c8bf|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_active_academy()|a9072aaf8c38557adf3bbbaf34ebc604|true|
+F|public.uzu_active_owners(p_academy uuid)|1eb424b7a62702640ae60879717b3ad2|true|{postgres=X/postgres}
+F|public.uzu_audit(p_academy uuid, p_action text, p_target_type text, p_target_id text, p_details jsonb)|e4a151e27aff4338939e7871483641b9|true|{postgres=X/postgres}
+F|public.uzu_belt_txt(p jsonb)|511d44586fac2efd438877d194382d09|false|
+F|public.uzu_can(p_academy uuid, p_resource text, p_action text)|5fbc31558f0fcd3dbdbd425b908fe60e|true|
+F|public.uzu_can_course(p_academy uuid, p_resource text, p_action text, p_course text)|e92956b2c9b376285a5bd903d2e012c3|true|
+F|public.uzu_can_doc(p text, p_data jsonb, p_action text)|6ec03a5037414fd9ecf0ee84377742ee|true|
+F|public.uzu_can_group_focus(p_academy uuid, p_section uuid)|24b4422f7e46a618eb380fb1d682b5ee|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_can_journal(p_academy uuid, p_action text, p_section uuid, p_course text)|8d3ba5a6df176b318dbda12c04c4d90b|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_can_moderate(p_academy uuid)|ee771d65f5920388e482cde031c55fe3|true|{postgres=X/postgres}
+F|public.uzu_can_read(p text)|c06b14b8b1818fe169886a0c3fd9e456|true|
+F|public.uzu_can_student(p_academy uuid, p_resource text, p_action text, p_student uuid)|28a32bf5f9fe6f97a98e4ceb1833b2c1|true|
+F|public.uzu_can_tag(p_partner uuid)|c44faad6089f3bb922859f95b0b06ba0|true|{postgres=X/postgres}
+F|public.uzu_can_write(p text)|5396d090d81fb0488597052b3d78a9ce|true|
+F|public.uzu_check_grant(p_academy uuid, p_perms jsonb)|2bd9cb4454fe79bcd5299b51ef17cf6e|true|{postgres=X/postgres}
+F|public.uzu_club_news_notify()|c3e1d4d9bcfc800d9574aff40ce5e98a|true|
+F|public.uzu_club_of(p_user text)|f8a19f843ed29644f6ef3503664e23c0|true|
+F|public.uzu_coach_of(p_user text)|a5bf380f7e941b7e2d002b55dc12d969|true|
+F|public.uzu_cron_daily(p_now timestamp with time zone)|70f113e40294e09a71a36df696ee858d|true|{postgres=X/postgres}
+F|public.uzu_cron_saisie(p_now timestamp with time zone)|1d1e173f862102ad4805cc2106ca859d|true|{postgres=X/postgres}
+F|public.uzu_cron_weekly(p_now timestamp with time zone)|c576ed8aed6d0a125ac028838aad7ca7|true|{postgres=X/postgres}
+F|public.uzu_default_club()|435b788ccb542f9441e8745ccb2aa4c4|true|
+F|public.uzu_docs_notify()|f73340180160869ed02b474cc5833f32|true|
+F|public.uzu_feed_visible(p_user text)|aff87f93acc707346aa3e6055c4e0689|true|
+F|public.uzu_first_name(p text)|562d70d6e3d660434e9a27e8f3ca5455|false|
+F|public.uzu_handle_new_user()|d11c60fda750db563730c194095f6c3e|true|
+F|public.uzu_is_coach()|89fe286b6fd922f92632158cd220cac2|true|
+F|public.uzu_is_coach_of_academy(p_academy uuid)|351bcae7c957cc1f918d5bdce4dfe9af|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_is_platform_admin()|32399aedce453e153e7e3f8464b81c00|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_is_staff_of(p_user uuid, p_academy uuid)|8fdee15edc706cecfea3b3f4e909b2b2|true|
+F|public.uzu_journal_event(p_academy uuid, p_session uuid, p_action text, p_details jsonb)|fc59ba91d90b1e7d974a4f3c7943ff79|true|{postgres=X/postgres}
+F|public.uzu_journal_readable(p_session class_sessions)|39dbcd335731d3dd76203e37b1ea4139|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_last_session(p jsonb)|384735a654d2cd583f9c05bf2f71ac2f|false|
+F|public.uzu_lib_disciplines(p_academy uuid)|47476cc2763be756326c8801c40c422e|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_lib_event(p_academy uuid, p_item uuid, p_action text, p_details jsonb)|2c79381f658ee7c63cb6e22c38ab5e0a|true|{postgres=X/postgres}
+F|public.uzu_lib_member(p_academy uuid)|dbe5c6be0404905751f021dcfedc643b|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_lib_tech_ok(p_academy uuid, p_technique text)|7ed32e7539378478d9ffa3b5eac1e498|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_lib_url_ok(p_url text)|edbf899420f2be585fbaef16e7a355d5|false|
+F|public.uzu_lib_visible(p_discipline text)|c9f607b0321a663f55b4a69a3270d798|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_media_can_approve(p_s class_sessions)|b18f0ff51b68a0ecb03a0a6dc9c0e881|true|{postgres=X/postgres}
+F|public.uzu_media_can_edit(p_s class_sessions)|4a418728ec8e53b472a0cea96abc4d3c|true|{postgres=X/postgres}
+F|public.uzu_media_revoke(p_media uuid)|6b3a88ab122dc8ed53a517aa62fc09c3|true|{postgres=X/postgres}
+F|public.uzu_media_row_readable(p_m class_session_media)|e95c164673dd273a8d52d79ce4d54218|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_media_staff_view(p_s class_sessions)|355c0ab4e3e4c3967aba59e77238e5e8|true|{postgres=X/postgres}
+F|public.uzu_media_upload_ok(p_name text)|13fc9d58cac8a02b5310ece3781ec5cb|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_media_visible(p_m class_session_media)|a0d6ae86a321e004ea272ce478607fb8|true|{postgres=X/postgres}
+F|public.uzu_my_club()|48ae599ccc97152957aaf4f0eef2fc59|true|
+F|public.uzu_my_groups(p_academy uuid)|c308787e8550d479d563dce6cb5e4156|true|{postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_norm_code(p text)|f349a90876b817c47c672babde35559d|false|
+F|public.uzu_notes_guard()|ac68a85f5fc34468a21e8bc52f84fa8b|true|
+F|public.uzu_notify(p_user uuid, p_kind text, p_title text, p_body text, p_url text, p_dedupe text)|056fbcec366e9707c1633c307f06a336|true|{postgres=X/postgres}
+F|public.uzu_notify_test()|f118c58b143db8633967d19e5d811ce9|true|{=X/postgres,postgres=X/postgres,authenticated=X/postgres}
+F|public.uzu_path_user(p text)|9958273fb7375bf3249e8df4e240aa7e|false|
+F|public.uzu_perm_catalog()|8f82452d9b3638af7daedcd6f165acbd|false|
+F|public.uzu_perm_scope(p_academy uuid, p_resource text, p_action text)|d5638048fdab1c6cbffa99c28188fb8a|true|
+F|public.uzu_perm_template(p_role text)|a93c60db1131efef679bb317a9c1efae|false|
+F|public.uzu_perm_valid(p_resource text, p_action text, p_scope text)|d28797080b3a8785aae167b36d96b452|false|
+F|public.uzu_perms_json(p_member uuid)|68ad9e9b78db3b22fe982d46594eef1d|true|{postgres=X/postgres}
+F|public.uzu_push_dispatch()|f73c5ddab48a61c2ebdf829487844720|true|
+F|public.uzu_require_auth()|8dd304df0dd0e62fbc90e28464dbf6b1|false|
+F|public.uzu_scope_courses(p_academy uuid, p_scope text)|3abbafd264721caff67f3f5d986a90b7|true|
+F|public.uzu_scope_rank(p text)|206a48d02a8bdd0d60d1a79b94865d28|false|
+F|public.uzu_session_partner_list(p_key text)|afaaee2f4fbd97c2e5a7d4ca8b77f7f5|true|{postgres=X/postgres}
+F|public.uzu_short_name(p text)|4631ab45251e658e01d25c1b61863263|false|
+F|public.uzu_staff_member(p_academy uuid)|289f07df410281e738380570bf1319a8|true|
+F|public.uzu_staff_with(p_academy uuid, p_resource text, p_actions text[])|2b13bf1b089f94fffdf8f6830a417888|true|{postgres=X/postgres}
+F|public.uzu_student_academy(p_user uuid)|6fa82c1372cd43a35977ffca9bf5f464|true|
+F|public.uzu_student_in_courses(p_student uuid, p_courses text[])|f349ba5748ead3283f85861c86e3004e|true|{postgres=X/postgres}
+F|public.uzu_target_member(p_member uuid, p_action text)|5c17a7104be1369de7a0b456de6da73c|true|{postgres=X/postgres}
+F|public.uzu_try_ts(p text)|c606b99aaeda1d4212ef3d1869033cbe|false|
+F|public.uzu_try_uuid(p text)|2ad1f6662a9040a8c8e34313f94ca0fe|false|
+F|public.verify_technique(p_student uuid, p_tech text, p_on boolean)|5b4bf96e436950c5c92d928001d45145|true|{postgres=X/postgres,authenticated=X/postgres}
+F|storage.foldername(name text)|e39f4dfc4f54098f4b3cff61fb7540e8|false|
+P|public.academy_audit_logs#uzu_audit_select|SELECT authenticated|50e69c357926f7f64ed759e17ce08b95|PERMISSIVE
+P|public.academy_group_members#uzu_group_members_select|SELECT authenticated|896a5aa28fc16d0194aef95801043092|PERMISSIVE
+P|public.academy_invitations#uzu_invites_select|SELECT authenticated|be2c94e548756d48620e5c3744ccef10|PERMISSIVE
+P|public.academy_members#uzu_members_select|SELECT authenticated|2c4600eef1db8f84f860d7f0dd0c9eeb|PERMISSIVE
+P|public.academy_permissions#uzu_perms_select|SELECT authenticated|001942bdb1fe6537c7c5422bb9857da7|PERMISSIVE
+P|public.academy_sections#uzu_sections_select|SELECT authenticated|b8a2a28244e78a142c40475e7a1a6e11|PERMISSIVE
+P|public.academy_student_access#uzu_student_access_select|SELECT authenticated|7c5cc72cf53eb11df99bed866bf53dbd|PERMISSIVE
+P|public.belt_history#uzu_belts_select|SELECT authenticated|303262910bd659a4b126887d408b02a0|PERMISSIVE
+P|public.class_session_events#uzu_class_session_events_select|SELECT authenticated|3ace903d561ccd3b6ccfa3b782fe54ca|PERMISSIVE
+P|public.class_session_media#uzu_class_session_media_select|SELECT authenticated|87d6d0f1b5f8f6e7bcc8cd74e5995fbb|PERMISSIVE
+P|public.class_session_techniques#uzu_class_session_tech_select|SELECT authenticated|342c339d81e6469efb28f4daf6072641|PERMISSIVE
+P|public.class_sessions#uzu_class_sessions_select|SELECT authenticated|588d5911e0417e1c687916fa8a9789af|PERMISSIVE
+P|public.club_lib_collection_items#uzu_club_lib_collitem_select|SELECT authenticated|15e52c966afee6091d60b908a54b5ae6|PERMISSIVE
+P|public.club_lib_collections#uzu_club_lib_coll_select|SELECT authenticated|7a0fcc2d7f63e5940b524f14f2152ff5|PERMISSIVE
+P|public.club_lib_events#uzu_club_lib_events_select|SELECT authenticated|4c644d0f118654343a136bd2ed1ce823|PERMISSIVE
+P|public.club_lib_hidden#uzu_club_lib_hidden_select|SELECT authenticated|7a0fcc2d7f63e5940b524f14f2152ff5|PERMISSIVE
+P|public.club_lib_items#uzu_club_lib_items_select|SELECT authenticated|f0e62d23ff3a5537414b34bab7b79e26|PERMISSIVE
+P|public.club_lib_settings#uzu_club_lib_settings_select|SELECT authenticated|7a0fcc2d7f63e5940b524f14f2152ff5|PERMISSIVE
+P|public.club_lib_technique_details#uzu_club_lib_details_select|SELECT authenticated|7a0fcc2d7f63e5940b524f14f2152ff5|PERMISSIVE
+P|public.clubs#uzu_clubs_select|SELECT authenticated|ce5d27de9749834f99e8a973dbfc3f32|PERMISSIVE
+P|public.course_meta#uzu_course_meta_select|SELECT authenticated|b8a2a28244e78a142c40475e7a1a6e11|PERMISSIVE
+P|public.course_staff#uzu_course_staff_select|SELECT authenticated|b8a2a28244e78a142c40475e7a1a6e11|PERMISSIVE
+P|public.docs#uzu_docs_delete|DELETE authenticated|d69954ccf999a75803e07a2e30b19102|PERMISSIVE
+P|public.docs#uzu_docs_insert|INSERT authenticated|53fc6dee0e68b01cf39c0d077330f013|PERMISSIVE
+P|public.docs#uzu_docs_select|SELECT authenticated|e62c5dec565c45c06d889ed75532c416|PERMISSIVE
+P|public.docs#uzu_docs_update|UPDATE authenticated|f05ceefec4ef7256f1bd40a33f5bab76|PERMISSIVE
+P|public.group_focus#uzu_group_focus_select|SELECT authenticated|438400fa2e367f341fc356a0705adcc8|PERMISSIVE
+P|public.lib_categories#uzu_lib_cat_select|SELECT authenticated|40b19916fefdd8f8b4708f0530993f43|PERMISSIVE
+P|public.lib_disciplines#uzu_lib_disc_select|SELECT authenticated|90730728603c354b2ab6b92299c753ed|PERMISSIVE
+P|public.lib_flow_step_techniques#uzu_lib_steptech_select|SELECT authenticated|14a847dce8f9426ae8b75354b794882e|PERMISSIVE
+P|public.lib_flow_steps#uzu_lib_step_select|SELECT authenticated|79c96194cad856ae3c43a13dc5c51b33|PERMISSIVE
+P|public.lib_flows#uzu_lib_flow_select|SELECT authenticated|40b19916fefdd8f8b4708f0530993f43|PERMISSIVE
+P|public.lib_techniques#uzu_lib_tech_select|SELECT authenticated|f8003577eae0512a0f65e2d5395c3f82|PERMISSIVE
+P|public.notifications#notif read own|SELECT authenticated|5eebdfba311617743b110b29a41f23a0|PERMISSIVE
+P|public.notifications#notif update own|UPDATE authenticated|7ea2326acd7022f54ccb7566a1d93f26|PERMISSIVE
+P|public.pedagogical_notes#uzu_notes_insert|INSERT authenticated|f56c030b484192a9af19b23fabf7b5a9|PERMISSIVE
+P|public.pedagogical_notes#uzu_notes_select|SELECT authenticated|9bb6f16a4e9557acff374514155db1f4|PERMISSIVE
+P|public.pedagogical_notes#uzu_notes_update|UPDATE authenticated|fbb436a140ec225914fecf01d28c7d1d|PERMISSIVE
+P|public.profiles#uzu_profiles_select|SELECT authenticated|24cd53e909a5dfa4f2711bf63004effc|PERMISSIVE
+P|public.push_subscriptions#push own|ALL authenticated|7ea2326acd7022f54ccb7566a1d93f26|PERMISSIVE
+P|public.user_blocks#uzu_blocks_select|SELECT authenticated|3a4a0edb3e9bd783f8ff69dfeac3c0fb|PERMISSIVE
+P|storage.objects#uzu_class_media_insert|INSERT authenticated|91134b316d977174a7f292702b73672e|PERMISSIVE
+P|storage.objects#uzu_videos_delete|DELETE authenticated|c1c2c89930edf589dcf90bc0f10fe440|PERMISSIVE
+P|storage.objects#uzu_videos_insert|INSERT authenticated|09ebc38871c393b2bfb49832ab287d8d|PERMISSIVE
+P|storage.objects#uzu_videos_select|SELECT authenticated|c9a2de36f5287a9b72cdf12e250864ea|PERMISSIVE
+T|public.academy_audit_logs.academy_id|uuid||NO
+T|public.academy_audit_logs.action|text||NO
+T|public.academy_audit_logs.actor_user_id|uuid||YES
+T|public.academy_audit_logs.created_at|timestamp with time zone|now()|NO
+T|public.academy_audit_logs.details|jsonb|'{}'::jsonb|NO
+T|public.academy_audit_logs.id|bigint||NO
+T|public.academy_audit_logs.target_id|text|''::text|NO
+T|public.academy_audit_logs.target_type|text|''::text|NO
+T|public.academy_group_members.academy_id|uuid||NO
+T|public.academy_group_members.added_by|uuid||YES
+T|public.academy_group_members.created_at|timestamp with time zone|now()|NO
+T|public.academy_group_members.member_id|uuid||NO
+T|public.academy_group_members.section_id|uuid||NO
+T|public.academy_invitations.academy_id|uuid||NO
+T|public.academy_invitations.accepted_at|timestamp with time zone||YES
+T|public.academy_invitations.accepted_by|uuid||YES
+T|public.academy_invitations.created_at|timestamp with time zone|now()|NO
+T|public.academy_invitations.email|text||NO
+T|public.academy_invitations.expires_at|timestamp with time zone||NO
+T|public.academy_invitations.id|uuid|gen_random_uuid()|NO
+T|public.academy_invitations.invited_by|uuid||YES
+T|public.academy_invitations.invited_role|text||NO
+T|public.academy_invitations.permissions|jsonb|'[]'::jsonb|NO
+T|public.academy_invitations.revoked_at|timestamp with time zone||YES
+T|public.academy_invitations.section_id|uuid||YES
+T|public.academy_invitations.token_hash|text||NO
+T|public.academy_members.academy_id|uuid||NO
+T|public.academy_members.created_at|timestamp with time zone|now()|NO
+T|public.academy_members.display_name|text|''::text|NO
+T|public.academy_members.email|text|''::text|NO
+T|public.academy_members.id|uuid|gen_random_uuid()|NO
+T|public.academy_members.invited_by|uuid||YES
+T|public.academy_members.joined_at|timestamp with time zone|now()|NO
+T|public.academy_members.role|text||NO
+T|public.academy_members.section_id|uuid||YES
+T|public.academy_members.status|text|'active'::text|NO
+T|public.academy_members.updated_at|timestamp with time zone|now()|NO
+T|public.academy_members.user_id|uuid||NO
+T|public.academy_permissions.academy_id|uuid||NO
+T|public.academy_permissions.action|text||NO
+T|public.academy_permissions.created_at|timestamp with time zone|now()|NO
+T|public.academy_permissions.effect|text|'allow'::text|NO
+T|public.academy_permissions.id|uuid|gen_random_uuid()|NO
+T|public.academy_permissions.member_id|uuid||NO
+T|public.academy_permissions.resource|text||NO
+T|public.academy_permissions.scope|text|'academy'::text|NO
+T|public.academy_permissions.updated_at|timestamp with time zone|now()|NO
+T|public.academy_permissions.updated_by|uuid||YES
+T|public.academy_sections.academy_id|uuid||NO
+T|public.academy_sections.created_at|timestamp with time zone|now()|NO
+T|public.academy_sections.discipline|text|''::text|NO
+T|public.academy_sections.id|uuid|gen_random_uuid()|NO
+T|public.academy_sections.minors|boolean|false|NO
+T|public.academy_sections.name|text||NO
+T|public.academy_student_access.academy_id|uuid||NO
+T|public.academy_student_access.created_at|timestamp with time zone|now()|NO
+T|public.academy_student_access.member_id|uuid||NO
+T|public.academy_student_access.student_id|uuid||NO
+T|public.belt_history.academy_id|uuid||NO
+T|public.belt_history.comment|text|''::text|NO
+T|public.belt_history.created_at|timestamp with time zone|now()|NO
+T|public.belt_history.decided_at|timestamp with time zone||YES
+T|public.belt_history.id|uuid|gen_random_uuid()|NO
+T|public.belt_history.legacy|boolean|false|NO
+T|public.belt_history.proposed_by|uuid||YES
+T|public.belt_history.rank|text||NO
+T|public.belt_history.since|text|''::text|NO
+T|public.belt_history.status|text||NO
+T|public.belt_history.stripes|integer|0|NO
+T|public.belt_history.student_id|uuid||NO
+T|public.belt_history.validated_by|uuid||YES
+T|public.class_media_removal_requests.academy_id|uuid||NO
+T|public.class_media_removal_requests.created_at|timestamp with time zone|now()|NO
+T|public.class_media_removal_requests.decision_note|text||YES
+T|public.class_media_removal_requests.handled_at|timestamp with time zone||YES
+T|public.class_media_removal_requests.handled_by|uuid||YES
+T|public.class_media_removal_requests.id|uuid|gen_random_uuid()|NO
+T|public.class_media_removal_requests.media_id|uuid||NO
+T|public.class_media_removal_requests.reason|text|''::text|NO
+T|public.class_media_removal_requests.requested_by|uuid||YES
+T|public.class_media_removal_requests.session_id|uuid||NO
+T|public.class_media_removal_requests.status|text|'requested'::text|NO
+T|public.class_media_settings.chunk_bytes|integer|2097152|NO
+T|public.class_media_settings.id|boolean|true|NO
+T|public.class_media_settings.log_retention_months|integer|36|NO
+T|public.class_media_settings.max_bytes|bigint|52428800|NO
+T|public.class_media_settings.max_per_session|integer|4|NO
+T|public.class_media_settings.media_retention_months|integer|12|NO
+T|public.class_media_settings.quarantine_days|integer|7|NO
+T|public.class_media_settings.reservation_minutes|integer|30|NO
+T|public.class_media_settings.ticket_seconds|integer|900|NO
+T|public.class_media_settings.updated_at|timestamp with time zone|now()|NO
+T|public.class_media_settings.updated_by|uuid||YES
+T|public.class_media_tickets.academy_id|uuid||NO
+T|public.class_media_tickets.created_at|timestamp with time zone|now()|NO
+T|public.class_media_tickets.expires_at|timestamp with time zone||NO
+T|public.class_media_tickets.media_id|uuid||NO
+T|public.class_media_tickets.revoked_at|timestamp with time zone||YES
+T|public.class_media_tickets.token_hash|text||NO
+T|public.class_media_tickets.user_id|uuid||NO
+T|public.class_session_events.academy_id|uuid||NO
+T|public.class_session_events.action|text||NO
+T|public.class_session_events.actor_id|uuid||YES
+T|public.class_session_events.created_at|timestamp with time zone|now()|NO
+T|public.class_session_events.details|jsonb|'{}'::jsonb|NO
+T|public.class_session_events.id|bigint|nextval('class_session_events_id_seq'::regclass)|NO
+T|public.class_session_events.session_id|uuid||NO
+T|public.class_session_media.academy_id|uuid||NO
+T|public.class_session_media.created_at|timestamp with time zone|now()|NO
+T|public.class_session_media.deleted_at|timestamp with time zone||YES
+T|public.class_session_media.deleted_reason|text||YES
+T|public.class_session_media.id|uuid|gen_random_uuid()|NO
+T|public.class_session_media.kind|text||NO
+T|public.class_session_media.location|text|'pending'::text|NO
+T|public.class_session_media.mime_declared|text||YES
+T|public.class_session_media.mime_detected|text||YES
+T|public.class_session_media.minors_declared_at|timestamp with time zone||YES
+T|public.class_session_media.minors_declared_by|uuid||YES
+T|public.class_session_media.position|smallint|0|NO
+T|public.class_session_media.quarantine_path|text||YES
+T|public.class_session_media.quarantine_reason|text||YES
+T|public.class_session_media.quarantined_at|timestamp with time zone||YES
+T|public.class_session_media.ready_at|timestamp with time zone||YES
+T|public.class_session_media.reserved_until|timestamp with time zone||YES
+T|public.class_session_media.rights_declared_at|timestamp with time zone||NO
+T|public.class_session_media.rights_declared_by|uuid||YES
+T|public.class_session_media.session_id|uuid||NO
+T|public.class_session_media.size_bytes|bigint||YES
+T|public.class_session_media.state|text|'uploading'::text|NO
+T|public.class_session_media.storage_path|text||NO
+T|public.class_session_media.uploaded_by|uuid||YES
+T|public.class_session_media.validated_at|timestamp with time zone||YES
+T|public.class_session_media.validated_by|uuid||YES
+T|public.class_session_media.validation|text|'pending_validation'::text|NO
+T|public.class_session_media.validation_note|text||YES
+T|public.class_session_media.verify_error|text||YES
+T|public.class_session_techniques.free_text|text||YES
+T|public.class_session_techniques.position|integer||NO
+T|public.class_session_techniques.session_id|uuid||NO
+T|public.class_session_techniques.technique_id|text||YES
+T|public.class_sessions.academy_id|uuid||NO
+T|public.class_sessions.author_id|uuid||YES
+T|public.class_sessions.comment|text|''::text|NO
+T|public.class_sessions.course_key|text||YES
+T|public.class_sessions.created_at|timestamp with time zone|now()|NO
+T|public.class_sessions.discipline_id|text||YES
+T|public.class_sessions.exercises|text|''::text|NO
+T|public.class_sessions.focus_snapshot|jsonb|'{}'::jsonb|NO
+T|public.class_sessions.group_name|text|''::text|NO
+T|public.class_sessions.id|uuid|gen_random_uuid()|NO
+T|public.class_sessions.objective|text|''::text|NO
+T|public.class_sessions.previous_session_id|uuid||YES
+T|public.class_sessions.published_at|timestamp with time zone||YES
+T|public.class_sessions.published_by|uuid||YES
+T|public.class_sessions.section_id|uuid||YES
+T|public.class_sessions.session_date|date||NO
+T|public.class_sessions.status|text|'brouillon'::text|NO
+T|public.class_sessions.theme|text||NO
+T|public.class_sessions.updated_at|timestamp with time zone|now()|NO
+T|public.class_sessions.updated_by|uuid||YES
+T|public.client_errors.agent|text|''::text|NO
+T|public.client_errors.created_at|timestamp with time zone|now()|NO
+T|public.client_errors.id|bigint||NO
+T|public.client_errors.kind|text|'error'::text|NO
+T|public.client_errors.message|text|''::text|NO
+T|public.client_errors.page|text|''::text|NO
+T|public.client_errors.stack|text|''::text|NO
+T|public.client_errors.user_id|uuid||YES
+T|public.client_errors.version|text|''::text|NO
+T|public.club_lib_collection_items.collection_id|uuid||NO
+T|public.club_lib_collection_items.item_id|uuid||YES
+T|public.club_lib_collection_items.position|integer||NO
+T|public.club_lib_collection_items.technique_id|text||YES
+T|public.club_lib_collections.academy_id|uuid||NO
+T|public.club_lib_collections.created_at|timestamp with time zone|now()|NO
+T|public.club_lib_collections.created_by|uuid||YES
+T|public.club_lib_collections.description|text|''::text|NO
+T|public.club_lib_collections.id|uuid|gen_random_uuid()|NO
+T|public.club_lib_collections.name|text||NO
+T|public.club_lib_collections.position|integer|0|NO
+T|public.club_lib_collections.updated_at|timestamp with time zone|now()|NO
+T|public.club_lib_events.academy_id|uuid||NO
+T|public.club_lib_events.action|text||NO
+T|public.club_lib_events.actor_id|uuid||YES
+T|public.club_lib_events.created_at|timestamp with time zone|now()|NO
+T|public.club_lib_events.details|jsonb|'{}'::jsonb|NO
+T|public.club_lib_events.id|bigint|nextval('club_lib_events_id_seq'::regclass)|NO
+T|public.club_lib_events.item_id|uuid||YES
+T|public.club_lib_hidden.academy_id|uuid||NO
+T|public.club_lib_hidden.created_at|timestamp with time zone|now()|NO
+T|public.club_lib_hidden.hidden_by|uuid||YES
+T|public.club_lib_hidden.technique_id|text||NO
+T|public.club_lib_items.academy_id|uuid||NO
+T|public.club_lib_items.author_id|uuid||YES
+T|public.club_lib_items.body|text|''::text|NO
+T|public.club_lib_items.created_at|timestamp with time zone|now()|NO
+T|public.club_lib_items.discipline_id|text||YES
+T|public.club_lib_items.id|uuid|gen_random_uuid()|NO
+T|public.club_lib_items.kind|text||NO
+T|public.club_lib_items.published_at|timestamp with time zone||YES
+T|public.club_lib_items.review_note|text|''::text|NO
+T|public.club_lib_items.reviewer_id|uuid||YES
+T|public.club_lib_items.rights_declared_at|timestamp with time zone||YES
+T|public.club_lib_items.rights_declared_by|uuid||YES
+T|public.club_lib_items.status|text|'brouillon'::text|NO
+T|public.club_lib_items.submitted_at|timestamp with time zone||YES
+T|public.club_lib_items.technique_id|text||YES
+T|public.club_lib_items.title|text||NO
+T|public.club_lib_items.updated_at|timestamp with time zone|now()|NO
+T|public.club_lib_items.url|text||YES
+T|public.club_lib_settings.academy_id|uuid||NO
+T|public.club_lib_settings.disciplines|ARRAY|'{}'::text[]|NO
+T|public.club_lib_settings.updated_at|timestamp with time zone|now()|NO
+T|public.club_lib_settings.updated_by|uuid||YES
+T|public.club_lib_technique_details.academy_id|uuid||NO
+T|public.club_lib_technique_details.level|smallint||YES
+T|public.club_lib_technique_details.steps|text|''::text|NO
+T|public.club_lib_technique_details.technique_id|text||NO
+T|public.club_lib_technique_details.updated_at|timestamp with time zone|now()|NO
+T|public.club_lib_technique_details.updated_by|uuid||YES
+T|public.club_lib_technique_details.vigilance|text|''::text|NO
+T|public.club_roles.role|text|'eleve'::text|NO
+T|public.club_roles.user_id|uuid||NO
+T|public.clubs.accent_color|text|'sceau'::text|NO
+T|public.clubs.created_at|timestamp with time zone|now()|NO
+T|public.clubs.id|uuid|gen_random_uuid()|NO
+T|public.clubs.invite_code|text||NO
+T|public.clubs.name|text||NO
+T|public.clubs.news|text|''::text|NO
+T|public.clubs.profile|jsonb|'{}'::jsonb|NO
+T|public.clubs.schedule|jsonb|'[]'::jsonb|NO
+T|public.clubs.tactical_focus|jsonb|'{}'::jsonb|NO
+T|public.content_reports.academy_id|uuid||YES
+T|public.content_reports.created_at|timestamp with time zone|now()|NO
+T|public.content_reports.details|text|''::text|NO
+T|public.content_reports.id|uuid|gen_random_uuid()|NO
+T|public.content_reports.item_key|text|''::text|NO
+T|public.content_reports.item_text|text|''::text|NO
+T|public.content_reports.reason|text||NO
+T|public.content_reports.reporter_id|uuid||YES
+T|public.content_reports.resolved_at|timestamp with time zone||YES
+T|public.content_reports.resolved_by|uuid||YES
+T|public.content_reports.status|text|'open'::text|NO
+T|public.content_reports.target_name|text|''::text|NO
+T|public.content_reports.target_user_id|uuid||YES
+T|public.course_meta.academy_id|uuid||NO
+T|public.course_meta.course_key|text||NO
+T|public.course_meta.discipline|text|''::text|NO
+T|public.course_meta.level|text|''::text|NO
+T|public.course_meta.section_id|uuid||YES
+T|public.course_meta.updated_at|timestamp with time zone|now()|NO
+T|public.course_staff.academy_id|uuid||NO
+T|public.course_staff.assignment_role|text||NO
+T|public.course_staff.course_key|text||NO
+T|public.course_staff.created_at|timestamp with time zone|now()|NO
+T|public.course_staff.created_by|uuid||YES
+T|public.course_staff.id|uuid|gen_random_uuid()|NO
+T|public.course_staff.member_id|uuid||NO
+T|public.course_staff.session_date|date||YES
+T|public.docs.data|jsonb|'{}'::jsonb|NO
+T|public.docs.path|text||NO
+T|public.docs.updated_at|timestamp with time zone|now()|YES
+T|public.group_focus.academy_id|uuid||NO
+T|public.group_focus.details|text|''::text|NO
+T|public.group_focus.focus_from|text|''::text|NO
+T|public.group_focus.focus_to|text|''::text|NO
+T|public.group_focus.id|uuid|gen_random_uuid()|NO
+T|public.group_focus.published_at|timestamp with time zone|now()|NO
+T|public.group_focus.published_by|uuid||YES
+T|public.group_focus.section_id|uuid||NO
+T|public.group_focus.theme|text||NO
+T|public.group_focus.unpublished_at|timestamp with time zone||YES
+T|public.lib_categories.discipline_id|text||NO
+T|public.lib_categories.id|text||NO
+T|public.lib_categories.label|text||NO
+T|public.lib_categories.position|integer||NO
+T|public.lib_disciplines.active|boolean|true|NO
+T|public.lib_disciplines.created_at|timestamp with time zone|now()|NO
+T|public.lib_disciplines.id|text||NO
+T|public.lib_disciplines.label|text||NO
+T|public.lib_disciplines.long_label|text|''::text|NO
+T|public.lib_disciplines.position|integer|0|NO
+T|public.lib_flow_step_techniques.origin|text||NO
+T|public.lib_flow_step_techniques.position|integer|1|NO
+T|public.lib_flow_step_techniques.step_id|text||NO
+T|public.lib_flow_step_techniques.technique_id|text||NO
+T|public.lib_flow_steps.branch_label|text||YES
+T|public.lib_flow_steps.flow_id|text||NO
+T|public.lib_flow_steps.id|text||NO
+T|public.lib_flow_steps.kind|text||NO
+T|public.lib_flow_steps.label|text||NO
+T|public.lib_flow_steps.origin|text||NO
+T|public.lib_flow_steps.parent_id|text||YES
+T|public.lib_flow_steps.position|integer||NO
+T|public.lib_flows.discipline_id|text||NO
+T|public.lib_flows.id|text||NO
+T|public.lib_flows.intro|text|''::text|NO
+T|public.lib_flows.position|integer||NO
+T|public.lib_flows.title|text||NO
+T|public.lib_techniques.aliases|ARRAY|'{}'::text[]|NO
+T|public.lib_techniques.archived|boolean|false|NO
+T|public.lib_techniques.category_id|text||NO
+T|public.lib_techniques.created_at|timestamp with time zone|now()|NO
+T|public.lib_techniques.discipline_id|text||NO
+T|public.lib_techniques.id|text||NO
+T|public.lib_techniques.level|smallint||YES
+T|public.lib_techniques.name|text||NO
+T|public.lib_techniques.origin|text||NO
+T|public.lib_techniques.position|integer||NO
+T|public.lib_techniques.proposed_text|text||YES
+T|public.lib_techniques.restricted|text||YES
+T|public.lib_techniques.source|text|''::text|NO
+T|public.lib_techniques.source_text|text||YES
+T|public.lib_techniques.updated_at|timestamp with time zone|now()|NO
+T|public.lib_techniques.uzu_links|jsonb|'[]'::jsonb|NO
+T|public.lib_techniques.validated_at|timestamp with time zone||YES
+T|public.lib_techniques.validated_by|uuid||YES
+T|public.lib_techniques.validation_note|text|''::text|NO
+T|public.lib_techniques.validation_refs|ARRAY|'{}'::text[]|NO
+T|public.lib_techniques.validation_status|text|'a_valider'::text|NO
+T|public.lib_techniques.version|integer|1|NO
+T|public.notifications.body|text|''::text|NO
+T|public.notifications.created_at|timestamp with time zone|now()|NO
+T|public.notifications.dedupe|text||NO
+T|public.notifications.id|bigint|nextval('notifications_id_seq'::regclass)|NO
+T|public.notifications.kind|text||NO
+T|public.notifications.pushed_at|timestamp with time zone||YES
+T|public.notifications.read_at|timestamp with time zone||YES
+T|public.notifications.title|text||NO
+T|public.notifications.url|text|''::text|NO
+T|public.notifications.user_id|uuid||NO
+T|public.pedagogical_notes.academy_id|uuid||NO
+T|public.pedagogical_notes.author_user_id|uuid||YES
+T|public.pedagogical_notes.body|text||NO
+T|public.pedagogical_notes.created_at|timestamp with time zone|now()|NO
+T|public.pedagogical_notes.deleted_at|timestamp with time zone||YES
+T|public.pedagogical_notes.id|uuid|gen_random_uuid()|NO
+T|public.pedagogical_notes.legacy|boolean|false|NO
+T|public.pedagogical_notes.student_id|uuid||NO
+T|public.pedagogical_notes.updated_at|timestamp with time zone|now()|NO
+T|public.pedagogical_notes.visibility|text|'team'::text|NO
+T|public.profiles.allow_tag|boolean|true|NO
+T|public.profiles.club_id|uuid||YES
+T|public.profiles.created_at|timestamp with time zone|now()|NO
+T|public.profiles.display_name|text|''::text|NO
+T|public.profiles.notif_prefs|jsonb|'{}'::jsonb|NO
+T|public.profiles.role|text|'solo'::text|NO
+T|public.profiles.share_activity|boolean|false|NO
+T|public.profiles.user_id|uuid||NO
+T|public.push_subscriptions.auth|text||NO
+T|public.push_subscriptions.created_at|timestamp with time zone|now()|NO
+T|public.push_subscriptions.endpoint|text||NO
+T|public.push_subscriptions.last_seen|timestamp with time zone|now()|NO
+T|public.push_subscriptions.p256dh|text||NO
+T|public.push_subscriptions.ua|text|''::text|NO
+T|public.push_subscriptions.user_id|uuid||NO
+T|public.session_tags.academy_id|uuid||YES
+T|public.session_tags.answered_at|timestamp with time zone||YES
+T|public.session_tags.author_id|uuid||NO
+T|public.session_tags.created_at|timestamp with time zone|now()|NO
+T|public.session_tags.id|uuid|gen_random_uuid()|NO
+T|public.session_tags.partner_id|uuid||NO
+T|public.session_tags.session_date|date||NO
+T|public.session_tags.session_key|text||NO
+T|public.session_tags.status|text|'pending'::text|NO
+T|public.session_tags.summary|text|''::text|NO
+T|public.user_blocks.blocked_id|uuid||NO
+T|public.user_blocks.blocker_id|uuid||NO
+T|public.user_blocks.created_at|timestamp with time zone|now()|NO
+T|public.uzu_meta.key|text||NO
+T|public.uzu_meta.value|text||NO
+T|public.uzu_platform_admins.created_at|timestamp with time zone|now()|NO
+T|public.uzu_platform_admins.user_id|uuid||NO
+T|storage.buckets.allowed_mime_types|ARRAY||YES
+T|storage.buckets.file_size_limit|bigint||YES
+T|storage.buckets.id|text||NO
+T|storage.buckets.name|text||YES
+T|storage.buckets.public|boolean||YES
+T|storage.objects.bucket_id|text||YES
+T|storage.objects.id|uuid|gen_random_uuid()|NO
+T|storage.objects.name|text||YES
+G|public.academy_audit_logs@authenticated|SELECT||
+G|public.academy_group_members@authenticated|SELECT||
+G|public.academy_members@authenticated|SELECT||
+G|public.academy_permissions@authenticated|SELECT||
+G|public.academy_sections@authenticated|SELECT||
+G|public.academy_student_access@authenticated|SELECT||
+G|public.belt_history@authenticated|SELECT||
+G|public.class_session_events@authenticated|SELECT||
+G|public.class_session_media@authenticated|SELECT||
+G|public.class_session_techniques@authenticated|SELECT||
+G|public.class_sessions@authenticated|SELECT||
+G|public.club_lib_collection_items@authenticated|SELECT||
+G|public.club_lib_collections@authenticated|SELECT||
+G|public.club_lib_events@authenticated|SELECT||
+G|public.club_lib_hidden@authenticated|SELECT||
+G|public.club_lib_items@authenticated|SELECT||
+G|public.club_lib_settings@authenticated|SELECT||
+G|public.club_lib_technique_details@authenticated|SELECT||
+G|public.club_roles@authenticated|SELECT||
+G|public.clubs@authenticated|SELECT||
+G|public.course_meta@authenticated|SELECT||
+G|public.course_staff@authenticated|SELECT||
+G|public.docs@authenticated|DELETE,INSERT,SELECT,UPDATE||
+G|public.group_focus@authenticated|SELECT||
+G|public.lib_categories@authenticated|SELECT||
+G|public.lib_disciplines@authenticated|SELECT||
+G|public.lib_flow_step_techniques@authenticated|SELECT||
+G|public.lib_flow_steps@authenticated|SELECT||
+G|public.lib_flows@authenticated|SELECT||
+G|public.lib_techniques@authenticated|SELECT||
+G|public.notifications@authenticated|SELECT||
+G|public.pedagogical_notes@authenticated|INSERT,SELECT||
+G|public.profiles@authenticated|SELECT||
+G|public.push_subscriptions@authenticated|DELETE,INSERT,SELECT,UPDATE||
+G|public.user_blocks@authenticated|SELECT||
+G|storage.objects@authenticated|DELETE,INSERT,SELECT||
+R|public.clubs#uzu_club_news_notify|be078f140ea130a0d70ac2d3e1fa4c23|O|
+R|public.docs#uzu_docs_notify|fbdde032e26c416abb38576ab74b5bb3|O|
+R|public.notifications#uzu_push_dispatch|d130051f8637a7f5b54aa9bdb356b1b2|O|
+R|public.pedagogical_notes#uzu_notes_guard|678481c063626b4497959112093370ad|O|
+S|public.academy_audit_logs|true/false||
+S|public.academy_group_members|true/false||
+S|public.academy_invitations|true/false||
+S|public.academy_members|true/false||
+S|public.academy_permissions|true/false||
+S|public.academy_sections|true/false||
+S|public.academy_student_access|true/false||
+S|public.belt_history|true/false||
+S|public.class_media_removal_requests|true/false||
+S|public.class_media_settings|true/false||
+S|public.class_media_tickets|true/false||
+S|public.class_session_events|true/false||
+S|public.class_session_media|true/false||
+S|public.class_session_techniques|true/false||
+S|public.class_sessions|true/false||
+S|public.client_errors|true/false||
+S|public.club_lib_collection_items|true/false||
+S|public.club_lib_collections|true/false||
+S|public.club_lib_events|true/false||
+S|public.club_lib_hidden|true/false||
+S|public.club_lib_items|true/false||
+S|public.club_lib_settings|true/false||
+S|public.club_lib_technique_details|true/false||
+S|public.club_roles|false/false||
+S|public.clubs|true/false||
+S|public.content_reports|true/false||
+S|public.course_meta|true/false||
+S|public.course_staff|true/false||
+S|public.docs|true/false||
+S|public.group_focus|true/false||
+S|public.lib_categories|true/false||
+S|public.lib_disciplines|true/false||
+S|public.lib_flow_step_techniques|true/false||
+S|public.lib_flow_steps|true/false||
+S|public.lib_flows|true/false||
+S|public.lib_techniques|true/false||
+S|public.notifications|true/false||
+S|public.pedagogical_notes|true/false||
+S|public.profiles|true/false||
+S|public.push_subscriptions|true/false||
+S|public.session_tags|true/false||
+S|public.user_blocks|true/false||
+S|public.uzu_meta|true/false||
+S|public.uzu_platform_admins|true/false||
+S|storage.buckets|false/false||
+S|storage.objects|true/false||
+B|class-media|false||
+B|class-media-quarantine|false||
+B|videos|false||
+D|public.club_roles|3|8592776d7585ea4a5144d74f20be4635|
+D|storage.objects|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.docs|9|ce3c4e68dbee59b5032f276beb99f5d0|
+D|storage.buckets|3|5b69d21818505384c39b24b2a097e893|
+D|public.profiles|3|b93d163c8cbf6df8b46b2794225b1887|
+D|public.uzu_meta|3|b2fac40d14908021b6b900f18af85da0|
+D|public.notifications|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.push_subscriptions|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.clubs|1|51b7a66819b73752299147e8c384fcc5|
+D|public.academy_invitations|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.uzu_platform_admins|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.academy_members|3|2716ba3f805bc832ee40f435294bcb8c|
+D|public.academy_permissions|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.course_staff|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.course_meta|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.academy_student_access|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.belt_history|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.academy_audit_logs|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.pedagogical_notes|1|67909e857510f88f3f67dae2c539dac1|
+D|public.client_errors|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.user_blocks|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.content_reports|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.session_tags|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.lib_disciplines|3|9e7b9474a56e02c70fedbf1c2f7e78ce|
+D|public.lib_categories|12|52863be9ec778f95914bdd0c7dea80d3|
+D|public.lib_techniques|70|9dabc32ede6e8c1f42d274e85451a2af|
+D|public.lib_flows|4|8a1d8d8b13e3f50215b686043ed9c8dd|
+D|public.lib_flow_steps|33|5dcd8d832ebf97aeaade718cbeeadd15|
+D|public.lib_flow_step_techniques|52|f15d50f08b23c2d67d4d483094eac712|
+D|public.club_lib_settings|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.club_lib_items|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.club_lib_collections|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.club_lib_collection_items|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.club_lib_hidden|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.club_lib_events|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.club_lib_technique_details|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.academy_sections|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.academy_group_members|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.class_sessions|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.class_session_techniques|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.class_session_events|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.group_focus|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.class_session_media|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.class_media_settings|1|164354e3a09e81192647440e3b770a18|
+D|public.class_media_tickets|0|d41d8cd98f00b204e9800998ecf8427e|
+D|public.class_media_removal_requests|0|d41d8cd98f00b204e9800998ecf8427e|
