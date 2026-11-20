@@ -82,7 +82,7 @@ function Activation({ me, onBack, onNext }: { me: RoulerMe; onBack: () => void; 
   }
   void me
   return <><Back onClick={onBack} />
-    <form className="panel uzu-panel-col uzu-grid-gap" aria-label="Activation du profil de roulage" onSubmit={e => { e.preventDefault(); next() }}>
+    <form noValidate className="panel uzu-panel-col uzu-grid-gap" aria-label="Activation du profil de roulage" onSubmit={e => { e.preventDefault(); next() }}>
       <div className="eyebrow">PARTENAIRES · ACTIVATION</div><h2 className="uzu-h2">Avant de commencer</h2>
       <Tick on={a.adult} onClick={() => setA({ ...a, adult: !a.adult })}>J&apos;ai 18 ans ou plus.</Tick>
       <Tick on={a.consent} onClick={() => setA({ ...a, consent: !a.consent })}>J&apos;accepte que les informations que je choisis soient montrées aux pratiquants UZU selon la visibilité que je règle.</Tick>
@@ -117,7 +117,7 @@ function ProfileForm({ me, activation, onBack, onSaved }: { me: RoulerMe; activa
   const clubName = me.clubs.find(c => c.id === club)?.name
   const preview = [showBelt && me.belt ? `Ceinture ${BELT_LBL[me.belt].toLowerCase()}` : "", disc.map(d => DISC_LBL[d]).join(", ")].filter(Boolean).join(" · ")
   return <><Back onClick={onBack} />
-    <form className="panel uzu-panel-col uzu-grid-gap" aria-label="Mon profil de roulage" onSubmit={e => { e.preventDefault(); save() }}>
+    <form noValidate className="panel uzu-panel-col uzu-grid-gap" aria-label="Mon profil de roulage" onSubmit={e => { e.preventDefault(); save() }}>
       <div className="eyebrow">PARTENAIRES · MON PROFIL</div><h2 className="uzu-h2">Mon profil de roulage</h2>
       <CommunePicker id="rl-home" label="Ma ville habituelle" value={home} onPick={c => { setHome(c); rememberCommune(c) }} />
       <p className="uzu-text uzu-small uzu-muted">Jamais montrée : les autres ne voient qu&apos;une distance approximative.</p>
@@ -171,7 +171,7 @@ function AvailabilityForm({ me, edit, onBack, onSaved }: { me: RoulerMe; edit?: 
     onSaved(r.data)
   }
   return <><Back onClick={onBack} />
-    <form className="panel uzu-panel-col uzu-grid-gap" aria-label="Je suis dispo" onSubmit={e => { e.preventDefault(); save() }}>
+    <form noValidate className="panel uzu-panel-col uzu-grid-gap" aria-label="Je suis dispo" onSubmit={e => { e.preventDefault(); save() }}>
       <div className="eyebrow">PARTENAIRES · DISPONIBILITÉ</div><h2 className="uzu-h2">{edit ? "Modifier ma disponibilité" : "Je suis dispo"}</h2>
       <div className="uzu-chips uzu-chips--small" role="group" aria-label="Où ?">
         <button type="button" className={!travel ? "on" : ""} aria-pressed={!travel} onClick={() => setTravel(false)}>Dans ma ville{p.home_commune ? ` · ${p.home_commune}` : ""}</button>
@@ -355,7 +355,7 @@ function PartnerSheet({ p, onBack, onToast }: { p: Partner; onBack: () => void; 
       {err && <div className="uzu-banner uzu-banner--error" role="alert">{err}</div>}
       <div className="uzu-actions uzu-actions--start"><button type="button" className="button button--dark uzu-small-btn" disabled={busy} onClick={block}>Confirmer</button>
         <button type="button" className="button button--outline uzu-small-btn" onClick={() => setMode("")}>Annuler</button></div></section>}
-    {mode === "report" && <form className="panel uzu-panel-col uzu-grid-gap" aria-label="Signaler" onSubmit={e => { e.preventDefault(); report() }}>
+    {mode === "report" && <form noValidate className="panel uzu-panel-col uzu-grid-gap" aria-label="Signaler" onSubmit={e => { e.preventDefault(); report() }}>
       <h3 className="uzu-h3"><ShieldCheck size={16} aria-hidden="true" /> Signaler</h3>
       <p className="uzu-text uzu-small uzu-muted">Transmis au référent UZU, jamais à la personne signalée.</p>
       <div className="uzu-chips uzu-chips--small" role="radiogroup" aria-label="Motif">{REASONS.map(([k, lb]) => <button key={k} type="button" role="radio" aria-checked={reason === k} className={reason === k ? "on" : ""} onClick={() => setReason(k)}>{lb}</button>)}</div>

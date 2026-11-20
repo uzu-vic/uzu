@@ -45,20 +45,23 @@ export const BELT_LBL: Record<Belt, string> = { blanche: "Blanche", bleue: "Bleu
 export const REASONS: [string, string][] = [["inapproprie", "Comportement inapproprié"], ["harcelement", "Harcèlement"], ["faux", "Faux profil"], ["mineur", "Mineur"], ["autre", "Autre"]]
 export const DMIN = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
 
-export const roulerMe = () => rpc<RoulerMe>("rouler_me")
-export const roulerActivate = (p: Record<string, unknown>) => rpc<RoulerMe>("rouler_activate", { p })
-export const roulerSaveProfile = (p: Record<string, unknown>) => rpc<RoulerMe>("rouler_save_profile", { p })
-export const roulerSetVisibility = (v: Visibility) => rpc<RoulerMe>("rouler_set_visibility", { p_visibility: v })
+// Réponse vide ou inattendue (module absent, serveur ancien) : traitée comme « pas encore disponible », jamais comme un plantage
+const meOk = (r: R<RoulerMe>): R<RoulerMe> => r.ok && (!r.data || typeof r.data !== "object" || !Array.isArray(r.data.availabilities)) ? { ok: false, msg: "Les partenaires de roulage ne sont pas encore disponibles" } : r
+export const roulerMe = async () => meOk(await rpc<RoulerMe>("rouler_me"))
+export const roulerActivate = async (p: Record<string, unknown>) => meOk(await rpc<RoulerMe>("rouler_activate", { p }))
+export const roulerSaveProfile = async (p: Record<string, unknown>) => meOk(await rpc<RoulerMe>("rouler_save_profile", { p }))
+export const roulerSetVisibility = async (v: Visibility) => meOk(await rpc<RoulerMe>("rouler_set_visibility", { p_visibility: v }))
 export const roulerDeleteProfile = () => rpc<boolean>("rouler_delete_profile")
-export const roulerSaveAvailability = (p: Record<string, unknown>) => rpc<RoulerMe>("rouler_save_availability", { p })
-export const roulerEndAvailability = (id: string) => rpc<RoulerMe>("rouler_end_availability", { p_id: id })
+export const roulerSaveAvailability = async (p: Record<string, unknown>) => meOk(await rpc<RoulerMe>("rouler_save_availability", { p }))
+export const roulerEndAvailability = async (id: string) => meOk(await rpc<RoulerMe>("rouler_end_availability", { p_id: id }))
 export const roulerSearch = (a: { insee: string; radius: number; from?: string | null; to?: string | null; disc?: DirDisc | null; beltMin?: Belt | null; beltMax?: Belt | null; intensity?: Intensity | null }) =>
   rpc<PartnerSearch>("rouler_search", { p_insee: a.insee, p_radius: a.radius, p_from: a.from || null, p_to: a.to || null, p_disc: a.disc || null, p_belt_min: a.beltMin || null, p_belt_max: a.beltMax || null, p_intensity: a.intensity || null })
 export const roulerBlock = (handle: string) => rpc<boolean>("rouler_block", { p_handle: handle })
-export const roulerMyBlocks = () => rpc<BlockedPartner[]>("rouler_my_blocks")
+const arr = <T,>(r: R<T[]>): R<T[]> => r.ok ? { ok: true, data: Array.isArray(r.data) ? r.data : [] } : r
+export const roulerMyBlocks = async () => arr(await rpc<BlockedPartner[]>("rouler_my_blocks"))
 export const roulerUnblock = (key: string) => rpc<boolean>("rouler_unblock", { p_key: key })
 export const roulerReport = (handle: string, reason: string, details: string) => rpc<boolean>("rouler_report", { p_handle: handle, p_reason: reason, p_details: details.trim().slice(0, 500) })
-export const roulerAdminReports = (status: string | null) => rpc<RoulerReport[]>("rouler_admin_reports", { p_status: status })
+export const roulerAdminReports = async (status: string | null) => arr(await rpc<RoulerReport[]>("rouler_admin_reports", { p_status: status }))
 export const roulerAdminResolve = (key: string, decision: "keep" | "restore" | "dismiss") => rpc<boolean>("rouler_admin_resolve", { p_key: key, p_decision: decision })
 
 // Dates : chaînes AAAA-MM-JJ en heure locale

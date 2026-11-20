@@ -146,7 +146,7 @@ with sync_playwright() as p:
         sg = m.last("dir_suggest")
         check(f"[{name}] « Proposer un club » : envoyé sans fiche liée", len(sg) == 2 and sg[1]["p_slug"] is None and sg[1]["p"]["name"] == "Club absent", sg)
         tab(pg, "Partenaires")
-        check(f"[{name}] volet Partenaires : annonce « bientôt », aucun appel", "Bientôt dans UZU" in content(pg))
+        check(f"[{name}] volet Partenaires : base simulée sans uzu-14b, message « pas encore disponibles » sans plantage", "pas encore disponibles" in content(pg))
         tab(pg, "Fil")
         check(f"[{name}] volet Fil : le fil existant s'affiche (« Ton fil » en solo)", "Ton fil" in content(pg))
         go_feed(pg, mob)
