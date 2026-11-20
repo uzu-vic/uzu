@@ -71,7 +71,8 @@ Chaque commande nomme le projet de test. Ne jamais utiliser l'identifiant de pro
 
 ## Risques et points ouverts
 
-- **Jeton dans l'adresse des vidéos** : un lecteur vidéo ne sait pas envoyer d'en-tête, le jeton figure donc dans l'adresse `stream?t=…`. Nos journaux ne l'écrivent jamais ; le journal des requêtes de la plateforme Supabase peut enregistrer l'adresse complète (consultable par les administrateurs du projet). Contrôlé le 19/11 (test B6) : absent des journaux de la fonction ; reste à consulter le journal général (Logs Explorer). Si le jeton y apparaît, prévoir un intermédiaire (service worker) qui passe le jeton en en-tête. Les photos passent déjà le jeton en en-tête.
+- **Jeton dans l'adresse des vidéos** : corrigé le 20/11. Les journaux d'appels de Supabase conservent l'adresse complète ; le lecteur vidéo lit donc `/api/cm/video/<id>` (relais du site, `lib/uzu/cm-proxy.ts`) avec le jeton dans un cookie HttpOnly, Secure, SameSite=Strict limité à cette vidéo, transmis à la fonction en en-tête. La fonction refuse tout jeton dans une adresse (400 `token_in_url`). Contrepartie : le flux vidéo passe aussi par Vercel (quota à vérifier).
+- **Android / HEVC** : MOV servi en `video/mp4` par le relais ; format non décodable signalé à la lecture ; avertissement HEVC à l'envoi (réglage iPhone « Le plus compatible »). Page de diagnostic pour l'essai sur téléphone : voir le compte rendu des vérifications.
 - **Jeton transmis à un tiers** : valable pour un seul média, 15 min au plus, et seulement tant que son titulaire reste autorisé.
 - **Contenu déjà affiché ou déjà chargé** par le lecteur ne peut pas être repris (capture d'écran, mémoire de l'appareil).
 - **Chemin connu de l'auteur de l'envoi** : il est renvoyé à la réservation pour l'envoi direct ; il ne donne aucun droit de lecture.
