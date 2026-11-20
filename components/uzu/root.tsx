@@ -19,6 +19,7 @@ import { AthleteSessions, AthleteStats } from "@/components/uzu/athlete-sessions
 import { JournalForm } from "@/components/uzu/journal-form"
 import { AthleteProgress, AthleteTechniques } from "@/components/uzu/progress"
 import { AthleteFeed, AthleteProfile } from "@/components/uzu/social"
+import { TatamiSpace } from "@/components/uzu/directory"
 import { syncPending } from "@/lib/uzu/journal"
 import { ClubAttendance, ClubHome, ClubProgress } from "@/components/uzu/club"
 import { ClubStudents } from "@/components/uzu/club-students"
@@ -272,7 +273,7 @@ function Shell({ session, ctx, ctxError, onReload, onCtx, flash, onFlashClose }:
           : space === "athlete" && current?.id === "progress" ? <AthleteProgress key={"p" + syncTick} uid={session.user.id} ctx={ctx} />
           : space === "athlete" && current?.id === "log" ? <AthleteSessions key={"l" + syncTick + navArg} initialTab={navArg} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} onEdit={(kind, id) => { setEditing({ kind, id }); setComposing(true); window.scrollTo(0, 0) }} onToast={showToast} />
           : space === "athlete" && current?.id === "stats" ? <AthleteStats key={"st" + syncTick} uid={session.user.id} ctx={ctx} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
-          : space === "athlete" && current?.id === "feed" ? <AthleteFeed key={"f" + syncTick} uid={session.user.id} ctx={ctx} onToast={showToast} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />
+          : space === "athlete" && current?.id === "feed" ? <TatamiSpace key={"f" + syncTick + navArg} initial={navArg} ctx={ctx} onToast={showToast} renderFeed={tabs => <AthleteFeed uid={session.user.id} ctx={ctx} tabs={tabs} onToast={showToast} onCompose={() => { setComposing(true); window.scrollTo(0, 0) }} />} />
           : space === "athlete" && current?.id === "profile" ? <AthleteProfile key={"pr" + syncTick} session={session} ctx={ctx} onToast={showToast} />
           : space === "club" && teamOn(ctx) && current?.id === "home" ? <ClubHome key={"ch" + ctx?.club?.id} uid={session.user.id} ctx={ctx} name={greet} onToast={showToast} onNavigate={go} />
           : space === "club" && teamOn(ctx) && current?.id === "attendance" ? <ClubAttendance key={"ca" + ctx?.club?.id} uid={session.user.id} ctx={ctx} onToast={showToast} onNavigate={go} />

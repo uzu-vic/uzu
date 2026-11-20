@@ -62,7 +62,7 @@ function PendingNote({ data }: { data: Training }) {
 
 const monthKey = (s: string) => s.slice(0, 7)
 
-export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: string; ctx: UzuContext | null; name: string; onNavigate: (id: string) => void; onCompose: () => void }) {
+export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: string; ctx: UzuContext | null; name: string; onNavigate: (id: string, arg?: string) => void; onCompose: () => void }) {
   const { data, error, reload } = useTraining(uid, ctx)
   const today = new Date()
   const next = useMemo(() => (ctx?.club && data?.role !== "solo" ? nextClasses(ctx.club.schedule, 1, new Date(), ctx.club)[0] : undefined), [ctx, data])
@@ -128,7 +128,7 @@ export function AthleteHome({ uid, ctx, name, onNavigate, onCompose }: { uid: st
 }
 
 // Focus tactique, actualités, vidéo, techniques à réviser, rappel de fin de cours, carnet solo (repris de l'accueil de l'ancienne application)
-function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: string; ctx: UzuContext | null; solo: boolean; sessions: Session[]; onNavigate: (id: string) => void; onCompose: () => void }) {
+function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: string; ctx: UzuContext | null; solo: boolean; sessions: Session[]; onNavigate: (id: string, arg?: string) => void; onCompose: () => void }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [core, setCore] = useState<any>(null)
   const [vid, setVid] = useState("")
@@ -172,6 +172,9 @@ function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: 
       <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("progress")}>Voir mes techniques</button>
     </section>}
     {core && <ReminderCard C={core} S={core.allSessions().filter((x: { sample?: boolean }) => !x.sample)} onOpen={() => onNavigate("stats")} />}
+    <section className="panel uzu-panel-col uzu-grid-gap uzu-dir-home"><div className="eyebrow">OÙ ROULER ?</div>
+      <p className="uzu-text">Open mats, cours ouverts aux visiteurs, clubs qui accueillent : trouve où t&apos;entraîner près de chez toi ou en déplacement.</p>
+      <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("feed", "clubs")}>Trouver un club</button></section>
     {solo && <section className="panel uzu-panel-col uzu-grid-gap"><div className="eyebrow">CARNET SOLO</div>
       <p className="uzu-text">Tu t'entraînes dans un club ? Relie ton carnet : ton prof validera tes ceintures et tes techniques ★★★. Tout ton historique te suit.</p>
       <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("profile")}>J'ai un code d'invitation</button></section>}

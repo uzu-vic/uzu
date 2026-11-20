@@ -46,7 +46,7 @@ function feedStatsFixed(C: Any, role: string) {
 function durTxt(m: number) { const h = Math.floor(m / 60), r = m % 60; return h ? `${h} h${r ? " " + String(r).padStart(2, "0") : ""}` : `${r} min` }
 
 // ---------------------------------------------------------------- Fil du club
-export function AthleteFeed({ uid, ctx, onCompose, onToast }: { uid: string; ctx: UzuContext | null; onCompose: () => void; onToast: (m: string) => void }) {
+export function AthleteFeed({ uid, ctx, onCompose, onToast, tabs }: { uid: string; ctx: UzuContext | null; onCompose: () => void; onToast: (m: string) => void; tabs?: React.ReactNode }) {
   const [data, setData] = useState<{ core: Any; role: string; feedOk: boolean } | null>(null)
   const [error, setError] = useState("")
   const [tick, setTick] = useState(0)
@@ -70,12 +70,13 @@ export function AthleteFeed({ uid, ctx, onCompose, onToast }: { uid: string; ctx
     setBusy("")
     onToast(r.ok ? "Ton activité apparaît maintenant dans le fil" : r.msg); setTick(t => t + 1)
   }
-  if (!data) return <><FeedHeading solo={false} />{error ? <div className="uzu-banner uzu-banner--error" role="alert">Lecture impossible : {error}</div> : <div className="uzu-banner" aria-busy="true">Chargement du fil…</div>}</>
+  if (!data) return <><FeedHeading solo={false} />{tabs}{error ? <div className="uzu-banner uzu-banner--error" role="alert">Lecture impossible : {error}</div> : <div className="uzu-banner" aria-busy="true">Chargement du fil…</div>}</>
   const C = data.core, st = C.__get("state"), solo = C.isSolo(), team = data.role === "teacher"
   const s = feedStatsFixed(C, data.role), items: Any[] = C.feedItems()
   const medal = ["🥇", "🥈", "🥉"]
   return <>
     <FeedHeading solo={solo} />
+    {tabs}
     {!solo && <TagsInbox onToast={onToast} extra={authorId => {
       if (team) return null
       const reqs = items.filter((it: Any) => it.uid === authorId && it.e.t === "r" && !st.fx.vals[it.uid + "|" + it.e.tech])

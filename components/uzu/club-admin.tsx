@@ -2,6 +2,7 @@
 // Espace Club — Cours (planning et encadrement), Équipe (membres, invitations, rôles, droits, affectations),
 // Contenus (focus tactique, annonce) et Mon académie (informations, code, paramètres, journal d'activité).
 // Toutes les écritures passent par les fonctions serveur ; les droits affichés ici ne servent qu'à l'affichage.
+import { DirClubPanel } from "@/components/uzu/directory"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, ArrowRight, CalendarOff, CalendarPlus, Check, Flag, ChevronRight, LogOut, Mail, MoreHorizontal, Plus, Send, ShieldCheck } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
@@ -587,6 +588,7 @@ export function ClubAcademy({ uid, ctx, onToast, onReloadCtx, onNavigate }: Admi
       <div className="uzu-chips">{Object.keys(PRESETS).map(k => <button key={k} type="button" className={f.accent === k ? "on" : ""} aria-pressed={f.accent === k} onClick={() => setF({ ...f, accent: k })}><i className="uzu-swatch" style={{ background: PRESETS[k].l }} />{PRESETS[k].n}</button>)}</div>
       <button className="button button--dark uzu-wide" disabled={busy} onClick={save}>Enregistrer les informations du club</button>
     </section>}
+    {can(ctx, "academy_settings", "update") && <DirClubPanel onToast={onToast} />}
 
     {(can(ctx, "students", "view") || can(ctx, "students", "create")) && <section className="panel uzu-panel-col uzu-grid-gap">
       <div className="section-title"><h2>Élèves et code invitation</h2></div>
