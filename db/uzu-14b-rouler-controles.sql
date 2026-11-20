@@ -1,9 +1,10 @@
 -- =====================================================================================
--- UZU — « Où rouler ? » étape 2, partenaires de roulage (uzu-14b) : CONTRÔLES sur la base de TEST, sans compte réel
+-- UZU — « Où rouler ? » étape 2, créneaux et partenaires de roulage (uzu-14b révisé) : CONTRÔLES sur la base de TEST, sans compte réel
 -- À coller en entier dans l'éditeur SQL de la base de TEST (ntypsrdwxrkanahhuixx), APRÈS uzu-14b.
 --   1. crée des personnes FICTIVES : deux clubs, adhérents, professeur, multi-club, indépendant, mineur,
 --      profil masqué, référent, personnes qui signalent ;
---   2. vérifie activation, disponibilités, recherche (qui voit qui), blocage, signalement, référent, expiration ;
+--   2. vérifie activation, créneaux (raccourcis, durée, heure locale), recherche (qui voit qui, temps en commun, Maintenant,
+--      Mon créneau, déplacement), blocage, signalement, référent, expiration ;
 --   3. ANNULE TOUT à la fin et vérifie que l'existant est identique avant et après.
 -- Refuse de tourner hors de la base de test.
 -- =====================================================================================
@@ -59,11 +60,13 @@ declare
   P1 uuid := gen_random_uuid(); P2 uuid := gen_random_uuid(); PR uuid := gen_random_uuid(); P3 uuid := gen_random_uuid();
   P4 uuid := gen_random_uuid(); P5 uuid := gen_random_uuid(); MI uuid := gen_random_uuid(); H uuid := gen_random_uuid();
   R uuid := gen_random_uuid(); N0 uuid := gen_random_uuid(); S1 uuid := gen_random_uuid(); S2 uuid := gen_random_uuid(); S3 uuid := gen_random_uuid();
-  CA uuid; CB uuid; SEC uuid; j jsonb; e text; n int; t text; h2 uuid; h3 uuid; hpr uuid; h4 uuid; h5 uuid;
-  d0 text := current_date::text; d6 text := (current_date + 6)::text;
+  K uuid := gen_random_uuid(); L uuid := gen_random_uuid(); SM uuid := gen_random_uuid(); INS uuid := gen_random_uuid(); JO uuid := gen_random_uuid();
+  KB uuid := gen_random_uuid(); LB uuid := gen_random_uuid();
+  CA uuid; CB uuid; SEC uuid; j jsonb; e text; n int; t text; h2 uuid; h3 uuid; hpr uuid; h4 uuid; h5 uuid; hk uuid; hp1 uuid; hp1b uuid; hkb uuid;
+  now_m timestamptz := date_trunc('minute', now()); rd text := to_char((now() + interval '2 days') at time zone 'Indian/Reunion', 'YYYY-MM-DD');
   act text := '{"adult":true,"consent":true,"safety":true,"home_insee":"91286","disciplines":["jjb_gi"],"intensities":["technique","modere"]}';
-  av text := '{"days":[0,1,2,3,4,5,6],"parts":["soir"],"disciplines":["jjb_gi"],"intensities":["technique","modere"],"places":["club","open_mat"],"note":"Dispo pour rouler"}';
-  q10 text := 'select public.rouler_search(''91286'', 10)';
+  av text := '{"when":"now","minutes":120,"disciplines":["jjb_gi"],"intensities":["technique","modere"],"places":["club","open_mat"],"note":"Dispo pour rouler"}';
+  q10 text := 'select public.rouler_search(''{"insee":"91286","radius":10}''::jsonb)';
 begin
   select decrypted_secret into v_url from vault.decrypted_secrets where name = 'class_media_function_url';
   if v_url is null or v_url not like '%ntypsrdwxrkanahhuixx%' then
@@ -73,7 +76,6 @@ begin
     return query select '!'::text, 'Arrêt : uzu-14b doit être installé.'::text, '✖'::text, ''::text; return;
   end if;
   select count(*) into v_log_before from public.dir_moderation_log;
-  av := (av::jsonb || jsonb_build_object('starts_on', d0, 'ends_on', d6))::text;
 
   begin   -- ======== tout ce bloc est annulé à la fin ========
   insert into auth.users (id, email, raw_user_meta_data)
@@ -81,7 +83,9 @@ begin
   from (values (OA, 'respa', 'Resp A'), (OB, 'respb', 'Resp B'), (P1, 'p1', 'Karim Adherent'), (P2, 'p2', 'Sarah Bleue'),
                (PR, 'prof', 'Paul Professeur'), (P3, 'p3', 'Nadia Autreclub'), (P4, 'p4', 'Omar Independant'), (P5, 'p5', 'Lina Multiclub'),
                (MI, 'mineur', 'Theo Mineur'), (H, 'masque', 'Hugo Masque'), (R, 'referent', 'Ref Test'), (N0, 'aucun', 'Sans Profil'),
-               (S1, 's1', 'Sig Un'), (S2, 's2', 'Sig Deux'), (S3, 's3', 'Sig Trois')) t(u, s, nm);
+               (S1, 's1', 'Sig Un'), (S2, 's2', 'Sig Deux'), (S3, 's3', 'Sig Trois'),
+               (K, 'kevin', 'Kevin Temps'), (L, 'lou', 'Lou Temps'), (SM, 'sam', 'Sam Temps'), (INS, 'ines', 'Ines Temps'), (JO, 'jo', 'Jo Temps'),
+               (KB, 'karim', 'Karim Lyon'), (LB, 'lea', 'Lea Bordeaux')) t(u, s, nm);
   perform pg_temp.rb_j(OA, format('select to_jsonb(public.create_new_club(%L, %L))', 'RB club A ' || v_tag, upper('RBA-' || v_tag)));
   perform pg_temp.rb_j(OB, format('select to_jsonb(public.create_new_club(%L, %L))', 'RB club B ' || v_tag, upper('RBB-' || v_tag)));
   select academy_id into CA from public.academy_members where user_id = OA;
@@ -101,7 +105,7 @@ begin
     ('grades/' || PR, '{"rank":"noire","stripes":2}')
   on conflict (path) do update set data = excluded.data;
   insert into public.dir_moderators (user_id, granted_note) values (R, 'contrôle fictif');
-  v_res := v_res || pg_temp.rb_l('0', 'mise en place fictive : 2 clubs, 15 personnes (adhérents, professeur, multi-club, indépendant, mineur, référent)',
+  v_res := v_res || pg_temp.rb_l('0', 'mise en place fictive : 2 clubs, 22 personnes (adhérents, professeur, multi-club, indépendant, mineur, référent, cas horaires, Karim et Léa)',
     CA is not null and CB is not null and SEC is not null);
 
   -- ---------- Fermeture ----------
@@ -146,29 +150,39 @@ begin
   perform pg_temp.rb_j(H, format('select public.rouler_activate(%L::jsonb)', act));
   perform pg_temp.rb_j(S1, format('select public.rouler_activate(%L::jsonb)', act));
 
-  -- ---------- Disponibilités ----------
-  v_res := v_res || pg_temp.rb_l('9', 'dates refusées : début passé, plus de 14 jours, début au-delà de 90 jours, fin avant début',
-    pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('starts_on', current_date - 1))::text)) ilike '%passé%'
-    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('ends_on', current_date + 14))::text)) ilike '%14 jours%'
-    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('starts_on', current_date + 91, 'ends_on', current_date + 92))::text)) ilike '%90%'
-    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('starts_on', current_date + 3, 'ends_on', current_date + 1))::text)) ilike '%fin%');
-  v_res := v_res || pg_temp.rb_l('10', 'contenu refusé : aucun jour, aucun moment, aucun lieu, mot de plus de 140 caractères',
-    pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"days":[]}')::text)) ilike '%jour%'
-    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"parts":["nuit"]}')::text)) ilike '%moment%'
-    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"places":[]}')::text)) ilike '%lieu%'
-    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('note', repeat('x', 141)))::text)) ilike '%140%');
+  -- ---------- Créneaux ----------
+  v_res := v_res || pg_temp.rb_l('9', 'créneau refusé : durée hors 1 h / 1 h 30 / 2 h / 3 h, moment inconnu, début passé, au-delà de 30 jours, pas au quart d''heure, heure inexistante',
+    pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"minutes":45}')::text)) ilike '%durée%'
+    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"when":"demain"}')::text)) ilike '%moment%'
+    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('when', 'custom', 'date', to_char((now() - interval '1 day') at time zone 'Europe/Paris', 'YYYY-MM-DD'), 'time', '10:00'))::text)) ilike '%passé%'
+    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('when', 'custom', 'date', to_char((now() + interval '40 days') at time zone 'Europe/Paris', 'YYYY-MM-DD'), 'time', '10:00'))::text)) ilike '%30%'
+    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('when', 'custom', 'date', to_char((now() + interval '2 days') at time zone 'Europe/Paris', 'YYYY-MM-DD'), 'time', '10:07'))::text)) ilike '%quart%'
+    and pg_temp.rb_err(P1, 'select 1') is null);
+  v_res := v_res || pg_temp.rb_l('10', 'contenu refusé : aucun lieu, mot de plus de 140 caractères, discipline fermée',
+    pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"places":[]}')::text)) ilike '%lieu%'
+    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('note', repeat('x', 141)))::text)) ilike '%140%'
+    and pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"disciplines":["mma"]}')::text)) ilike '%discipline%');
   j := pg_temp.rb_j(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"insee":"75056"}')::text));
-  v_res := v_res || pg_temp.rb_l('11', 'disponibilité « dans ma ville » : enregistrée sur la ville habituelle, quelle que soit la ville envoyée',
-    jsonb_array_length(j->'availabilities') = 1 and j->'availabilities'->0->>'insee' = '91286', j::text);
-  perform pg_temp.rb_j(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"is_travel":true,"insee":"94081"}')::text));
-  perform pg_temp.rb_j(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('is_travel', true, 'insee', '75056', 'starts_on', current_date + 30, 'ends_on', current_date + 35))::text));
-  e := pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', av));
-  v_res := v_res || pg_temp.rb_l('12', '4e disponibilité en cours refusée (3 au plus) ; la ville habituelle n''a pas changé',
-    e ilike '%3 disponibilités%' and (select home_insee from public.rouler_profiles where user_id = P1) = '91286', e);
+  select id into hp1 from public.rouler_availabilities where user_id = P1;
+  v_res := v_res || pg_temp.rb_l('11', '« Maintenant », 2 h, dans ma ville : début à l''heure du serveur (à la minute), fin 2 h après, ville habituelle et heure de Paris',
+    (select starts_at = now_m and ends_at = now_m + interval '2 hours' and insee = '91286' and tz = 'Europe/Paris' and not is_travel from public.rouler_availabilities where id = hp1)
+    and jsonb_array_length(j->'availabilities') = 1 and j->'availabilities'->0->>'state' = 'current', j::text);
+  e := pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"when":"30","minutes":60}')::text));
+  perform pg_temp.rb_j(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"when":"240","minutes":60}')::text));
+  select id into hp1b from public.rouler_availabilities where user_id = P1 and id <> hp1;
+  v_res := v_res || pg_temp.rb_l('12', '« Dans 30 min » sur un créneau déjà pris : refusé ; « Dans 4 h », 1 h : de l''heure du serveur + 4 h à + 5 h',
+    e ilike '%déjà un créneau%' and (select starts_at = now_m + interval '4 hours' and ends_at = now_m + interval '5 hours' from public.rouler_availabilities where id = hp1b), e);
+  j := pg_temp.rb_j(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || jsonb_build_object('when', 'custom', 'is_travel', true, 'insee', '97411', 'date', rd, 'time', '10:00'))::text));
+  v_res := v_res || pg_temp.rb_l('13', 'autre moment ailleurs (Saint-Denis de La Réunion, 10:00 heure locale) : enregistré à l''heure universelle juste, fuseau du lieu, ville habituelle inchangée',
+    (select starts_at = ((rd || ' 10:00')::timestamp at time zone 'Indian/Reunion') and tz = 'Indian/Reunion' and is_travel
+       from public.rouler_availabilities where user_id = P1 and insee = '97411')
+    and to_char((select starts_at from public.rouler_availabilities where user_id = P1 and insee = '97411') at time zone 'UTC', 'HH24:MI') = '06:00'
+    and (select home_insee from public.rouler_profiles where user_id = P1) = '91286', j::text);
+  e := pg_temp.rb_err(P1, format('select public.rouler_save_availability(%L::jsonb)', (av::jsonb || '{"when":"120","minutes":60}')::text));
   j := pg_temp.rb_j(P1, format('select public.rouler_save_profile(%L::jsonb)', (act::jsonb || '{"home_insee":"91174"}')::text));
-  v_res := v_res || pg_temp.rb_l('13', 'changement de ville habituelle : seules les disponibilités « dans ma ville » suivent',
-    (select count(*) from public.rouler_availabilities where user_id = P1 and not is_travel and insee = '91174') = 1
-    and (select count(*) from public.rouler_availabilities where user_id = P1 and is_travel and insee in ('94081','75056')) = 2, j::text);
+  v_res := v_res || pg_temp.rb_l('13b', '4e créneau refusé (3 au plus) ; changement de ville habituelle : seuls les créneaux « dans ma ville » suivent',
+    e ilike '%3 créneaux%' and (select count(*) from public.rouler_availabilities where user_id = P1 and not is_travel and insee = '91174') = 2
+    and (select count(*) from public.rouler_availabilities where user_id = P1 and is_travel and insee = '97411') = 1, e);
   perform pg_temp.rb_j(P1, format('select public.rouler_save_profile(%L::jsonb)', (act::jsonb || '{"visibility":"clubs"}')::text));
 
   perform pg_temp.rb_j(P2, format('select public.rouler_save_availability(%L::jsonb)', av));
@@ -202,8 +216,8 @@ begin
   -- Un mineur placé dans un groupe de mineurs après coup : jamais visible, ne peut plus publier
   insert into public.rouler_profiles (user_id, visibility, home_insee, disciplines, intensities, adult_declared_at, consent_at, safety_ack_at)
   values (MI, 'clubs', '91286', '{jjb_gi}', '{technique}', now(), now(), now());
-  insert into public.rouler_availabilities (user_id, insee, starts_on, ends_on, days, parts, disciplines, intensities, places)
-  values (MI, '91286', current_date, current_date + 6, '{0,1,2,3,4,5,6}', '{soir}', '{jjb_gi}', '{technique}', '{club}');
+  insert into public.rouler_availabilities (user_id, insee, tz, starts_at, ends_at, disciplines, intensities, places)
+  values (MI, '91286', 'Europe/Paris', now() - interval '10 minutes', now() + interval '2 hours', '{jjb_gi}', '{technique}', '{club}');
   v_res := v_res || pg_temp.rb_l('20', 'mineur : jamais dans les résultats, recherche et publication refusées',
     pg_temp.rb_names(P2, q10) not like '%Theo%' and pg_temp.rb_names(MI, q10) = 'need:adult'
     and pg_temp.rb_err(MI, format('select public.rouler_save_availability(%L::jsonb)', av)) ilike '%mineurs%');
@@ -217,20 +231,91 @@ begin
     exists (select 1 from jsonb_array_elements(j->'results') x where x->>'name' = 'Sarah B.' and x->>'belt' = 'bleue' and x->'club' = 'null'::jsonb and x->'years' = 'null'::jsonb)
     and exists (select 1 from jsonb_array_elements(j->'results') x where x->>'name' = 'Paul P.' and x->>'belt' = 'noire' and x->>'club' like 'RB club A%' and (x->>'years')::int = 15)
     and exists (select 1 from jsonb_array_elements(j->'results') x where x->>'name' = 'Lina M.' and x->'belt' = 'null'::jsonb), left(t, 200));
-  v_res := v_res || pg_temp.rb_l('23', 'distance : tranche affichée, pas de distance exacte ; déplacement à Vitry exclu à 5 km de Paris, trouvé à 10 km',
+  v_res := v_res || pg_temp.rb_l('23', 'distance : tranche affichée, pas de distance exacte ; un créneau à Grigny est hors de 10 km de Vitry, trouvé à 25 km',
     not exists (select 1 from jsonb_array_elements(j->'results') x where x ? 'km' or x->>'band' is null)
-    and pg_temp.rb_names(P5, 'select public.rouler_search(''75056'', 5)') not like '%Karim%'
-    and pg_temp.rb_names(P5, 'select public.rouler_search(''75056'', 10)') like '%Karim%');
+    and pg_temp.rb_names(P5, 'select public.rouler_search(''{"insee":"94081","radius":10}''::jsonb)') not like '%Karim%'
+    and pg_temp.rb_names(P5, 'select public.rouler_search(''{"insee":"94081","radius":25}''::jsonb)') like '%Karim%');
   v_res := v_res || pg_temp.rb_l('24', 'filtres discipline et type de roulage',
-    pg_temp.rb_names(P3, 'select public.rouler_search(''91286'', 10, null, null, ''grappling_nogi'')') = 'Omar I.'
-    and pg_temp.rb_names(P3, 'select public.rouler_search(''91286'', 10, null, null, null, null, null, ''intense'')') = 'Omar I.'
-    and pg_temp.rb_err(P3, 'select public.rouler_search(''91286'', 10, null, null, ''mma'')') ilike '%discipline%');
+    pg_temp.rb_names(P3, 'select public.rouler_search(''{"insee":"91286","radius":10,"disc":"grappling_nogi"}''::jsonb)') = 'Omar I.'
+    and pg_temp.rb_names(P3, 'select public.rouler_search(''{"insee":"91286","radius":10,"intensity":"intense"}''::jsonb)') = 'Omar I.'
+    and pg_temp.rb_err(P3, 'select public.rouler_search(''{"insee":"91286","radius":10,"disc":"mma"}''::jsonb)') ilike '%discipline%');
   v_res := v_res || pg_temp.rb_l('25', 'filtre de niveau : seules les ceintures affichées comptent, dans la fourchette demandée',
-    pg_temp.rb_names(P5, 'select public.rouler_search(''91286'', 10, null, null, null, ''bleue'', ''violette'')') = 'Nadia A.,Sarah B.'
-    and pg_temp.rb_names(P5, 'select public.rouler_search(''91286'', 10, null, null, null, ''noire'', null)') = 'Paul P.');
-  v_res := v_res || pg_temp.rb_l('26', 'filtre de période : une disponibilité future hors période est exclue, incluse si la période la couvre',
-    pg_temp.rb_names(P5, format('select public.rouler_search(''75056'', 5, %L::date, %L::date)', current_date, current_date + 6)) not like '%Karim%'
-    and pg_temp.rb_names(P5, format('select public.rouler_search(''75056'', 5, %L::date, %L::date)', current_date + 28, current_date + 40)) like '%Karim%');
+    pg_temp.rb_names(P5, 'select public.rouler_search(''{"insee":"91286","radius":10,"belt_min":"bleue","belt_max":"violette"}''::jsonb)') = 'Nadia A.,Sarah B.'
+    and pg_temp.rb_names(P5, 'select public.rouler_search(''{"insee":"91286","radius":10,"belt_min":"noire"}''::jsonb)') = 'Paul P.');
+
+  -- ---------- Temps en commun : les cas de la maquette 8 (à Bordeaux, il est « 18:00 » = maintenant) ----------
+  -- Les créneaux à venir sont calés sur la minute, comme ceux créés par les raccourcis ; Sam finit exactement 30 min après maintenant.
+  insert into public.rouler_profiles (user_id, visibility, home_insee, disciplines, intensities, adult_declared_at, consent_at, safety_ack_at)
+  select u, 'uzu', '33063', '{jjb_gi}', '{modere}', now(), now(), now() from unnest(array[K, L, SM, INS, JO]) u;
+  insert into public.rouler_availabilities (user_id, insee, tz, starts_at, ends_at, disciplines, intensities, places) values
+    (K,  '33063', 'Europe/Paris', now() - interval '30 minutes',  now_m + interval '120 minutes', '{jjb_gi}', '{modere}', '{open_mat}'),  -- Kevin 17:30 → 20:00
+    (L,  '33063', 'Europe/Paris', now_m + interval '20 minutes',  now_m + interval '90 minutes',  '{jjb_gi}', '{modere}', '{open_mat}'),  -- Lou   18:20 → 19:30
+    (SM, '33063', 'Europe/Paris', now() - interval '120 minutes', now() + interval '30 minutes',  '{jjb_gi}', '{modere}', '{open_mat}'),  -- Sam   16:00 → 18:30
+    (INS, '33063', 'Europe/Paris', now_m + interval '90 minutes',  now_m + interval '210 minutes', '{jjb_gi}', '{modere}', '{open_mat}'),  -- Inès  19:30 → 21:30
+    (JO, '33063', 'Europe/Paris', now_m + interval '30 minutes',  now_m + interval '89 minutes',  '{jjb_gi}', '{modere}', '{open_mat}');  -- Jo    18:30 → 19:29 (59 min)
+  select id into hk from public.rouler_availabilities where user_id = K;
+  t := pg_temp.rb_names(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"now","minutes":60}''::jsonb)');
+  v_res := v_res || pg_temp.rb_l('T1', '« Maintenant », 1 h : seulement le créneau déjà commencé avec 1 h devant lui (Kevin) ; Sam (30 min restantes) et Lou (pas commencé) exclus', t = 'Kevin T.', t);
+  t := pg_temp.rb_names(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"30","minutes":60}''::jsonb)');
+  v_res := v_res || pg_temp.rb_l('T2', '« Dans 30 min », 1 h : Kevin et Lou ; Jo (59 min en commun) exclu', t = 'Kevin T.,Lou T.', t);
+  t := pg_temp.rb_names(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"60","minutes":60}''::jsonb)');
+  v_res := v_res || pg_temp.rb_l('T3', '« Dans 1 h », 1 h : Kevin seul (Lou 30 min, Inès 30 min)', t = 'Kevin T.', t);
+  t := pg_temp.rb_names(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"120","minutes":60}''::jsonb)');
+  v_res := v_res || pg_temp.rb_l('T4', '« Dans 2 h », 1 h : Inès seule (Kevin a fini)', t = 'Ines T.', t);
+  t := pg_temp.rb_names(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"240","minutes":60}''::jsonb)');
+  v_res := v_res || pg_temp.rb_l('T5', '« Dans 4 h » : personne', t = '', t);
+  t := pg_temp.rb_names(P4, format('select public.rouler_search(%L::jsonb)', jsonb_build_object('insee', '33063', 'radius', 10, 'when', 'custom', 'minutes', 60,
+         'date', to_char((now_m + interval '2 hours') at time zone 'Europe/Paris', 'YYYY-MM-DD'), 'time', to_char((now_m + interval '2 hours') at time zone 'Europe/Paris', 'HH24:MI'))));
+  v_res := v_res || pg_temp.rb_l('T6', '« Autre moment » saisi à l''heure locale (dans 2 h) : même résultat que « Dans 2 h »', t = 'Ines T.', t);
+  v_res := v_res || pg_temp.rb_l('T7', 'temps commun de 30 min : « Maintenant » trouve Kevin et Sam ; « Dans 30 min » trouve aussi Jo',
+    pg_temp.rb_names(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"now","minutes":30}''::jsonb)') = 'Kevin T.,Sam T.'
+    and pg_temp.rb_names(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"30","minutes":30}''::jsonb)') = 'Jo T.,Kevin T.,Lou T.');
+  j := pg_temp.rb_j(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"now","minutes":60}''::jsonb)');
+  v_res := v_res || pg_temp.rb_l('T8', 'résultat : horaire du partenaire, début et fin du temps commun, minutes en commun, fuseau du lieu ; aucun identifiant de compte',
+    (j->'results'->0->>'common_minutes')::int = 60 and j->'results'->0 ? 'common_start' and j->'results'->0 ? 'starts_at' and j->'results'->0->>'tz' = 'Europe/Paris'
+    and (j->>'required_minutes')::int = 60 and j::text not like '%' || K::text || '%', left(j::text, 200));
+  e := pg_temp.rb_err(P4, 'select public.rouler_search(''{"insee":"33063","when":"now","minutes":45}''::jsonb)');
+  v_res := v_res || pg_temp.rb_l('T9', 'temps commun hors 30 min / 1 h / 1 h 30 / 2 h : refusé', e ilike '%temps commun%', e);
+
+  -- ---------- Mon créneau en déplacement : Karim (habite Lyon) à Bordeaux, Léa disponible ----------
+  insert into public.rouler_profiles (user_id, visibility, home_insee, disciplines, intensities, adult_declared_at, consent_at, safety_ack_at)
+  values (KB, 'uzu', '69123', '{jjb_gi}', '{modere}', now(), now(), now()), (LB, 'uzu', '33063', '{jjb_gi}', '{modere}', now(), now(), now());
+  insert into public.rouler_availabilities (user_id, insee, tz, is_travel, starts_at, ends_at, disciplines, intensities, places) values
+    (KB, '33063', 'Europe/Paris', true,  now_m + interval '60 minutes', now_m + interval '180 minutes', '{jjb_gi}', '{modere}', '{open_mat}'),   -- Karim 10:00 → 12:00
+    (LB, '33063', 'Europe/Paris', false, now_m + interval '30 minutes', now_m + interval '150 minutes', '{jjb_gi}', '{modere}', '{open_mat}');   -- Léa   09:30 → 11:30
+  select id into hkb from public.rouler_availabilities where user_id = KB;
+  j := pg_temp.rb_j(KB, format('select public.rouler_search(%L::jsonb)', jsonb_build_object('when', 'slot', 'slot', hkb, 'minutes', 60)));
+  v_res := v_res || pg_temp.rb_l('T10', '« Mon créneau » (Karim, Bordeaux, 2 h) avec 1 h minimum : recherche placée sur Bordeaux, Léa trouvée avec 1 h 30 en commun ; ville habituelle de Karim : Lyon',
+    j->'commune'->>'nom' = 'Bordeaux'
+    and exists (select 1 from jsonb_array_elements(j->'results') x where x->>'name' = 'Lea B.' and (x->>'common_minutes')::int = 90)
+    and (select home_insee from public.rouler_profiles where user_id = KB) = '69123', left(j::text, 200));
+  v_res := v_res || pg_temp.rb_l('T11', '« Mon créneau » avec 2 h minimum : Léa (1 h 30) n''est plus compatible ; à Lyon, Karim n''apparaît pas pendant son déplacement',
+    pg_temp.rb_names(KB, format('select public.rouler_search(%L::jsonb)', jsonb_build_object('when', 'slot', 'slot', hkb, 'minutes', 120))) not like '%Lea%'
+    and pg_temp.rb_names(LB, 'select public.rouler_search(''{"insee":"69123","radius":25,"when":"60","minutes":60}''::jsonb)') not like '%Karim%'
+    and pg_temp.rb_names(LB, 'select public.rouler_search(''{"insee":"33063","radius":25,"when":"60","minutes":60}''::jsonb)') like '%Karim L.%');
+  v_res := v_res || pg_temp.rb_l('T12', '« Mon créneau » d''un autre, ou commune changée : créneau refusé ; commune choisie respectée (Mérignac)',
+    pg_temp.rb_err(LB, format('select public.rouler_search(%L::jsonb)', jsonb_build_object('when', 'slot', 'slot', hkb))) ilike '%introuvable%'
+    and pg_temp.rb_j(KB, format('select public.rouler_search(%L::jsonb)', jsonb_build_object('when', 'slot', 'slot', hkb, 'insee', '33281')))->'commune'->>'nom' = 'Mérignac');
+
+  -- ---------- Expiration à la minute, arrêt, prolongation, compteur ----------
+  update public.rouler_availabilities set ends_at = now() - interval '1 minute' where id = hk;
+  v_res := v_res || pg_temp.rb_l('T13', 'créneau fini il y a 1 min : absent tout de suite des résultats, sans attendre la tâche planifiée',
+    pg_temp.rb_names(P4, 'select public.rouler_search(''{"insee":"33063","radius":10,"when":"now","minutes":30}''::jsonb)') = 'Sam T.');
+  j := pg_temp.rb_j(P1, 'select public.rouler_me()');
+  v_res := v_res || pg_temp.rb_l('T14', 'mes créneaux : partenaires compatibles comptés selon la même règle (club A, maintenant)',
+    (select (x->>'compatible')::int from jsonb_array_elements(j->'availabilities') x where x->>'id' = hp1::text) = 3, left(j::text, 200));
+  perform pg_temp.rb_j(P1, format('select public.rouler_end_availability(%L::uuid)', hp1b));
+  perform pg_temp.rb_j(P1, format('select public.rouler_extend_availability(%L::uuid)', hp1));
+  perform pg_temp.rb_j(P1, format('select public.rouler_extend_availability(%L::uuid)', hp1));
+  perform pg_temp.rb_j(P1, format('select public.rouler_extend_availability(%L::uuid)', hp1));
+  perform pg_temp.rb_j(P1, format('select public.rouler_extend_availability(%L::uuid)', hp1));
+  e := pg_temp.rb_err(P1, format('select public.rouler_extend_availability(%L::uuid)', hp1));
+  v_res := v_res || pg_temp.rb_l('T15', '« Je ne suis plus dispo » retire le créneau ; « Prolonger 30 min » jusqu''à 4 h, refusé au-delà',
+    not exists (select 1 from jsonb_array_elements(pg_temp.rb_j(P1, 'select public.rouler_me()')->'availabilities') x where x->>'id' = hp1b::text)
+    and (select ends_at = now_m + interval '4 hours' from public.rouler_availabilities where id = hp1) and e ilike '%4 h%', e);
+  v_res := v_res || pg_temp.rb_l('T16', 'heure locale : heure inexistante (28 mars 2027, 02:30 à Paris) refusée ; heure doublée (25 oct. 2026, 02:30) = la première',
+    pg_temp.rb_err(P1, 'select public.rouler_search(''{"insee":"91286","when":"custom","date":"2027-03-28","time":"02:30"}''::jsonb)') ilike '%changement d''heure%'
+    and public.rouler_local_ts('2026-10-25', '02:30', 'Europe/Paris') = '2026-10-25 00:30:00+00'::timestamptz);
 
   -- ---------- Blocage ----------
   perform pg_temp.rb_j(P1, format('select to_jsonb(public.rouler_block(%L::uuid))', h2));
@@ -286,18 +371,18 @@ begin
   v_res := v_res || pg_temp.rb_l('35', 'limite : 10 signalements par jour et par personne', e ilike '%signalements%', e);
 
   -- ---------- Fin, retrait, suppression ----------
-  v_res := v_res || pg_temp.rb_l('36', 'arrêter la disponibilité d''un autre : refusé ; arrêter la sienne : disparaît de la recherche',
+  v_res := v_res || pg_temp.rb_l('36', 'arrêter le créneau d''un autre : refusé ; arrêter le sien : disparaît de la recherche',
     pg_temp.rb_err(P1, format('select public.rouler_end_availability(%L::uuid)', h5)) ilike '%introuvable%'
     and (pg_temp.rb_j(P5, format('select public.rouler_end_availability(%L::uuid)', h5))->'availabilities') = '[]'::jsonb
     and pg_temp.rb_names(PR, q10) not like '%Lina%');
   perform pg_temp.rb_j(PR, 'select public.rouler_set_visibility(''hidden'')');
   v_res := v_res || pg_temp.rb_l('37', 'redevenir invisible : disparaît immédiatement', pg_temp.rb_names(P2, q10) not like '%Paul%');
   perform pg_temp.rb_j(P2, 'select to_jsonb(public.rouler_delete_profile())');
-  v_res := v_res || pg_temp.rb_l('38', 'supprimer son profil de roulage : profil et disponibilités effacés',
+  v_res := v_res || pg_temp.rb_l('38', 'supprimer son profil de roulage : profil et créneaux effacés',
     not exists (select 1 from public.rouler_profiles where user_id = P2) and not exists (select 1 from public.rouler_availabilities where user_id = P2)
     and pg_temp.rb_j(P2, 'select public.rouler_me()')->'profile' = 'null'::jsonb);
   delete from auth.users where id = P1;
-  v_res := v_res || pg_temp.rb_l('39', 'suppression du compte : profil, disponibilités et recherches effacés en cascade',
+  v_res := v_res || pg_temp.rb_l('39', 'suppression du compte : profil, créneaux et recherches effacés en cascade',
     not exists (select 1 from public.rouler_profiles where user_id = P1) and not exists (select 1 from public.rouler_availabilities where user_id = P1)
     and not exists (select 1 from public.rouler_search_log where user_id = P1));
 
@@ -305,11 +390,11 @@ begin
   insert into public.rouler_search_log (user_id, at) select P5, now() from generate_series(1, 30);
   e := pg_temp.rb_err(P5, q10);
   v_res := v_res || pg_temp.rb_l('40', 'limite : 30 recherches par heure', e ilike '%recherches%', e);
-  update public.rouler_availabilities set ends_on = current_date - 1, starts_on = current_date - 3 where id = h3;
+  update public.rouler_availabilities set starts_at = now() - interval '3 hours', ends_at = now() - interval '1 minute' where id = h3;
   update public.rouler_search_log set at = now() - interval '2 days' where user_id = P5;
   update public.rouler_profiles set last_active_at = now() - interval '7 months' where user_id = S1;
   j := public.rouler_expire();
-  v_res := v_res || pg_temp.rb_l('41', 'tâche d''expiration : disponibilité passée expirée, recherches de plus de 24 h purgées, profil inactif 6 mois redevenu invisible',
+  v_res := v_res || pg_temp.rb_l('41', 'tâche d''expiration : créneau fini marqué expiré, recherches de plus de 24 h purgées, profil inactif 6 mois redevenu invisible',
     (select status from public.rouler_availabilities where id = h3) = 'expired' and not exists (select 1 from public.rouler_search_log where user_id = P5)
     and (select visibility from public.rouler_profiles where user_id = S1) = 'hidden' and pg_temp.rb_names(P4, q10) not like '%Nadia%', j::text);
   update public.dir_moderators set active = false, revoked_at = now() where user_id = R;

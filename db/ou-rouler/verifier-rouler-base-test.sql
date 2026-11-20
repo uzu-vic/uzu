@@ -27,7 +27,7 @@ begin
     for u in select a.id, p.role, (select string_agg(m.role, '+' order by m.role) from public.academy_members m where m.user_id = a.id and m.status = 'active') as roles
                from auth.users a left join public.profiles p on p.user_id = a.id order by a.created_at loop
       me := pg_temp.vr_j(u.id, 'select public.rouler_me()');
-      s := pg_temp.vr_j(u.id, 'select public.rouler_search(''91286'', 25)');
+      s := pg_temp.vr_j(u.id, 'select public.rouler_search(''{"insee":"91286","radius":25}''::jsonb)');
       adm := pg_temp.vr_err(u.id, 'select public.rouler_admin_reports()');
       is_ref := exists (select 1 from public.dir_moderators where user_id = u.id and active);
       out := out || jsonb_build_array(jsonb_build_object(

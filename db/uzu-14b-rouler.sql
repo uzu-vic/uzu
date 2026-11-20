@@ -1,23 +1,30 @@
 -- =========================================================================================
--- UZU — « OÙ ROULER ? » ÉTAPE 2 : DISPONIBILITÉS ET PARTENAIRES DE ROULAGE
+-- UZU — « OÙ ROULER ? » ÉTAPE 2 : CRÉNEAUX ET PARTENAIRES DE ROULAGE (révision « court terme »)
 --   • Profil de roulage (créé seulement à l'activation : majorité déclarée, accord, sécurité),
 --     invisible par défaut ; visibilité « mes clubs » ou « tout UZU », avec réciprocité.
---   • Disponibilités : ville habituelle ou de déplacement (la ville habituelle ne change jamais),
---     14 jours au plus, début dans les 90 jours, 3 en cours au plus.
---   • Recherche par ville, rayon, période, discipline, niveau (ceinture affichée), type de roulage :
---     ne renvoie que les champs autorisés, jamais un identifiant de compte.
+--   • Créneaux précis : début et fin à la minute (heure universelle) + fuseau du lieu de roulage.
+--     Raccourcis Maintenant, Dans 30 min, 1 h, 2 h, 4 h calculés à l'heure du serveur ; autre moment
+--     saisi à l'heure locale de la commune. Durée 1 h, 1 h 30, 2 h, 3 h (prolongeable jusqu'à 4 h).
+--     3 créneaux en cours ou à venir au plus. La ville habituelle n'est jamais modifiée par un déplacement.
+--   • Recherche par chevauchement réel : le temps en commun doit atteindre la durée choisie
+--     (30 min, 1 h, 1 h 30, 2 h) ; « Mon créneau » : au moins cette durée dans mon créneau.
+--     Un créneau sort des résultats dès son heure de fin. Aucun identifiant de compte renvoyé.
 --   • Blocage (table existante user_blocks), signalement au référent UZU, pause automatique.
---   • Expiration et purges par la tâche planifiée rouler-expire (si pg_cron est présent).
--- Décisions D1 à D10 validées par Ali le 20/11/2026.
+--   • Ménage par la tâche planifiée rouler-expire (toutes les 15 min, si pg_cron est présent).
+-- Décisions D1 à D10 validées le 20/11/2026 ; révision C1 à C7 validée le 20/11/2026 (« feu vert »).
 -- Prérequis : uzu-14a0, uzu-14a, uzu-14a2. Ajout seul : aucune table, colonne, donnée ou règle
--- existante n'est modifiée. Toutes les tables s'effacent en cascade avec le compte (delete_my_account
--- n'est pas modifiée). Rejouable.
+-- existante n'est modifiée. Toutes les tables s'effacent en cascade avec le compte. Rejouable.
+-- Base qui porte l'ancienne version (dates, jours, moments) : exécuter d'abord la bascule.
 -- =========================================================================================
 begin;
 
 do $$ begin
   if to_regclass('public.dir_moderators') is null then raise exception 'Prérequis absent : applique uzu-14a2 d''abord'; end if;
   if to_regclass('public.lib_disciplines') is null then raise exception 'Référentiel des disciplines (Bibliothèque) absent'; end if;
+  if to_regclass('public.rouler_availabilities') is not null and not exists (select 1 from information_schema.columns
+       where table_schema = 'public' and table_name = 'rouler_availabilities' and column_name = 'starts_at') then
+    raise exception 'Ancienne version des disponibilités : exécute d''abord db/ou-rouler/bascule-creneaux-base-test.sql';
+  end if;
 end $$;
 
 -- -----------------------------------------------------------------------------------------
@@ -46,11 +53,10 @@ create table if not exists public.rouler_availabilities (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references public.rouler_profiles (user_id) on delete cascade,
   insee        text not null references public.geo_communes (insee),
+  tz           text not null,
   is_travel    boolean not null default false,
-  starts_on    date not null,
-  ends_on      date not null,
-  days         smallint[] not null check (cardinality(days) between 1 and 7 and days <@ array[0,1,2,3,4,5,6]::smallint[]),
-  parts        text[] not null check (cardinality(parts) between 1 and 3 and parts <@ array['matin','midi','soir']::text[]),
+  starts_at    timestamptz not null,
+  ends_at      timestamptz not null,
   disciplines  text[] not null,
   intensities  text[] not null check (cardinality(intensities) >= 1 and intensities <@ array['technique','modere','intense']::text[]),
   places       text[] not null check (cardinality(places) >= 1 and places <@ array['club','open_mat','a_convenir']::text[]),
@@ -58,10 +64,11 @@ create table if not exists public.rouler_availabilities (
   status       text not null default 'active' check (status in ('active','ended','expired')),
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
-  check (ends_on >= starts_on and ends_on - starts_on <= 13)
+  check (ends_at > starts_at and ends_at - starts_at <= interval '4 hours')
 );
-create index if not exists rouler_av_insee_idx on public.rouler_availabilities (insee) where status = 'active';
+create index if not exists rouler_av_active_idx on public.rouler_availabilities (insee, ends_at) where status = 'active';
 create index if not exists rouler_av_user_idx on public.rouler_availabilities (user_id);
+
 
 create table if not exists public.rouler_reports (
   id              uuid primary key default gen_random_uuid(),
@@ -141,6 +148,70 @@ create or replace function public.rouler_text_array(p jsonb) returns text[] lang
   select case when jsonb_typeof(p) = 'array' then array(select distinct x from jsonb_array_elements_text(p) x) else '{}'::text[] end
 $$;
 
+
+-- Fuseau du lieu de roulage, déduit de la commune (jamais de l'appareil). Outre-mer compris.
+create or replace function public.rouler_tz(p_insee text) returns text
+language sql stable security definer set search_path = public as $$
+  select case (select departement from public.geo_communes where insee = p_insee)
+    when '971' then 'America/Guadeloupe' when '972' then 'America/Martinique' when '973' then 'America/Cayenne'
+    when '974' then 'Indian/Reunion' when '975' then 'America/Miquelon' when '976' then 'Indian/Mayotte'
+    else 'Europe/Paris' end
+$$;
+
+-- Date et heure locales du lieu → instant universel. Heure inexistante (passage à l'heure d'été) refusée ;
+-- heure doublée (retour à l'heure d'hiver) : la première des deux.
+create or replace function public.rouler_local_ts(p_date text, p_time text, p_tz text) returns timestamptz
+language plpgsql stable security definer set search_path = public as $$
+declare t timestamp; z timestamptz;
+begin
+  if coalesce(p_date, '') !~ '^\d{4}-\d{2}-\d{2}$' or coalesce(p_time, '') !~ '^([01]\d|2[0-3]):[0-5]\d$' then raise exception 'Date ou heure invalide'; end if;
+  begin t := (p_date || ' ' || p_time)::timestamp; exception when others then raise exception 'Date ou heure invalide'; end;
+  z := t at time zone p_tz;
+  if (z at time zone p_tz) <> t then raise exception 'Cette heure n''existe pas ce jour-là (changement d''heure) : choisis-en une autre'; end if;
+  if ((z - interval '1 hour') at time zone p_tz) = t then z := z - interval '1 hour'; end if;
+  return z;
+end $$;
+
+-- Créneaux compatibles avec une fenêtre [p_w0, p_w1] : temps en commun ≥ p_req, règles de visibilité appliquées.
+create or replace function public.rouler_matches(p_viewer uuid, p_vis text, p_lat double precision, p_lon double precision, p_r int,
+  p_w0 timestamptz, p_w1 timestamptz, p_req interval, p_disc text default null, p_int text default null, p_bmin int default null, p_bmax int default null)
+returns table (dist double precision, common_min int, item jsonb)
+language sql stable security definer set search_path = public as $$
+  with c as (
+    select a.id as aid, a.user_id as uid, a.tz, a.is_travel, a.starts_at, a.ends_at, a.disciplines, a.intensities, a.places, a.note,
+           p.show_belt, p.show_club_id, p.years, p.visibility as pvis, g.nom as commune, g.departement as dep,
+           6371 * 2 * asin(sqrt(power(sin(radians(g.lat - p_lat) / 2), 2) + cos(radians(p_lat)) * cos(radians(g.lat)) * power(sin(radians(g.lon - p_lon) / 2), 2))) as d,
+           greatest(a.starts_at, p_w0) as cs, least(a.ends_at, p_w1) as ce
+      from public.rouler_availabilities a
+      join public.rouler_profiles p on p.user_id = a.user_id
+      join public.geo_communes g on g.insee = a.insee
+     where a.status = 'active' and a.ends_at > now() and a.starts_at < p_w1 and a.ends_at > p_w0
+       and p.status = 'active' and p.visibility <> 'hidden' and p.user_id <> p_viewer
+       and g.lat between p_lat - p_r / 111.0 and p_lat + p_r / 111.0
+       and g.lon between p_lon - p_r / (111.0 * greatest(cos(radians(p_lat)), 0.2)) and p_lon + p_r / (111.0 * greatest(cos(radians(p_lat)), 0.2))
+       and (p_disc is null or p_disc = any (a.disciplines))
+       and (p_int is null or p_int = any (a.intensities))
+  ), f as (
+    select c.*, case when c.show_belt then public.rouler_belt(c.uid) end as belt
+      from c
+     where c.d <= p_r and c.ce - c.cs >= p_req
+       and not public.rouler_blocked(p_viewer, c.uid)
+       and not public.rouler_is_minor(c.uid)
+       and (public.rouler_share_club(p_viewer, c.uid) or (c.pvis = 'uzu' and p_vis = 'uzu'))
+  )
+  select f.d, (extract(epoch from (f.ce - f.cs)) / 60)::int,
+         jsonb_build_object('handle', f.aid, 'name', public.rouler_name(f.uid), 'belt', f.belt, 'years', f.years,
+           'club', case when f.show_club_id is not null and exists (select 1 from public.academy_members m where m.user_id = f.uid and m.academy_id = f.show_club_id and m.status = 'active')
+                        then (select name from public.clubs where id = f.show_club_id) end,
+           'commune', f.commune, 'dep', f.dep, 'band', public.dir_band(f.d::numeric), 'tz', f.tz, 'is_travel', f.is_travel,
+           'starts_at', f.starts_at, 'ends_at', f.ends_at, 'common_start', f.cs, 'common_end', f.ce,
+           'common_minutes', (extract(epoch from (f.ce - f.cs)) / 60)::int,
+           'disciplines', to_jsonb(f.disciplines), 'intensities', to_jsonb(f.intensities), 'places', to_jsonb(f.places), 'note', f.note)
+    from f
+   where (p_bmin is null and p_bmax is null)
+      or (f.belt is not null and public.rouler_belt_rank(f.belt) between coalesce(p_bmin, 1) and coalesce(p_bmax, 5))
+$$;
+
 -- -----------------------------------------------------------------------------------------
 -- 3. Mon profil de roulage
 -- -----------------------------------------------------------------------------------------
@@ -150,6 +221,7 @@ declare v_uid uuid := public.uzu_require_auth(); p public.rouler_profiles;
 begin
   select * into p from public.rouler_profiles where user_id = v_uid;
   return jsonb_build_object(
+    'now', now(),
     'minor', public.rouler_is_minor(v_uid),
     'name', public.rouler_name(v_uid),
     'belt', public.rouler_belt(v_uid),
@@ -159,18 +231,22 @@ begin
     'profile', case when p.user_id is null then null else jsonb_build_object(
         'status', p.status, 'visibility', p.visibility, 'home_insee', p.home_insee,
         'home_commune', (select nom || ' (' || departement || ')' from public.geo_communes where insee = p.home_insee),
+        'home_tz', public.rouler_tz(p.home_insee),
         'disciplines', to_jsonb(p.disciplines), 'intensities', to_jsonb(p.intensities),
         'show_belt', p.show_belt, 'show_club_id', p.show_club_id, 'years', p.years,
         'adult_declared_at', p.adult_declared_at) end,
     'availabilities', coalesce((select jsonb_agg(jsonb_build_object('id', a.id, 'insee', a.insee,
-        'commune', (select nom || ' (' || departement || ')' from public.geo_communes where insee = a.insee),
-        'is_travel', a.is_travel, 'starts_on', a.starts_on, 'ends_on', a.ends_on, 'days', to_jsonb(a.days), 'parts', to_jsonb(a.parts),
+        'commune', g.nom || ' (' || g.departement || ')', 'tz', a.tz, 'is_travel', a.is_travel,
+        'starts_at', a.starts_at, 'ends_at', a.ends_at, 'minutes', (extract(epoch from (a.ends_at - a.starts_at)) / 60)::int,
         'disciplines', to_jsonb(a.disciplines), 'intensities', to_jsonb(a.intensities), 'places', to_jsonb(a.places), 'note', a.note,
-        'state', case when a.starts_on > current_date then 'upcoming' else 'current' end) order by a.starts_on)
-      from public.rouler_availabilities a where a.user_id = v_uid and a.status = 'active' and a.ends_on >= current_date), '[]'::jsonb));
+        'state', case when a.starts_at > now() then 'upcoming' else 'current' end,
+        'compatible', case when p.status = 'active' and p.visibility <> 'hidden' and not public.rouler_is_minor(v_uid) then
+           (select count(distinct m.item->>'name') from public.rouler_matches(v_uid, p.visibility, g.lat, g.lon, 25, greatest(a.starts_at, now()), a.ends_at,
+              least(interval '1 hour', a.ends_at - greatest(a.starts_at, now()))) m) else 0 end) order by a.starts_at)
+      from public.rouler_availabilities a join public.geo_communes g on g.insee = a.insee
+     where a.user_id = v_uid and a.status = 'active' and a.ends_at > now()), '[]'::jsonb));
 end $$;
 
--- Valide et normalise les champs du profil (communs à l'activation et à l'enregistrement)
 create or replace function public.rouler_check_profile(v_uid uuid, p jsonb) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare v_disc text[] := public.rouler_text_array(p->'disciplines'); v_int text[] := public.rouler_text_array(p->'intensities');
@@ -226,7 +302,8 @@ begin
     last_active_at = now(), updated_at = now()
   where user_id = v_uid;
   -- Les disponibilités « dans ma ville » suivent la ville habituelle
-  update public.rouler_availabilities set insee = p->>'home_insee', updated_at = now() where user_id = v_uid and not is_travel and status = 'active';
+  update public.rouler_availabilities set insee = p->>'home_insee', tz = public.rouler_tz(p->>'home_insee'), updated_at = now()
+   where user_id = v_uid and not is_travel and status = 'active' and ends_at > now();
   return public.rouler_me();
 end $$;
 
@@ -250,46 +327,56 @@ begin
 end $$;
 
 -- -----------------------------------------------------------------------------------------
--- 4. Disponibilités
+-- 4. Créneaux
 -- -----------------------------------------------------------------------------------------
+-- p : id (modification), is_travel, insee (si déplacement), when (now | 30 | 60 | 120 | 240 | custom),
+--     date et time (heure locale du lieu, si custom), minutes (60 | 90 | 120 | 180), disciplines, intensities, places, note
 create or replace function public.rouler_save_availability(p jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare v_uid uuid := public.uzu_require_auth(); pr public.rouler_profiles; v_id uuid := nullif(p->>'id', '')::uuid;
-  v_travel boolean := coalesce((p->>'is_travel')::boolean, false); v_insee text; v_from date; v_to date;
-  v_days smallint[]; v_parts text[] := public.rouler_text_array(p->'parts'); v_disc text[] := public.rouler_text_array(p->'disciplines');
-  v_int text[] := public.rouler_text_array(p->'intensities'); v_places text[] := public.rouler_text_array(p->'places');
+  v_travel boolean := coalesce((p->>'is_travel')::boolean, false); v_insee text; v_tz text; v_when text := coalesce(p->>'when', 'now');
+  v_min int; v_start timestamptz; v_end timestamptz; v_now timestamptz := date_trunc('minute', now());
+  v_disc text[] := public.rouler_text_array(p->'disciplines'); v_int text[] := public.rouler_text_array(p->'intensities');
+  v_places text[] := public.rouler_text_array(p->'places'); v_note text := btrim(coalesce(p->>'note', ''));
 begin
   select * into pr from public.rouler_profiles where user_id = v_uid;
   if pr.user_id is null then raise exception 'Active d''abord ton profil de roulage'; end if;
   if public.rouler_is_minor(v_uid) then raise exception 'Fonction indisponible pour les membres d''un groupe de mineurs'; end if;
   v_insee := case when v_travel then p->>'insee' else pr.home_insee end;
-  if not exists (select 1 from public.geo_communes where insee = v_insee) then raise exception 'Choisis la ville de ta disponibilité'; end if;
-  begin v_from := (p->>'starts_on')::date; v_to := (p->>'ends_on')::date;
-  exception when others then raise exception 'Dates invalides'; end;
-  if v_from is null or v_to is null then raise exception 'Indique le début et la fin'; end if;
-  if v_from < current_date then raise exception 'La disponibilité ne peut pas commencer dans le passé'; end if;
-  if v_from > current_date + 90 then raise exception 'Début dans les 90 prochains jours au plus'; end if;
-  if v_to < v_from then raise exception 'La fin doit suivre le début'; end if;
-  if v_to - v_from > 13 then raise exception '14 jours au plus par disponibilité'; end if;
-  v_days := case when jsonb_typeof(p->'days') = 'array' then array(select distinct x::smallint from jsonb_array_elements_text(p->'days') x where x ~ '^[0-6]$') else '{}' end;
-  if cardinality(v_days) = 0 then raise exception 'Choisis au moins un jour'; end if;
-  if cardinality(v_parts) = 0 or not v_parts <@ array['matin','midi','soir'] then raise exception 'Choisis au moins un moment'; end if;
+  if not exists (select 1 from public.geo_communes where insee = v_insee) then raise exception 'Choisis la commune où tu veux rouler'; end if;
+  v_tz := public.rouler_tz(v_insee);
+  begin v_min := (p->>'minutes')::int; exception when others then v_min := null; end;
+  if v_min is null or v_min not in (60, 90, 120, 180) then raise exception 'Durée : 1 h, 1 h 30, 2 h ou 3 h'; end if;
+  if v_when in ('now', '30', '60', '120', '240') then
+    v_start := v_now + make_interval(mins => case v_when when 'now' then 0 else v_when::int end);
+  elsif v_when = 'custom' then
+    v_start := public.rouler_local_ts(p->>'date', p->>'time', v_tz);
+    if extract(minute from (v_start at time zone v_tz))::int % 15 <> 0 then raise exception 'Heure de début : par quart d''heure'; end if;
+    if v_start < v_now then raise exception 'Le créneau ne peut pas commencer dans le passé'; end if;
+    if v_start > now() + interval '30 days' then raise exception 'Début dans les 30 prochains jours au plus'; end if;
+  else
+    raise exception 'Moment inconnu';
+  end if;
+  v_end := v_start + make_interval(mins => v_min);
   if not public.rouler_disc_ok(v_disc) then raise exception 'Choisis au moins une discipline'; end if;
   if cardinality(v_int) = 0 or not v_int <@ array['technique','modere','intense'] then raise exception 'Choisis au moins un type de roulage'; end if;
   if cardinality(v_places) = 0 or not v_places <@ array['club','open_mat','a_convenir'] then raise exception 'Choisis au moins un lieu'; end if;
-  if length(coalesce(p->>'note', '')) > 140 then raise exception 'Le mot fait 140 caractères au plus'; end if;
+  if length(v_note) > 140 then raise exception 'Le mot fait 140 caractères au plus'; end if;
+  if exists (select 1 from public.rouler_availabilities where user_id = v_uid and status = 'active' and ends_at > now()
+              and id is distinct from v_id and starts_at < v_end and ends_at > v_start) then
+    raise exception 'Tu as déjà un créneau sur cet horaire';
+  end if;
   if v_id is null then
-    if (select count(*) from public.rouler_availabilities where user_id = v_uid and status = 'active' and ends_on >= current_date) >= 3 then
-      raise exception '3 disponibilités en cours au plus : arrête-en une d''abord';
+    if (select count(*) from public.rouler_availabilities where user_id = v_uid and status = 'active' and ends_at > now()) >= 3 then
+      raise exception '3 créneaux en cours ou à venir au plus : arrête-en un d''abord';
     end if;
-    insert into public.rouler_availabilities (user_id, insee, is_travel, starts_on, ends_on, days, parts, disciplines, intensities, places, note)
-    values (v_uid, v_insee, v_travel, v_from, v_to, v_days, v_parts, v_disc, v_int, v_places, btrim(coalesce(p->>'note', '')))
-    returning id into v_id;
+    insert into public.rouler_availabilities (user_id, insee, tz, is_travel, starts_at, ends_at, disciplines, intensities, places, note)
+    values (v_uid, v_insee, v_tz, v_travel, v_start, v_end, v_disc, v_int, v_places, v_note);
   else
-    update public.rouler_availabilities set insee = v_insee, is_travel = v_travel, starts_on = v_from, ends_on = v_to, days = v_days,
-      parts = v_parts, disciplines = v_disc, intensities = v_int, places = v_places, note = btrim(coalesce(p->>'note', '')), updated_at = now()
-     where id = v_id and user_id = v_uid and status = 'active';
-    if not found then raise exception 'Disponibilité introuvable'; end if;
+    update public.rouler_availabilities set insee = v_insee, tz = v_tz, is_travel = v_travel, starts_at = v_start, ends_at = v_end,
+      disciplines = v_disc, intensities = v_int, places = v_places, note = v_note, updated_at = now()
+     where id = v_id and user_id = v_uid and status = 'active' and ends_at > now();
+    if not found then raise exception 'Créneau introuvable'; end if;
   end if;
   update public.rouler_profiles set last_active_at = now() where user_id = v_uid;
   return public.rouler_me();
@@ -300,74 +387,87 @@ language plpgsql security definer set search_path = public as $$
 declare v_uid uuid := public.uzu_require_auth();
 begin
   update public.rouler_availabilities set status = 'ended', updated_at = now() where id = p_id and user_id = v_uid and status = 'active';
-  if not found then raise exception 'Disponibilité introuvable'; end if;
+  if not found then raise exception 'Créneau introuvable'; end if;
+  return public.rouler_me();
+end $$;
+
+-- Prolonger de 30 min un créneau en cours ou à venir (4 h au plus au total)
+create or replace function public.rouler_extend_availability(p_id uuid) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := public.uzu_require_auth(); a public.rouler_availabilities;
+begin
+  select * into a from public.rouler_availabilities where id = p_id and user_id = v_uid and status = 'active' and ends_at > now();
+  if a.id is null then raise exception 'Créneau introuvable'; end if;
+  if a.ends_at + interval '30 minutes' - a.starts_at > interval '4 hours' then raise exception 'Un créneau dure 4 h au plus'; end if;
+  if exists (select 1 from public.rouler_availabilities where user_id = v_uid and status = 'active' and id <> a.id
+              and starts_at < a.ends_at + interval '30 minutes' and ends_at > a.ends_at) then
+    raise exception 'Tu as déjà un créneau juste après';
+  end if;
+  update public.rouler_availabilities set ends_at = ends_at + interval '30 minutes', updated_at = now() where id = a.id;
   return public.rouler_me();
 end $$;
 
 -- -----------------------------------------------------------------------------------------
--- 5. Recherche de partenaires (règles « qui voit qui » appliquées ici)
+-- 5. Recherche de partenaires (règles « qui voit qui » et chevauchement appliqués ici)
 -- -----------------------------------------------------------------------------------------
-create or replace function public.rouler_search(p_insee text, p_radius int default 25, p_from date default null, p_to date default null,
-  p_disc text default null, p_belt_min text default null, p_belt_max text default null, p_intensity text default null) returns jsonb
+-- p : insee (commune de recherche ; par défaut celle de mon créneau en mode slot), radius (5 à 100 km),
+--     when (now | 30 | 60 | 120 | 240 | custom | slot), date et time (si custom, heure locale de la commune),
+--     slot (identifiant de mon créneau, si slot), minutes (temps commun minimum : 30 | 60 | 90 | 120),
+--     disc, intensity, belt_min, belt_max
+create or replace function public.rouler_search(p jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare v_uid uuid := public.uzu_require_auth(); me public.rouler_profiles; o public.geo_communes;
-  r int := least(greatest(coalesce(p_radius, 25), 5), 100); v_from date := coalesce(p_from, current_date); v_to date;
-  dlat numeric; dlon numeric; bmin int := public.rouler_belt_rank(p_belt_min); bmax int := public.rouler_belt_rank(p_belt_max); v jsonb;
+declare v_uid uuid := public.uzu_require_auth(); me public.rouler_profiles; o public.geo_communes; s public.rouler_availabilities;
+  v_when text := coalesce(p->>'when', 'now'); v_min int; v_r int; v_w0 timestamptz; v_w1 timestamptz; v_req interval;
+  v_now timestamptz := date_trunc('minute', now()); v_insee text := nullif(p->>'insee', '');
+  v_disc text := nullif(p->>'disc', ''); v_int text := nullif(p->>'intensity', '');
+  bmin int := public.rouler_belt_rank(nullif(p->>'belt_min', '')); bmax int := public.rouler_belt_rank(nullif(p->>'belt_max', '')); v jsonb;
 begin
   select * into me from public.rouler_profiles where user_id = v_uid;
   if me.user_id is null then return jsonb_build_object('need', 'activate'); end if;
   if public.rouler_is_minor(v_uid) then return jsonb_build_object('need', 'adult'); end if;
   if me.status = 'paused' then return jsonb_build_object('need', 'paused'); end if;
   if me.visibility = 'hidden' then return jsonb_build_object('need', 'visible'); end if;
-  select * into o from public.geo_communes where insee = p_insee;
+  begin v_min := coalesce((p->>'minutes')::int, 60); exception when others then v_min := null; end;
+  if v_min is null or v_min not in (30, 60, 90, 120) then raise exception 'Temps commun : 30 min, 1 h, 1 h 30 ou 2 h'; end if;
+  begin v_r := least(greatest(coalesce((p->>'radius')::int, 25), 5), 100); exception when others then v_r := 25; end;
+  if v_when = 'slot' then
+    begin select * into s from public.rouler_availabilities where id = (p->>'slot')::uuid and user_id = v_uid and status = 'active' and ends_at > now();
+    exception when others then s := null; end;
+    if s.id is null then raise exception 'Créneau introuvable ou terminé'; end if;
+    v_insee := coalesce(v_insee, s.insee);
+  end if;
+  select * into o from public.geo_communes where insee = v_insee;
   if o.insee is null then raise exception 'Commune inconnue'; end if;
-  if p_disc is not null and not public.rouler_disc_ok(array[p_disc]) then raise exception 'Discipline inconnue'; end if;
-  if p_intensity is not null and p_intensity not in ('technique','modere','intense') then raise exception 'Type de roulage inconnu'; end if;
-  if (p_belt_min is not null and bmin is null) or (p_belt_max is not null and bmax is null) then raise exception 'Ceinture inconnue'; end if;
-  if v_from < current_date then v_from := current_date; end if;
-  v_to := coalesce(p_to, v_from + 13);
-  if v_to < v_from or v_to > current_date + 104 then raise exception 'Période invalide'; end if;
+  if v_disc is not null and not public.rouler_disc_ok(array[v_disc]) then raise exception 'Discipline inconnue'; end if;
+  if v_int is not null and v_int not in ('technique','modere','intense') then raise exception 'Type de roulage inconnu'; end if;
+  if (nullif(p->>'belt_min', '') is not null and bmin is null) or (nullif(p->>'belt_max', '') is not null and bmax is null) then raise exception 'Ceinture inconnue'; end if;
+  if v_when = 'now' then v_w0 := now();
+  elsif v_when in ('30', '60', '120', '240') then v_w0 := v_now + make_interval(mins => v_when::int);
+  elsif v_when = 'custom' then
+    v_w0 := public.rouler_local_ts(p->>'date', p->>'time', public.rouler_tz(o.insee));
+    if v_w0 < v_now - interval '1 minute' then v_w0 := now(); end if;
+    if v_w0 > now() + interval '31 days' then raise exception 'Recherche dans les 30 prochains jours au plus'; end if;
+  elsif v_when = 'slot' then v_w0 := greatest(s.starts_at, now());
+  else raise exception 'Moment inconnu';
+  end if;
+  if v_when = 'slot' then
+    v_w1 := s.ends_at; v_req := least(make_interval(mins => v_min), v_w1 - v_w0);
+  else
+    v_w1 := v_w0 + make_interval(mins => v_min); v_req := make_interval(mins => v_min);
+  end if;
   if (select count(*) from public.rouler_search_log where user_id = v_uid and at > now() - interval '1 hour') >= 30 then
     raise exception 'Trop de recherches en une heure : réessaie un peu plus tard';
   end if;
   insert into public.rouler_search_log (user_id) values (v_uid);
-  dlat := r / 111.0; dlon := r / (111.0 * greatest(cos(radians(o.lat)), 0.2));
-  with c as (
-    select a.*, p.show_belt, p.show_club_id, p.years, p.user_id as uid, g.nom as commune, g.departement as dep,
-           6371 * 2 * asin(sqrt(power(sin(radians(g.lat - o.lat) / 2), 2) + cos(radians(o.lat)) * cos(radians(g.lat)) * power(sin(radians(g.lon - o.lon) / 2), 2))) as km
-      from public.rouler_availabilities a
-      join public.rouler_profiles p on p.user_id = a.user_id
-      join public.geo_communes g on g.insee = a.insee
-     where a.status = 'active' and a.ends_on >= current_date and a.ends_on >= v_from and a.starts_on <= v_to
-       and p.status = 'active' and p.visibility <> 'hidden' and p.user_id <> v_uid
-       and g.lat between o.lat - dlat and o.lat + dlat and g.lon between o.lon - dlon and o.lon + dlon
-       and (p_disc is null or p_disc = any (a.disciplines))
-       and (p_intensity is null or p_intensity = any (a.intensities))
-  ), f as (
-    select c.*, case when c.show_belt then public.rouler_belt(c.uid) end as belt
-      from c
-     where c.km <= r
-       and not public.rouler_blocked(v_uid, c.uid)
-       and not public.rouler_is_minor(c.uid)
-       and (public.rouler_share_club(v_uid, c.uid)
-            or ((select visibility from public.rouler_profiles where user_id = c.uid) = 'uzu' and me.visibility = 'uzu'))
-  )
-  select coalesce(jsonb_agg(jsonb_build_object(
-           'handle', id, 'name', public.rouler_name(uid), 'belt', belt, 'years', years,
-           'club', case when show_club_id is not null and exists (select 1 from public.academy_members m where m.user_id = uid and m.academy_id = show_club_id and m.status = 'active')
-                        then (select name from public.clubs where id = show_club_id) end,
-           'commune', commune, 'dep', dep, 'band', public.dir_band(km::numeric),
-           'starts_on', starts_on, 'ends_on', ends_on, 'days', to_jsonb(days), 'parts', to_jsonb(parts),
-           'disciplines', to_jsonb(disciplines), 'intensities', to_jsonb(intensities), 'places', to_jsonb(places), 'note', note)
-         order by km, starts_on), '[]'::jsonb)
-    into v
-    from (select * from f
-           where (bmin is null and bmax is null)
-              or (belt is not null and public.rouler_belt_rank(belt) between coalesce(bmin, 1) and coalesce(bmax, 5))
-           order by km, starts_on limit 50) z;
-  return jsonb_build_object('commune', jsonb_build_object('insee', o.insee, 'nom', o.nom, 'dep', o.departement), 'radius', r,
-                            'from', v_from, 'to', v_to, 'results', v);
+  select coalesce(jsonb_agg(z.item order by z.dist, z.common_min desc), '[]'::jsonb) into v
+    from (select * from public.rouler_matches(v_uid, me.visibility, o.lat, o.lon, v_r, v_w0, v_w1, v_req, v_disc, v_int, bmin, bmax)
+           order by dist, common_min desc limit 50) z;
+  return jsonb_build_object('commune', jsonb_build_object('insee', o.insee, 'nom', o.nom, 'dep', o.departement, 'tz', public.rouler_tz(o.insee)),
+    'radius', v_r, 'when', v_when, 'minutes', v_min, 'required_minutes', (extract(epoch from v_req) / 60)::int,
+    'window', jsonb_build_object('start', v_w0, 'end', v_w1, 'tz', public.rouler_tz(o.insee)), 'now', now(), 'results', v);
 end $$;
+
+drop function if exists public.rouler_search(text, int, date, date, text, text, text, text);
 
 -- -----------------------------------------------------------------------------------------
 -- 6. Blocage et signalement (à partir d'une disponibilité : aucun identifiant de compte exposé)
@@ -467,13 +567,13 @@ begin
 end $$;
 
 -- -----------------------------------------------------------------------------------------
--- 8. Expiration et purges (tâche planifiée)
+-- 8. Expiration et purges (tâche planifiée). Les résultats n'en dépendent pas : un créneau fini en sort aussitôt.
 -- -----------------------------------------------------------------------------------------
 create or replace function public.rouler_expire() returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare a int; b int; c int; d int; e int;
 begin
-  update public.rouler_availabilities set status = 'expired', updated_at = now() where status = 'active' and ends_on < current_date;
+  update public.rouler_availabilities set status = 'expired', updated_at = now() where status = 'active' and ends_at <= now();
   get diagnostics a = row_count;
   delete from public.rouler_availabilities where status in ('ended','expired') and updated_at < now() - interval '30 days';
   get diagnostics b = row_count;
@@ -483,15 +583,15 @@ begin
   get diagnostics d = row_count;
   update public.rouler_profiles set visibility = 'hidden', updated_at = now()
    where visibility <> 'hidden' and last_active_at < now() - interval '6 months'
-     and not exists (select 1 from public.rouler_availabilities v where v.user_id = rouler_profiles.user_id and v.status = 'active');
+     and not exists (select 1 from public.rouler_availabilities v where v.user_id = rouler_profiles.user_id and v.status = 'active' and v.ends_at > now());
   get diagnostics e = row_count;
-  return jsonb_build_object('expirees', a, 'purgees', b, 'recherches', c, 'signalements', d, 'invisibles', e);
+  return jsonb_build_object('expires', a, 'purges', b, 'recherches', c, 'signalements', d, 'invisibles', e);
 end $$;
 
 do $$ begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
     if exists (select 1 from cron.job where jobname = 'rouler-expire') then perform cron.unschedule('rouler-expire'); end if;
-    perform cron.schedule('rouler-expire', '7 * * * *', 'select public.rouler_expire()');
+    perform cron.schedule('rouler-expire', '*/15 * * * *', 'select public.rouler_expire()');
   end if;
 end $$;
 
@@ -508,6 +608,9 @@ revoke all on function public.rouler_disc_ok(text[]) from public, anon, authenti
 revoke all on function public.rouler_text_array(jsonb) from public, anon, authenticated;
 revoke all on function public.rouler_check_profile(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.rouler_expire() from public, anon, authenticated;
+revoke all on function public.rouler_tz(text) from public, anon, authenticated;
+revoke all on function public.rouler_local_ts(text, text, text) from public, anon, authenticated;
+revoke all on function public.rouler_matches(uuid, text, double precision, double precision, int, timestamptz, timestamptz, interval, text, text, int, int) from public, anon, authenticated;
 revoke all on function public.rouler_me() from public, anon;
 revoke all on function public.rouler_activate(jsonb) from public, anon;
 revoke all on function public.rouler_save_profile(jsonb) from public, anon;
@@ -515,7 +618,8 @@ revoke all on function public.rouler_set_visibility(text) from public, anon;
 revoke all on function public.rouler_delete_profile() from public, anon;
 revoke all on function public.rouler_save_availability(jsonb) from public, anon;
 revoke all on function public.rouler_end_availability(uuid) from public, anon;
-revoke all on function public.rouler_search(text, int, date, date, text, text, text, text) from public, anon;
+revoke all on function public.rouler_search(jsonb) from public, anon;
+revoke all on function public.rouler_extend_availability(uuid) from public, anon;
 revoke all on function public.rouler_block(uuid) from public, anon;
 revoke all on function public.rouler_report(uuid, text, text) from public, anon;
 revoke all on function public.rouler_my_blocks() from public, anon;
@@ -529,7 +633,8 @@ grant execute on function public.rouler_set_visibility(text) to authenticated;
 grant execute on function public.rouler_delete_profile() to authenticated;
 grant execute on function public.rouler_save_availability(jsonb) to authenticated;
 grant execute on function public.rouler_end_availability(uuid) to authenticated;
-grant execute on function public.rouler_search(text, int, date, date, text, text, text, text) to authenticated;
+grant execute on function public.rouler_search(jsonb) to authenticated;
+grant execute on function public.rouler_extend_availability(uuid) to authenticated;
 grant execute on function public.rouler_block(uuid) to authenticated;
 grant execute on function public.rouler_report(uuid, text, text) to authenticated;
 grant execute on function public.rouler_my_blocks() to authenticated;
@@ -539,12 +644,12 @@ grant execute on function public.rouler_admin_resolve(uuid, text) to authenticat
 
 commit;
 
--- Contrôle : 4 tables ajoutées et fermées, rien pour les visiteurs non connectés, tâche planifiée
+-- Contrôle : 4 tables ajoutées et fermées, rien pour les visiteurs non connectés, outils internes fermés, tâche planifiée
 select (select count(*) from pg_tables where schemaname = 'public' and tablename like 'rouler\_%') as tables_ajoutees,
        (select count(*) from information_schema.role_table_grants where table_schema = 'public' and table_name like 'rouler\_%' and grantee in ('anon','authenticated')) as droits_directs,
        (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
          where n.nspname = 'public' and p.proname like 'rouler\_%' and has_function_privilege('anon', p.oid, 'execute')) as fonctions_pour_anon,
        (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-         where n.nspname = 'public' and p.proname in ('rouler_name','rouler_belt','rouler_is_minor','rouler_share_club','rouler_blocked','rouler_check_profile','rouler_expire')
+         where n.nspname = 'public' and p.proname in ('rouler_name','rouler_belt','rouler_is_minor','rouler_share_club','rouler_blocked','rouler_check_profile','rouler_expire','rouler_tz','rouler_local_ts','rouler_matches')
            and has_function_privilege('authenticated', p.oid, 'execute')) as outils_internes_ouverts,
        (select count(*) from pg_extension where extname = 'pg_cron') as pg_cron_present;
