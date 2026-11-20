@@ -1,5 +1,5 @@
 // Class Media — tests de la fonction serveur et du module de formats, sans réseau (node tests/class_media_unit.mjs)
-import { detectMime, photoHasMetadata, moovHasLocation, neutralizeLocation, findTopBox, parseRange, videoCodec } from "../supabase/functions/_shared/media-format.ts"
+import { detectMime, photoHasMetadata, moovHasLocation, neutralizeLocation, findTopBox, parseRange, videoCodec, moovIsHdr10, videoIsHdr10 } from "../supabase/functions/_shared/media-format.ts"
 import { readFileSync } from "node:fs"
 import { makeHandler } from "../supabase/functions/class-media/handler.ts"
 import { storeTicket, relayVideo } from "../lib/uzu/cm-proxy.ts"
@@ -159,6 +159,12 @@ r = await fin("l.mov", movLoc, "video/quicktime", "video")
 ok("finalize : MOV avec localisation → refusé", r.status === 422 && /position/.test((await r.json()).error))
 { const f = movLoc.slice(); neutralizeLocation(f); r = await fin("c.mov", f, "video/quicktime", "video") }
 ok("D3 · finalize : MOV d'iPhone neutralisé → accepté", r.status === 200 && (await r.json()).validation === "approved")
+{ const F = n => new Uint8Array(readFileSync(new URL("./fixtures/class-media/" + n, import.meta.url)))
+  r = await fin("hdr.mov", F("hevc10_hdr_iphone_like.mov"), "video/quicktime", "video")
+  const jb = await r.json()
+  ok("HDR · finalize : vidéo HDR 10 bits refusée par le serveur (422), réglage iPhone indiqué", r.status === 422 && /HDR/.test(jb.error) && /Le plus compatible/.test(jb.error) && calls.some(c => c.path.endsWith("media_mark_failed")))
+  r = await fin("hevc8.mov", F("hevc_iphone_like.mov"), "video/quicktime", "video")
+  ok("HDR · finalize : vidéo HEVC 8 bits d'iPhone acceptée", r.status === 200) }
 r = await fin("s.jpg", jpegClean, "image/jpeg", "photo", jpegClean.length + 5)
 ok("finalize : taille différente de l'annonce → refusé", r.status === 422)
 r = await fin("w.webm", webm, "video/webm", "video")
@@ -190,6 +196,12 @@ ok("purge : appelle la purge puis le rapprochement", (await post("purge", {}, { 
   ok("codec · MOV HEVC 10 bits HDR (iPhone récent) : reconnu HEVC", videoCodec(hv10) === "hevc")
   ok("codec · MP4 H.264 : reconnu H.264", videoCodec(avc) === "h264" && detectMime(avc.subarray(0, 65536)) === "video/mp4")
   ok("codec · fichier sans moov : inconnu", videoCodec(webm) === null)
+  ok("HDR · HEVC 10 bits HDR (iPhone récent) : détecté", videoIsHdr10(hv10))
+  ok("HDR · HEVC 8 bits et H.264 : non détectés (acceptés)", !videoIsHdr10(hv) && !videoIsHdr10(avc))
+  { const mv = findTopBox(hv, "moov"), m = hv.slice(mv.start, mv.start + mv.size), i = [...m].findIndex((_, k) => m[k] === 0x61 && m[k + 1] === 0x76 && m[k + 2] === 0x63 && m[k + 3] === 0x43)
+    const dv = hv.slice(mv.start, mv.start + mv.size); const j = [...dv].findIndex((_, k) => dv[k] === 0x68 && dv[k + 1] === 0x76 && dv[k + 2] === 0x63 && dv[k + 3] === 0x31); dv.set([0x64, 0x76, 0x68, 0x31], j)
+    ok("HDR · Dolby Vision (dvh1) : détecté", i === -1 && j > 0 && moovIsHdr10(dv)) }
+  globalThis.__HV10 = hv10; globalThis.__HV8 = hv
 }
 
 // Relais vidéo du site (lib/uzu/cm-proxy.ts) : aucun jeton dans une adresse, de bout en bout

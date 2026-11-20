@@ -197,6 +197,12 @@ with sync_playwright() as p:
     check("D3 · vidéo : type réel lu (MP4), localisation neutralisée, taille et contenu image inchangés, sans conversion",
           m.last("media_reserve")[-1]["p_mime"] == "video/mp4" and len(upv["body"]) == len(orig) and b"earth" in orig and b"earth" not in upv["body"] and upv["body"][-2000:] == orig[-2000:] if orig.find(b"moov") < orig.find(b"mdat") else True)
     if not pg.locator(".uzu-cm-manager input[type=checkbox]").first.is_checked(): pg.locator(".uzu-cm-manager input[type=checkbox]").first.check()
+    n_res = len(m.last("media_reserve"))
+    with pg.expect_file_chooser() as fc: pg.locator(".uzu-cm-manager").get_by_role("button", name="Ajouter une vidéo").click()
+    fc.value.set_files(FIX + "hevc10_hdr_iphone_like.mov"); pg.wait_for_timeout(2000)
+    er = pg.locator(".uzu-cm-manager .uzu-banner--error")
+    check("Android · vidéo HDR 10 bits refusée dès l'application, avant toute réservation, réglage iPhone indiqué", len(m.last("media_reserve")) == n_res and er.count() == 1 and "HDR" in er.inner_text() and "Le plus compatible" in er.inner_text(), er.inner_text() if er.count() else "")
+    if not pg.locator(".uzu-cm-manager input[type=checkbox]").first.is_checked(): pg.locator(".uzu-cm-manager input[type=checkbox]").first.check()
     check("Android · vidéo H.264 : aucun avertissement de format", pg.locator(".uzu-cm-hevc").count() == 0)
     with pg.expect_file_chooser() as fc: pg.locator(".uzu-cm-manager").get_by_role("button", name="Ajouter une vidéo").click()
     fc.value.set_files(FIX + "hevc_iphone_like.mov"); pg.wait_for_timeout(2500)

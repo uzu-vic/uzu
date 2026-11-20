@@ -157,6 +157,37 @@ export function videoCodec(b: Uint8Array): "hevc" | "h264" | "other" | null {
   return "other"
 }
 
+const find4 = (m: Uint8Array, t: string, from = 0) => {
+  const c0 = t.charCodeAt(0), c1 = t.charCodeAt(1), c2 = t.charCodeAt(2), c3 = t.charCodeAt(3)
+  for (let i = from; i + 4 <= m.length; i++) if (m[i] === c0 && m[i + 1] === c1 && m[i + 2] === c2 && m[i + 3] === c3) return i
+  return -1
+}
+/**
+ * Vidéo HDR ou 10 bits (réglage par défaut des iPhone récents) : Dolby Vision, HEVC Main 10 ou profondeur > 8 bits,
+ * H.264 High 10, ou courbe de transfert HDR (PQ, HLG) déclarée. Ces vidéos ne se lisent pas sur une partie des
+ * téléphones Android (son seul, écran noir) : elles sont refusées à l'envoi (décision du 20/11, option 2).
+ * Lecture de la description des pistes (moov) uniquement ; aucune conversion.
+ */
+export const HDR_MSG = "Vidéo HDR (10 bits) refusée : elle ne se lit pas sur une partie des téléphones Android. Sur l'iPhone, désactive Réglages › Appareil photo › Enregistrement vidéo › « Vidéo HDR », ou choisis Réglages › Appareil photo › Formats › « Le plus compatible », puis filme à nouveau."
+export function moovIsHdr10(moov: Uint8Array): boolean {
+  for (const t of ["dvh1", "dvhe", "dva1", "dvav"]) if (find4(moov, t) >= 0) return true
+  for (let i = find4(moov, "hvcC"); i >= 0; i = find4(moov, "hvcC", i + 4)) {
+    const d = i + 4; if (d + 19 > moov.length) break
+    if ((moov[d + 1] & 0x1f) === 2 || (moov[d + 17] & 0x07) > 0 || (moov[d + 18] & 0x07) > 0) return true
+  }
+  for (let i = find4(moov, "avcC"); i >= 0; i = find4(moov, "avcC", i + 4)) { const d = i + 4; if (d + 2 <= moov.length && moov[d + 1] === 110) return true }
+  for (let i = find4(moov, "colr"); i >= 0; i = find4(moov, "colr", i + 4)) {
+    const d = i + 4; if (d + 8 > moov.length) break
+    const k = String.fromCharCode(moov[d], moov[d + 1], moov[d + 2], moov[d + 3])
+    if (k === "nclx" || k === "nclc") { const trc = (moov[d + 6] << 8) | moov[d + 7]; if (trc === 16 || trc === 18) return true }
+  }
+  return false
+}
+/** Même contrôle sur un fichier entier (côté application, avant l'envoi) */
+export function videoIsHdr10(b: Uint8Array): boolean {
+  const mv = findTopBox(b, "moov"); return !!mv && moovIsHdr10(b.subarray(mv.start, Math.min(b.length, mv.start + mv.size)))
+}
+
 export function findTopBox(b: Uint8Array, type: string): { start: number; size: number; header: number } | null {
   let o = 0
   for (let n = 0; n < 200 && o + 8 <= b.length; n++) {

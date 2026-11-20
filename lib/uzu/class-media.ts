@@ -4,7 +4,7 @@
 // (media_ticket), puis la fonction serveur revérifie les droits en base à chaque requête de lecture.
 import { uzu } from "./client"
 import { SUPABASE_URL } from "./env"
-import { detectMime, neutralizeLocation, videoCodec, type MediaMime } from "../../supabase/functions/_shared/media-format"
+import { HDR_MSG, detectMime, neutralizeLocation, videoCodec, videoIsHdr10, type MediaMime } from "../../supabase/functions/_shared/media-format"
 
 export type MediaItem = {
   id: string; kind: "photo" | "video"; position: number; created_at: string; viewable: boolean
@@ -65,7 +65,7 @@ export async function probeVideo(src: string): Promise<"denied" | "format" | "ne
   try { const r = await fetch(src, { headers: { Range: "bytes=0-1" }, cache: "no-store", credentials: "same-origin" }); return r.ok ? "format" : r.status === 403 ? "denied" : "network" }
   catch { return "network" }
 }
-export const HEVC_NOTE = "Vidéo au format HEVC (réglage « Haute efficacité » de l'iPhone) : certains téléphones Android ne pourront pas la lire. Sur iPhone, Réglages › Appareil photo › Formats › « Le plus compatible » enregistre des vidéos lisibles partout."
+export const HEVC_NOTE = "Vidéo au format HEVC (réglage « Haute efficacité » de l'iPhone) : certains téléphones Android anciens ne pourront pas la lire. Sur iPhone, Réglages › Appareil photo › Formats › « Le plus compatible » enregistre des vidéos lisibles partout."
 export const FORMAT_MSG = "Cette vidéo ne peut pas être lue sur cet appareil : son format (HEVC, enregistré par un iPhone) n'est pas pris en charge ici. Elle reste lisible sur iPhone et sur la plupart des téléphones récents."
 /** Photo : jeton passé dans un en-tête, image gardée en mémoire le temps de l'affichage */
 export async function photoBlobUrl(token: string): Promise<{ ok: true; url: string } | { ok: false; code: string }> {
@@ -98,6 +98,7 @@ export async function prepareVideo(file: File, maxBytes: number): Promise<{ ok: 
   const bytes = new Uint8Array(await file.arrayBuffer())
   const mime = detectMime(bytes.subarray(0, 65536))
   if (mime !== "video/mp4" && mime !== "video/quicktime" && mime !== "video/webm") return { ok: false, msg: "Format non accepté : vidéo MP4, MOV ou WebM" }
+  if (mime !== "video/webm" && videoIsHdr10(bytes)) return { ok: false, msg: HDR_MSG }
   if (mime !== "video/webm") neutralizeLocation(bytes)
   return { ok: true, blob: new Blob([bytes], { type: mime }), mime, hevc: mime !== "video/webm" && videoCodec(bytes) === "hevc" }
 }

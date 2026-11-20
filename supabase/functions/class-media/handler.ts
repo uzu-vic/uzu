@@ -6,7 +6,7 @@
 // - reconcile  : quarantaine ou retour des fichiers d'une séance (après dépublication, retrait…) ;
 // - sweep/purge: tâches planifiées (secret du coffre de la base), filet de sécurité et conservation.
 // Journaux : jamais de jeton, d'adresse complète, de chemin de fichier ni de secret.
-import { detectMime, kindOfMime, moovHasLocation, parseRange, photoHasMetadata, readBoxHeader } from "../_shared/media-format.ts"
+import { HDR_MSG, detectMime, kindOfMime, moovHasLocation, moovIsHdr10, parseRange, photoHasMetadata, readBoxHeader } from "../_shared/media-format.ts"
 
 export type Env = { url: string; anonKey: string; serviceKey: string; origins: string[] }
 type Fetch = typeof fetch
@@ -148,6 +148,7 @@ export function makeHandler(env: Env, fetchImpl: Fetch = fetch, log: (o: Json) =
       }
       if (!moov) return refuse("Vidéo incomplète : métadonnées introuvables")
       if (moovHasLocation(moov)) return refuse("La vidéo contient encore une position (localisation)")
+      if (moovIsHdr10(moov)) return refuse(HDR_MSG)
     }
     const r = await rpc("media_mark_ready", { p_media: body.media, p_mime: real, p_size: size }) as { ok: boolean; validation?: string; code?: string }
     if (!r.ok) return refuse("Vérification impossible : " + (r.code || "état"))
