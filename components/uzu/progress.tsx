@@ -8,6 +8,9 @@ import { declareBelt, loadCore } from "@/lib/uzu/journal"
 import { beltColor, normSched } from "@/lib/uzu/training"
 import { loadVideos, type VideoMap } from "@/lib/uzu/videos"
 import { ClubVideo } from "@/components/uzu/club-video"
+import { FicheView, FlowsPane, LibraryPane, useLibrary, VoletTabs, type Volet } from "@/components/uzu/library"
+import { MyContributions, ProposeForm, type ProposeInit } from "@/components/uzu/library-contrib"
+import type { ClubItem } from "@/lib/uzu/library"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -57,8 +60,15 @@ export function TopList({ rows, empty }: { rows: [string, number][]; empty: stri
 }
 
 // ---------------------------------------------------------------- Techniques
-export function AthleteTechniques({ uid, ctx }: { uid: string; ctx: UzuContext | null }) {
+// initial : « fiche:G18 », « flow:FC3 » ou « libq:texte » (ouverture depuis une séance ou une notification)
+export function AthleteTechniques({ uid, ctx, initial = "", onToast }: { uid: string; ctx: UzuContext | null; initial?: string; onToast?: (m: string) => void }) {
   const { data, error, reload } = useCore(uid, ctx)
+  const [libTick, setLibTick] = useState(0)
+  const library = useLibrary(ctx, libTick)
+  const [panel, setPanel] = useState<{ kind: "propose"; init?: ProposeInit; edit?: ClubItem | null } | { kind: "mine" } | null>(null)
+  const [vol, setVol] = useState<Volet>(initial.startsWith("fiche:") || initial.startsWith("libq:") || initial.startsWith("libl:") ? "lib" : initial.startsWith("flow:") ? "flows" : "prog")
+  const [fiche, setFiche] = useState(initial.startsWith("fiche:") ? initial.slice(6) : "")
+  const [flowId, setFlowId] = useState(initial.startsWith("flow:") ? initial.slice(5) : "")
   const [beltForm, setBeltForm] = useState(false)
   const [vids, setVids] = useState<VideoMap>({})
   useEffect(() => { const id = ctx?.club?.id; if (!id || ctx?.role === "solo") return; let live = true; loadVideos(id).then(v => { if (live) setVids(v) }); return () => { live = false } }, [ctx?.club?.id, ctx?.role])
@@ -71,8 +81,22 @@ export function AthleteTechniques({ uid, ctx }: { uid: string; ctx: UzuContext |
   const refused = !team && !solo && data.grade && data.grade.decidedAt && data.grade.status === "refusé" && st.request && data.grade.decidedAt >= st.request.at
   const direct = team || solo
   const focus = [ (ctx?.club?.tactical_focus as Any)?.focusFrom, (ctx?.club?.tactical_focus as Any)?.focusTo ]
+  const lib = library.status === "ok" ? library.lib : null
+  const pick = (v: Volet) => { setVol(v); setFiche(""); setPanel(null); window.scrollTo(0, 0) }
+  const toast = (m: string) => { if (onToast) onToast(m) }
+  const staff = ctx?.role === "coach"
+  if (lib && vol !== "prog") return <>
+    <Heading kind="path" />
+    <VoletTabs value={vol} onChange={pick} />
+    {vol === "lib" && panel?.kind === "propose" ? <ProposeForm key={panel.edit?.id || "new"} lib={lib} staff={staff} init={panel.init} edit={panel.edit} onCancel={() => setPanel(null)} onDone={m => { toast(m); setPanel({ kind: "mine" }); setLibTick(x => x + 1) }} />
+      : vol === "lib" && panel?.kind === "mine" ? <MyContributions lib={lib} uid={uid} onBack={() => setPanel(null)} onToast={toast} onEdit={it => setPanel({ kind: "propose", edit: it })} />
+      : vol === "lib" && fiche ? <FicheView lib={lib} C={C} P={data.P} id={fiche} onBack={() => setFiche("")} onOpenFlow={id => { setFlowId(id); setFiche(""); setVol("flows"); window.scrollTo(0, 0) }} onPropose={init => setPanel({ kind: "propose", init })} />
+      : vol === "lib" ? <LibraryPane lib={lib} C={C} P={data.P} initialQuery={initial.startsWith("libq:") ? initial.slice(5) : ""} initialLinked={initial.startsWith("libl:") ? initial.slice(5) : ""} onOpen={id => { setFiche(id); window.scrollTo(0, 0) }} onPropose={() => setPanel({ kind: "propose" })} onMine={() => setPanel({ kind: "mine" })} />
+      : <FlowsPane lib={lib} flowId={flowId} onFlow={setFlowId} onOpen={id => { setFiche(id); setVol("lib"); window.scrollTo(0, 0) }} />}
+  </>
   return <>
     <Heading kind="path" />
+    {lib && <VoletTabs value="prog" onChange={pick} />}
     <section className="panel uzu-belt-card">
       <div className="uzu-belt-head"><BeltMark rank={b.rank} stripes={b.stripes} size={96} />
         <div><Eyebrow>{direct ? "CEINTURE DÉCLARÉE" : "CEINTURE VALIDÉE PAR TON PROF"}</Eyebrow><h2 className="uzu-h2">{C.beltLabel(b)}</h2>

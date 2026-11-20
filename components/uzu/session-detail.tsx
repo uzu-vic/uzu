@@ -7,6 +7,8 @@ import { mySessionPartners, type Partner } from "@/lib/uzu/partners"
 import type { UzuContext } from "@/lib/uzu/context"
 import { loadSessionDetail } from "@/lib/uzu/journal"
 import { Stars } from "@/components/uzu/progress"
+import { useLibrary } from "@/components/uzu/library"
+import { fichesForName } from "@/lib/uzu/library"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -17,6 +19,8 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete, saved
   const [d, setD] = useState<{ core: Any; s: Any } | null | "none">(null)
   const [partners, setPartners] = useState<Partner[]>([])
   const closeRef = useRef(onClose); closeRef.current = onClose
+  const library = useLibrary(ctx)
+  const openFiche = (arg: string) => { onClose(); window.dispatchEvent(new CustomEvent("uzu-nav", { detail: { page: "path", arg } })) }
   useEffect(() => {
     let live = true
     loadSessionDetail(uid, ctx, id).then(r => {
@@ -53,7 +57,9 @@ export function SessionDetail({ uid, ctx, id, onClose, onEdit, onComplete, saved
       </dl>
       {pp && <><h4>Prépa physique</h4><p className="uzu-text">{C.effortName(s)}{+s.rpe ? ` · RPE ${+s.rpe}/10` : ""}</p>{s.exos && <p className="uzu-text uzu-pre">{s.exos}</p>}</>}
       {blocks.length > 0 && <><h4>Systèmes et techniques</h4><ul className="uzu-det-list">{blocks.map((x, i) => { const inf = x.tech ? C.skillInfo(C.me(), x.tech) : null
-        return <li key={i}><span>{x.tech && <b>{x.tech}</b>}{x.tech && C.SYSTEMS[x.sys] ? " · " : ""}{C.SYSTEMS[x.sys]?.n || ""}{x.flow === "impose" ? " · imposé" : x.flow === "subi" ? " · subi" : ""}</span>{inf && <Stars lvl={inf.lvl} review={inf.review} />}</li> })}</ul></>}
+        const fs = x.tech && library.status === "ok" ? fichesForName(library.lib, x.tech, C) : []
+        return <li key={i}><span>{x.tech && <b>{x.tech}</b>}{x.tech && C.SYSTEMS[x.sys] ? " · " : ""}{C.SYSTEMS[x.sys]?.n || ""}{x.flow === "impose" ? " · imposé" : x.flow === "subi" ? " · subi" : ""}
+          {fs.length > 0 && <button type="button" className="text-link uzu-det-fiche" onClick={() => openFiche(fs.length === 1 ? "fiche:" + fs[0].id : "libl:" + x.tech)}>{fs.length === 1 ? "Voir la fiche" : `Voir les ${fs.length} fiches`}</button>}</span>{inf && <Stars lvl={inf.lvl} review={inf.review} />}</li> })}</ul></>}
       {subs.length > 0 && <><h4>Soumissions en sparring</h4><ul className="uzu-det-list">{subs.map((x, i) => <li key={i}><span>{C.subName(x.t)} · {C.SUB_DIRS[x.d]}{x.n > 1 ? " × " + x.n : ""}</span></li>)}</ul></>}
       {gl.length > 0 && <><h4>Passages et renversements</h4><ul className="uzu-det-list">{gl.map((x, i) => <li key={i}><span>{x}</span></li>)}</ul></>}
       {(td || ts || gr) ? <><h4>Lutte et garde</h4><p className="uzu-text">Amenées au sol : {pl(td, "réussie")}, {pl(ts, "subie")}<br />Rétentions de garde : {gr}</p></> : null}

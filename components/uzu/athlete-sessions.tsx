@@ -10,6 +10,7 @@ import { useTraining } from "@/components/uzu/athlete"
 import { SessionDetail } from "@/components/uzu/session-detail"
 import { CombatMapCard, useFullSessions } from "@/components/uzu/combat-map"
 import { Calendar, type CalItem } from "@/components/uzu/calendar"
+import { GroupJournal, useJournalGroups } from "@/components/uzu/class-journal"
 
 const DSHORT = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"]
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -26,12 +27,15 @@ function Loading({ error, onRetry }: { error: string; onRetry: () => void }) {
 }
 
 // ================================================================ Entraînements
-type Tab = "next" | "journal" | "comps" | "calendar"
+type Tab = "next" | "journal" | "group" | "comps" | "calendar"
 export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialTab }: { uid: string; ctx: UzuContext | null; initialTab?: string; onCompose: () => void; onEdit: (kind: "s" | "c", id: string) => void; onToast: (m: string) => void }) {
   const { data, error, reload } = useTraining(uid, ctx)
   const solo = !ctx?.club || ctx.role === "solo"
   const it = (initialTab || "").split(":")[0]
-  const [tab, setTab] = useState<Tab>(it === "journal" || it === "comps" || it === "calendar" ? it : solo ? "journal" : "next")
+  const [tab, setTab] = useState<Tab>(it === "journal" || it === "group" || it === "comps" || it === "calendar" ? it : solo ? "journal" : "next")
+  // « Cours du groupe » : seulement si le Journal des cours est en place et que l'adhérent a un groupe
+  const JG = useJournalGroups(solo ? null : ctx)
+  const hasGroup = JG.status === "ok" && JG.groups.some(g => g.mine)
   const [confirm, setConfirm] = useState("")
   // Après une nouvelle saisie : fiche « Séance enregistrée ✓ » avec partage en Story (comme l'ancienne application)
   const [view, setView] = useState((initialTab || "").split(":")[1] || "")
@@ -57,7 +61,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
   }, [data])
   const upcoming = useMemo(() => (solo ? [] : nextClasses(ctx?.club?.schedule, 8, new Date(), ctx?.club)), [ctx, solo])
   const wk = monday(now), thisWeek = (data?.sessions ?? []).filter(s => s.date >= ymd(wk)).length
-  const tabs: [Tab, string][] = [...(solo ? [] : [["next", "À venir"] as [Tab, string]]), ["journal", "Mon journal"], ["comps", `Compétitions${data?.comps.length ? ` (${data.comps.length})` : ""}`], ["calendar", "Calendrier"]]
+  const tabs: [Tab, string][] = [...(solo ? [] : [["next", "À venir"] as [Tab, string]]), ["journal", "Mon journal"], ...(hasGroup ? [["group", "Cours du groupe"] as [Tab, string]] : []), ["comps", `Compétitions${data?.comps.length ? ` (${data.comps.length})` : ""}`], ["calendar", "Calendrier"]]
 
   return <>
     <div className="page-heading"><div><Eyebrow>VOTRE PRATIQUE<span className="eyebrow-dot" />{now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }).toUpperCase()}</Eyebrow><h1>Entraînements<span className="heading-period">.</span></h1><p>Le journal de vos efforts et des moments qui comptent.</p></div>
@@ -95,6 +99,7 @@ export function AthleteSessions({ uid, ctx, onCompose, onEdit, onToast, initialT
           </article>)}</div>
         </section>))}
 
+      {tab === "group" && (hasGroup ? <GroupJournal uid={uid} groups={JG.groups} clubFocus={ctx?.club?.tactical_focus} /> : JG.status === "loading" ? <p className="uzu-text uzu-muted" aria-busy="true">Chargement…</p> : <div className="panel uzu-panel"><p className="uzu-text">Tu n'es rattaché à aucun groupe pour l'instant.</p></div>)}
       {tab === "comps" && (data.comps.length === 0 ? <div className="panel uzu-panel"><p className="uzu-text">Aucune compétition enregistrée.</p><button className="button button--dark" onClick={onCompose}><Plus size={15} />Saisir un résultat</button></div>
         : <div className="session-list">{data.comps.map(c => <article className="session-card" key={c.id}>
           <div className="session-date"><span>{parseYmd(c.date).toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase()}</span><strong>{parseYmd(c.date).getDate()}</strong></div>

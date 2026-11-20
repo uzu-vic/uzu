@@ -1,0 +1,22 @@
+import fs from "fs";
+import { makeDb, U, as } from "./base.mjs";
+const db = await makeDb(); const R = []; const ok = (l, c, g = "") => { R.push(c); console.log((c ? "✔ " : "✖ ") + l + (c ? "" : " → " + JSON.stringify(g))) };
+const t = async (uid, sql, p) => { try { return { rows: (await as(db, uid, sql, p)).rows } } catch (e) { return { err: e.message } } };
+const s = fs.readFileSync("/home/claude/lot6/uzu-7-erreurs.sql", "utf8").split("-- Contrôle")[0];
+await db.exec(s); await db.exec(s); ok("script appliqué et rejouable", true);
+{ const { applyNew } = await import("/home/claude/compat/new-scripts.mjs"); await applyNew(db); console.log("   [compatibilité] sept nouveaux scripts installés AVANT les vérifications de ce lot de production"); }
+const B1 = U("b1");
+let r = await t(B1, "select public.log_client_error('render','/?invite=SECRET#x','Boom','at X','UA','abc1234') v"); ok("connecté : rapport enregistré", r.rows?.[0]?.v === true, r);
+let row = (await db.query("select * from public.client_errors")).rows[0];
+ok("adresse enregistrée sans paramètres ni fragment", row.page === "/", row.page); ok("auteur rattaché", row.user_id === B1);
+r = await t(null, "select public.log_client_error('weird','/aide','Boom anonyme','','UA','v') v"); ok("visiteur : rapport enregistré, type normalisé", r.rows?.[0]?.v === true && (await db.query("select kind from public.client_errors where user_id is null")).rows[0].kind === "error");
+ok("message vide ignoré", (await t(B1, "select public.log_client_error('error','/','  ','','','') v")).rows?.[0]?.v === false);
+ok("lecture directe interdite (connecté)", !!(await t(B1, "select * from public.client_errors")).err);
+ok("lecture directe interdite (visiteur)", !!(await t(null, "select * from public.client_errors")).err);
+ok("écriture directe interdite", !!(await t(B1, "insert into public.client_errors (message) values ('x')")).err);
+for (let i = 0; i < 40; i++) await t(B1, "select public.log_client_error('error','/','spam " + i + "','','','')");
+ok("limite : 30 rapports par jour et par compte", (await db.query("select count(*) n from public.client_errors where user_id = $1", [B1])).rows[0].n == 30);
+await db.exec("insert into public.client_errors (message, created_at) values ('vieux', now() - interval '100 days')");
+await t(null, "select public.log_client_error('error','/','nouveau','','','')");
+ok("rapports de plus de 90 jours effacés", (await db.query("select count(*) n from public.client_errors where message = 'vieux'")).rows[0].n == 0);
+console.log(`\n${R.filter(Boolean).length}/${R.length} vérifications réussies`); process.exit(R.every(Boolean) ? 0 : 1);

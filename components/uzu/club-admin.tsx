@@ -18,6 +18,10 @@ import {
 } from "@/lib/uzu/club"
 import { ClubHeading, ClubLoading, InvitePanel, initialsOf } from "@/components/uzu/club"
 import { checkVideo, loadVideos, removeVideo, uploadVideo, videoSlots, type VideoMap } from "@/lib/uzu/videos"
+import { useLibrary } from "@/components/uzu/library"
+import { ClubLibrary, type ClubTab } from "@/components/uzu/library-contrib"
+import { GroupFocusSection } from "@/components/uzu/group-focus"
+import { GroupsPanel } from "@/components/uzu/class-media"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -52,7 +56,7 @@ function useTeam(ctx: UzuContext | null) {
 const KIND_TONE: Record<string, string> = { cours: "wine", open: "dark", compet: "sand", prive: "sand" }
 const seasonLbl = () => { const d = new Date(), y = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; return `SAISON ${y}–${String(y + 1).slice(2)}` }
 
-export function ClubCourses({ ctx, onToast, onReloadCtx }: AdminProps) {
+export function ClubCourses({ ctx, onToast, onReloadCtx, tabs }: AdminProps & { tabs?: React.ReactNode }) {
   const { team, reload: reloadTeam } = useTeam(ctx)
   const [mc, setMc] = useState<MyCourses>({ assigned: [], section: [], staff: [] })
   const [mcTick, setMcTick] = useState(0)
@@ -86,6 +90,7 @@ export function ClubCourses({ ctx, onToast, onReloadCtx }: AdminProps) {
   return <>
     <div className="page-heading"><div><div className="eyebrow">{(ctx?.club?.name || "").toUpperCase()}<span className="eyebrow-dot" />{seasonLbl()}</div><h1>Les cours, en rythme<span className="heading-period">.</span></h1><p>Votre calendrier pédagogique et les rendez-vous de l&apos;académie.</p></div>
       {canEdit && <button className="button button--dark" onClick={() => { setEditing("new"); window.scrollTo(0, 0) }}><Plus size={16} />Créer un cours</button>}</div>
+    {tabs}
     {editing && <CourseEditor slot={editing === "new" ? null : editing} busy={busy} canStaff={editing !== "new" && canStaff(editing.id) && !!team}
       onCancel={() => setEditing(null)} onStaff={() => { if (editing !== "new") { setStaffFor(editing.id); setEditing(null) } }}
       onSave={x => editing === "new" ? saveSchedule(raw.concat([x]), "Cours ajouté au planning") : saveSchedule(raw.map(y => (y.id === x.id ? x : y)), "Cours modifié")}
@@ -296,6 +301,7 @@ export function ClubTeam({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
       </div>)}
       {!team.members.length && !team.invitations.length && <p className="uzu-text uzu-muted">Aucun membre pour l'instant.</p>}
     </section>
+    <GroupsPanel canEdit={can(ctx, "academy_settings", "update")} disc={Object.fromEntries(team.sections.map(x => [x.id, x.discipline || ""]))} onToast={onToast} onChanged={reload} />
     <div className="content-grid team-lower">
       <section className="panel"><div className="panel-header"><div className="section-title"><h2>Rôles &amp; permissions</h2></div></div>
         {roles.map(r => { const x = roleSummary(r); return <div className="permission-row" key={r}><span className="permission-shield"><ShieldCheck size={15} /></span>
@@ -519,6 +525,7 @@ export function ClubContents({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
         {tf.weekTheme && <ConfirmButton label="Dépublier" confirm="Confirmer : dépublier" onConfirm={() => { setFocus({ weekTheme: "", focusFrom: "", focusTo: "", focusDetails: "" }); save("fc", { tactical_focus: { weekTheme: "", focusFrom: "", focusTo: "", focusDetails: "" } }, "Focus dépublié") }} />}
       </div>
     </section>}
+    <GroupFocusSection ctx={ctx} onToast={onToast} />
     {canNews && <section className="panel uzu-panel-col uzu-grid-gap">
       <div className="section-title"><h2>Actualités du club</h2><span className={`uzu-pill ${club?.news ? "done" : ""}`}>{club?.news ? "En ligne" : "Aucune"}</span></div>
       <p className="uzu-text uzu-small uzu-muted">Annonce, événement, changement de planning, compétition à venir : affichée sur l'Accueil de tous les élèves.</p>
@@ -529,7 +536,19 @@ export function ClubContents({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
       </div>
     </section>}
     {(can(ctx, "contents", "create") || can(ctx, "contents", "view")) && C && club && <VideosCard C={C} clubId={club.id} uid={uid} canEdit={ctx?.role === "coach" && can(ctx, "contents", "create")} onToast={onToast} />}
+    <ClubLibrarySection ctx={ctx} onToast={onToast} />
   </>
+}
+
+// Bibliothèque technique côté club : visible seulement si le script uzu-9 est appliqué et si l'on a un droit
+function ClubLibrarySection({ ctx, onToast }: { ctx: UzuContext | null; onToast: (m: string) => void }) {
+  const [tick, setTick] = useState(0)
+  const [tab, setTab] = useState<ClubTab | "">("")
+  const st = useLibrary(ctx, tick)
+  if (st.status !== "ok") return null
+  const c = st.lib.ctx
+  if (!c.can_review && !c.can_manage && !c.can_configure) return null
+  return <ClubLibrary key={tick} lib={st.lib} tab={tab} onTab={setTab} onToast={onToast} onChanged={() => setTick(x => x + 1)} />
 }
 
 // ================================================================ Mon académie

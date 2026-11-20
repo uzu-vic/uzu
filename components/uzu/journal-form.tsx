@@ -34,13 +34,14 @@ const GMDIRS: [string, string][] = [["placed", "Placé"], ["suffered", "Subi"]]
 const FORMES: [string, string][] = [["ok", "En forme"], ["fatigue", "Fatigué"], ["douleur", "Douleur / blessé"]]
 const RESULTS: [string, string][] = [["or", "Or"], ["argent", "Argent"], ["bronze", "Bronze"], ["aucun", "Sans podium"]]
 
-export function JournalForm({ uid, ctx, onDone, onCancel, edit }: { uid: string; ctx: UzuContext | null; onDone: (msg: string, savedId?: string) => void; onCancel: () => void; edit?: { kind: "s" | "c"; id: string } | null }) {
+export function JournalForm({ uid, ctx, onDone, onCancel, edit, prefill }: { uid: string; ctx: UzuContext | null; onDone: (msg: string, savedId?: string) => void; onCancel: () => void; edit?: { kind: "s" | "c"; id: string } | null; prefill?: { date: string; note: string; type: string } | null }) {
   const C = useMemo(() => newCore(), [])
   const today = C.ymd(C.TODAY) as string
   const [mode, setMode] = useState<"session" | "comp">("session")
-  const [f, setF] = useState<Any>(() => C.blankForm())
-  const [date, setDate] = useState(today)
-  const [note, setNote] = useState("")
+  const [f, setF] = useState<Any>(() => { const b = C.blankForm(); if (prefill?.type === "Gi" || prefill?.type === "No-gi") b.type = prefill.type; return b })
+  // Pré-remplissage depuis « Cours du groupe » : date et rappel du thème, l'adhérent complète et enregistre lui-même
+  const [date, setDate] = useState(prefill && /^\d{4}-\d{2}-\d{2}$/.test(prefill.date) && prefill.date <= today ? prefill.date : today)
+  const [note, setNote] = useState(prefill?.note || "")
   const [exos, setExos] = useState("")
   const [cuName, setCuName] = useState("")
   const [cuProf, setCuProf] = useState("flexible")
