@@ -76,7 +76,7 @@ with sync_playwright() as pw:
     pg.goto(BASE); pg.wait_for_timeout(2000)
     nav=lambda t: (pg.locator(".mobile-bottom-nav button", has_text="Plus").click(), pg.wait_for_timeout(300), pg.locator(".nav-item", has_text=t).click(), pg.wait_for_timeout(1800))
     # ---- Fil : séance où l'on m'a identifié
-    nav("Fil du club"); box=pg.locator("section[aria-label='Séances où tu as été identifié']")
+    nav("Tatami"); box=pg.locator("section[aria-label='Séances où tu as été identifié']")
     check("fil : séance à confirmer (auteur, date, résumé)", box.count()==1 and "Sarah M." in box.inner_text() and "Contrôle & Dos" in box.inner_text())
     box.get_by_role("button", name="Confirmer").click(); pg.wait_for_timeout(1500)
     check("confirmer : appel serveur", any(n=="answer_tag" and a["p_ok"] is True and a["p_id"]=="t1" for n,a in CALLS))

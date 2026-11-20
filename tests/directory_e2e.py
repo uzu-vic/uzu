@@ -94,7 +94,7 @@ def open_page(b, m, who, vp, mob):
 def go_feed(pg, mob):
     if mob:
         pg.locator(".mobile-bottom-nav button", has_text="Plus").click(); pg.wait_for_timeout(300)
-    pg.locator(".nav-item", has_text="Fil du club").first.click(); pg.wait_for_timeout(1500)
+    pg.locator(".nav-item", has_text="Tatami").first.click(); pg.wait_for_timeout(1500)
 def tab(pg, t): pg.locator(".uzu-lib-volets button", has_text=t).click(); pg.wait_for_timeout(700)
 def pick_grigny(pg):
     pg.locator("#dir-commune").fill("Grig"); pg.wait_for_timeout(900)

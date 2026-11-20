@@ -42,7 +42,7 @@ const athleteNav: NavItem[] = [
   { id: "path", label: "Techniques", icon: Target, legacy: "path" },
   { id: "progress", label: "Progression", icon: TrendingUp, legacy: "prog" },
   { id: "stats", label: "Statistiques", icon: Activity, legacy: "prog" },
-  { id: "feed", label: "Fil du club", icon: Users, legacy: "feed" },
+  { id: "feed", label: "Tatami", icon: Users, legacy: "feed" },
   { id: "profile", label: "Mon profil", icon: UserRound, legacy: "profile" },
 ]
 

@@ -820,3 +820,12 @@ button.uzu-jv-bar:hover .uzu-jv-bl { text-decoration: underline; }
 .uzu-dir-slot-opts { display: grid; gap: 8px; margin: 8px 0 4px 34px; }
 @media (max-width: 520px) { .uzu-dir-slot-opts { margin-left: 0; } .uzu-dir-days li { grid-template-columns: 1fr; } .uzu-dir-days li span { grid-column: 1; } }
 .text-link.uzu-dir-link { display: inline-flex; min-height: 44px; align-items: center; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+/* « Où rouler ? » — espace référent UZU */
+.uzu-dir-admin { display: grid; gap: 14px; }
+.uzu-dir-admin-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.uzu-dir-card--static { cursor: default; }
+.uzu-dir-card--static:hover { border-color: #e9e4dd; }
+.uzu-dir-badge--warn { background: #fbecee; color: #7a1623; border: 1px solid #e7c9ce; }
+.uzu-dir-sess-edit { display: grid; gap: 8px; padding: 12px; border: 1px solid #e9e4dd; border-radius: 12px; background: #fbf9f6; }
+.uzu-dir-log { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.uzu-dir-log li { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid #e9e4dd; border-radius: 12px; background: #fff; }

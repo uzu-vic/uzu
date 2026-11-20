@@ -71,6 +71,10 @@ begin
   insert into public.academy_members (academy_id, user_id, role, display_name) values
     (CA, I1, 'instructor', 'DA prof'), (CA, B1, 'student', 'DA eleve'), (CA, M2, 'assistant', 'DA deux'), (CD, M2, 'student', 'DA deux');
   insert into public.uzu_platform_admins (user_id) values (P);
+  -- Après uzu-14a2, la modération de l'annuaire passe par le rôle dédié de référent UZU
+  if to_regclass('public.dir_moderators') is not null then
+    execute 'insert into public.dir_moderators (user_id, granted_note) values ($1, ''contrôle fictif'')' using P;
+  end if;
   v_res := v_res || pg_temp.da_l('0', 'mise en place fictive : 2 clubs, 7 personnes (dont un membre de deux clubs et l''équipe UZU)', CA is not null and CD is not null);
 
   -- Accès
@@ -137,7 +141,7 @@ begin
 
   -- Fiches référencées par l'équipe UZU
   e := pg_temp.da_err(A, 'select public.dir_admin_save(''{"name":"Club X","insee":"74010","disciplines":["grappling_nogi"],"status":"published"}''::jsonb)');
-  v_res := v_res || pg_temp.da_l('17', 'création de fiche référencée : réservée à l''équipe UZU', e ilike '%équipe UZU%', coalesce(e, 'accepté à tort'));
+  v_res := v_res || pg_temp.da_l('17', 'création de fiche référencée : réservée à l''équipe UZU', (e ilike '%équipe UZU%' or e ilike '%référent UZU%'), coalesce(e, 'accepté à tort'));
   j := pg_temp.da_j(P, 'select public.dir_admin_save(''{"name":"DA Club Annecy","insee":"74010","address":"Salle fictive","disciplines":["jjb_gi","grappling_nogi"],"welcome":{"price":"15 €"},"status":"published","sessions":[{"d":5,"s":"10:00","e":"12:00","disc":"grappling","kind":"open_mat"},{"d":3,"s":"18:30","e":"20:00","disc":"jjb","kind":"trial"}]}''::jsonb)');
   v_staff := j->>'slug';
   j := pg_temp.da_j(X1, 'select public.dir_search(''74010'', 25, null, ''open_mat'')');
@@ -154,8 +158,8 @@ begin
   for n in 1..4 loop perform pg_temp.da_err(X1, 'select public.dir_suggest(null, ''{"details":"encore"}''::jsonb)'); end loop;
   v_res := v_res || pg_temp.da_l('21', 'limite : 6e proposition du jour refusée', pg_temp.da_err(X1, 'select public.dir_suggest(null, ''{"details":"trop"}''::jsonb)') ilike '%aujourd%');
   v_res := v_res || pg_temp.da_l('22', 'propositions lisibles par l''équipe UZU seulement',
-    pg_temp.da_err(X1, 'select public.dir_admin_suggestions()') is not null and pg_temp.da_err(A, 'select public.dir_admin_suggestions()') is not null
-    and jsonb_array_length(pg_temp.da_j(P, 'select public.dir_admin_suggestions()')) >= 5);
+    pg_temp.da_err(X1, 'select public.dir_admin_suggestions(null)') is not null and pg_temp.da_err(A, 'select public.dir_admin_suggestions(null)') is not null
+    and jsonb_array_length(pg_temp.da_j(P, 'select public.dir_admin_suggestions(null)')) >= 5);
 
   raise exception using message = 'da_annulation';
   exception when others then

@@ -3,10 +3,11 @@
 // Le fil reste le volet par défaut et n'est pas modifié. Recherche réservée aux personnes connectées ;
 // localisation à la commune ; distances par tranches ; aucune donnée de membre.
 import { useEffect, useRef, useState } from "react"
-import { ArrowLeft, Check, ExternalLink, Mail, MapPin, Phone, Search } from "lucide-react"
+import { ModerationPane } from "@/components/uzu/directory-admin"
+import { ArrowLeft, Check, ExternalLink, Mail, MapPin, Phone, Search, ShieldCheck } from "lucide-react"
 import type { UzuContext } from "@/lib/uzu/context"
 import {
-  DAYS, DISC_LBL, DSHORT, KIND_LBL, KIND_SHORT, getClub, lastCommune, myDirClub, rememberCommune, saveMyDirClub, searchClubs, searchCommunes, sessionLine, suggestClub,
+  DAYS, DISC_LBL, DSHORT, KIND_LBL, KIND_SHORT, dirWhoami, getClub, lastCommune, myDirClub, rememberCommune, saveMyDirClub, searchClubs, searchCommunes, sessionLine, suggestClub,
   type Commune, type DirClub, type DirClubHit, type DirDisc, type DirKind, type DirSearch, type DirSession, type MyDirClub, type MySlot, type Welcome,
 } from "@/lib/uzu/directory"
 
@@ -62,12 +63,15 @@ export function ClubsPane({ tabs, onToast }: { tabs: React.ReactNode; onToast: (
   const [radius, setRadius] = useState(25), [disc, setDisc] = useState<DirDisc | null>(null), [kind, setKind] = useState<DirKind | null>(null)
   const [res, setRes] = useState<DirSearch | null>(null), [err, setErr] = useState(""), [busy, setBusy] = useState(false)
   const [open, setOpen] = useState<string | null>(null), [suggest, setSuggest] = useState<{ slug: string | null; name?: string } | null>(null)
+  const [moderator, setModerator] = useState(false), [admin, setAdmin] = useState(false)
+  useEffect(() => { let live = true; dirWhoami().then(v => { if (live) setModerator(v) }); return () => { live = false } }, [])
   useEffect(() => {
     if (!commune) return
     let live = true; setBusy(true); setErr("")
     searchClubs(commune.insee, radius, disc, kind, null).then(r => { if (!live) return; setBusy(false); if (r.ok) setRes(r.data); else { setRes(null); setErr(r.msg) } })
     return () => { live = false }
   }, [commune, radius, disc, kind])
+  if (admin && moderator) return <><Heading title="Clubs" sub="Open mats, cours ouverts et clubs qui accueillent les visiteurs." />{tabs}<ModerationPane onBack={() => setAdmin(false)} onToast={onToast} /></>
   if (suggest) return <><Heading title="Clubs" sub="Open mats, cours ouverts et clubs qui accueillent les visiteurs." />{tabs}<SuggestForm slug={suggest.slug} name={suggest.name} onCancel={() => setSuggest(null)} onDone={() => { setSuggest(null); onToast("Merci ! L'équipe UZU va vérifier ta proposition.") }} /></>
   if (open) return <><Heading title="Clubs" sub="Open mats, cours ouverts et clubs qui accueillent les visiteurs." />{tabs}<ClubSheet slug={open} onBack={() => setOpen(null)} onSuggest={(name) => setSuggest({ slug: open, name })} /></>
   return <>
@@ -91,6 +95,7 @@ export function ClubsPane({ tabs, onToast }: { tabs: React.ReactNode; onToast: (
         <ul className="uzu-dir-list">{res.clubs.map(c => <li key={c.slug}><ClubCard c={c} onOpen={() => setOpen(c.slug)} /></li>)}</ul>
       </section>}
     <p className="uzu-text uzu-small uzu-muted">Un club manque ? <button type="button" className="text-link uzu-dir-link" onClick={() => setSuggest({ slug: null })}>Propose-le à l&apos;équipe UZU</button></p>
+    {moderator && <button type="button" className="button button--outline uzu-small-btn" onClick={() => { setAdmin(true); window.scrollTo(0, 0) }}><ShieldCheck size={15} aria-hidden="true" />Espace référent UZU</button>}
   </>
 }
 
@@ -186,7 +191,7 @@ const commFrom = (insee: string | null, label: string | null): Commune | null =>
   const m = /^(.*) \(([^)]+)\)$/.exec(label || "")
   return { insee, nom: m ? m[1] : (label || insee), departement: m ? m[2] : "", code_postal: "" }
 }
-function Tick({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+export function Tick({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return <button type="button" role="checkbox" aria-checked={on} className={"uzu-lib-consent uzu-lib-consentbtn" + (on ? " is-on" : "")} onClick={onClick}>
     <span className="uzu-lib-tick" aria-hidden="true">{on && <Check size={16} strokeWidth={3} />}</span><span>{children}</span></button>
 }
@@ -219,11 +224,12 @@ export function DirClubPanel({ onToast }: { onToast: (m: string) => void }) {
       slots: slots.filter(x => x.pub).map(x => ({ id: x.id, kind: x.kind || "open_mat", price: x.price, notes: x.notes })) })
     setBusy(false)
     if (!r.ok) { onToast(r.msg); return }
-    onToast(pub ? "Fiche publiée dans l'annuaire UZU" : "Fiche enregistrée, non visible dans l'annuaire"); setTick(t => t + 1)
+    onToast(r.data?.moderated ? "Fiche enregistrée. Elle reste masquée par la modération UZU" : pub ? "Fiche publiée dans l'annuaire UZU" : "Fiche enregistrée, non visible dans l'annuaire"); setTick(t => t + 1)
   }
   const inp = (k: keyof typeof f, label: string, max: number, extra: Record<string, unknown> = {}) => <div className="uzu-field"><label className="uzu-label" htmlFor={"dir-" + k}>{label}</label><input id={"dir-" + k} className="uzu-input" maxLength={max} value={f[k]} onChange={e => setF({ ...f, [k]: e.target.value })} {...extra} /></div>
   return <section className="panel uzu-panel-col uzu-grid-gap" aria-label="Fiche dans l'annuaire UZU">
     <div className="section-title"><h2>Fiche dans l&apos;annuaire UZU</h2>{d.exists && <span className={"uzu-dir-badge" + (d.status === "published" ? "" : " uzu-dir-badge--ref")}>{d.status === "published" ? "Publiée" : "Non visible"}</span>}</div>
+    {d.moderated && <div className="uzu-banner" role="status"><b>Fiche masquée par l&apos;équipe UZU.</b> Elle n&apos;apparaît plus dans l&apos;annuaire, même publiée. Contacte l&apos;équipe UZU pour en connaître le motif.</div>}
     <p className="uzu-text uzu-small uzu-muted">Les pratiquants connectés à UZU trouvent ton club, ses open mats et ses cours ouverts aux visiteurs. Seules les informations ci-dessous sont visibles ; aucune donnée d&apos;élève n&apos;est publiée.</p>
     <Tick on={pub} onClick={() => setPub(v => !v)}>Publier la fiche du club dans l&apos;annuaire</Tick>
     <CommunePicker id="dir-my-commune" label="Commune de la salle" value={commune} onPick={setCommune} />

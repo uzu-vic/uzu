@@ -86,7 +86,7 @@ with sync_playwright() as pw:
     pg.add_init_script(f"if (!sessionStorage.getItem('uzu-test-init')) {{ sessionStorage.setItem('uzu-test-init','1'); localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(SESS))}); }}")
     pg.goto(BASE); pg.wait_for_timeout(2000)
     nav=lambda t: (pg.locator(".mobile-bottom-nav button", has_text="Plus").click(), pg.wait_for_timeout(300), pg.locator(".nav-item", has_text=t).click(), pg.wait_for_timeout(1800))
-    nav("Fil du club")
+    nav("Tatami")
     flags=pg.locator(".uzu-fc-flag")
     check("fil : « Signaler » sur les publications des autres seulement", flags.count()==2 and pg.locator(".uzu-fcard.mine .uzu-fc-flag").count()==0, flags.count())
     flags.first.click(); pg.wait_for_timeout(200)

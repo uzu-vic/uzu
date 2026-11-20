@@ -1,0 +1,45 @@
+-- =========================================================================================
+-- UZU — « Où rouler ? » : DÉSIGNER (OU RETIRER) UN RÉFÉRENT UZU DE L'ANNUAIRE
+-- NE PAS EXÉCUTER avant la désignation écrite par Ali. Aucun compte n'est désigné à ce jour.
+--
+-- Ce que le rôle donne : l'espace « Référent UZU » de l'annuaire (fiches référencées, propositions,
+-- masquage de modération, journal). Rien d'autre : pas d'accès aux clubs, élèves, séances, vidéos,
+-- ni aux droits d'administrateur de la plateforme.
+--
+-- Mode d'emploi (base de test d'abord, production seulement après autorisation explicite) :
+--   1. remplacer ADRESSE_A_DESIGNER par l'adresse du compte UZU de la personne désignée ;
+--   2. remplacer MOTIF par la référence de la décision (ex. « Décision d'Ali du JJ/MM/AAAA ») ;
+--   3. exécuter ; la dernière ligne affiche les référents actifs.
+-- Pour retirer le rôle : utiliser le bloc RETRAIT en bas (le journal de modération est conservé).
+-- =========================================================================================
+do $$
+declare
+  v_email text := 'ADRESSE_A_DESIGNER';
+  v_note  text := 'MOTIF';
+  v_uid uuid;
+begin
+  if v_email = 'ADRESSE_A_DESIGNER' or v_note = 'MOTIF' then
+    raise exception 'Arrêt : renseigne l''adresse du compte désigné et le motif. Rien n''a été fait.';
+  end if;
+  if to_regclass('public.dir_moderators') is null then raise exception 'Arrêt : uzu-14a2 n''est pas installé.'; end if;
+  select id into v_uid from auth.users where lower(email) = lower(btrim(v_email));
+  if v_uid is null then raise exception 'Arrêt : aucun compte UZU avec cette adresse. Rien n''a été fait.'; end if;
+  insert into public.dir_moderators (user_id, label, active, granted_note, revoked_at)
+  values (v_uid, 'Référent UZU', true, left(v_note, 200), null)
+  on conflict (user_id) do update set active = true, revoked_at = null, granted_at = now(), granted_note = excluded.granted_note;
+  insert into public.dir_moderation_log (actor, action, target, details) values (null, 'moderator.granted', v_uid::text, jsonb_build_object('note', left(v_note, 200)));
+end $$;
+
+select m.label, coalesce(nullif(p.display_name, ''), 'compte ' || left(m.user_id::text, 8)) as personne, m.granted_at, m.granted_note
+  from public.dir_moderators m left join public.profiles p on p.user_id = m.user_id
+ where m.active and m.revoked_at is null;
+
+-- ----------------------------------------------------------------------------------------- RETRAIT
+-- do $$
+-- declare v_email text := 'ADRESSE_A_RETIRER'; v_uid uuid;
+-- begin
+--   select id into v_uid from auth.users where lower(email) = lower(btrim(v_email));
+--   if v_uid is null then raise exception 'Arrêt : aucun compte avec cette adresse.'; end if;
+--   update public.dir_moderators set active = false, revoked_at = now() where user_id = v_uid;
+--   insert into public.dir_moderation_log (actor, action, target) values (null, 'moderator.revoked', v_uid::text);
+-- end $$;

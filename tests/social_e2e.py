@@ -50,7 +50,7 @@ with sync_playwright() as pw:
     pg.goto(BASE); pg.wait_for_timeout(2000)
     nav=lambda t: (pg.locator(".mobile-bottom-nav button", has_text="Plus").click(), pg.wait_for_timeout(300), pg.locator(".nav-item", has_text=t).click(), pg.wait_for_timeout(1800))
     print("# Fil du club")
-    nav("Fil du club"); t=pg.inner_text(".page-content"); pg.screenshot(path="/tmp/feed_mob.png", full_page=True)
+    nav("Tatami"); t=pg.inner_text(".page-content"); pg.screenshot(path="/tmp/feed_mob.png", full_page=True)
     check("activité d'un coéquipier affichée", "Sarah M." in t and "Séance validée" in t, t[:300])
     check("ma propre activité affichée (partage activé)", "(toi)" in t)
     check("encouragement reçu compté sur ma séance", "👊 1" in t)
