@@ -1,29 +1,35 @@
 -- =========================================================================================
--- UZU — « Où rouler ? » : DÉSIGNER (OU RETIRER) UN RÉFÉRENT UZU DE L'ANNUAIRE
--- NE PAS EXÉCUTER avant la désignation écrite par Ali. Aucun compte n'est désigné à ce jour.
+-- UZU — « Où rouler ? » : DÉSIGNER (OU RETIRER) UN RÉFÉRENT UZU DE L'ANNUAIRE — BASE DE TEST
+-- NE PAS EXÉCUTER sans l'accord écrit d'Ali, qui nomme le compte. Aucun compte n'est désigné à ce jour.
+-- Cette version refuse de tourner hors de la base de test (ntypsrdwxrkanahhuixx). La version de
+-- production sera préparée à part, avec le plan de production, et soumise à autorisation.
 --
 -- Ce que le rôle donne : l'espace « Référent UZU » de l'annuaire (fiches référencées, propositions,
 -- masquage de modération, journal). Rien d'autre : pas d'accès aux clubs, élèves, séances, vidéos,
 -- ni aux droits d'administrateur de la plateforme.
 --
--- Mode d'emploi (base de test d'abord, production seulement après autorisation explicite) :
---   1. remplacer ADRESSE_A_DESIGNER par l'adresse du compte UZU de la personne désignée ;
---   2. remplacer MOTIF par la référence de la décision (ex. « Décision d'Ali du JJ/MM/AAAA ») ;
---   3. exécuter ; la dernière ligne affiche les référents actifs.
--- Pour retirer le rôle : utiliser le bloc RETRAIT en bas (le journal de modération est conservé).
+-- Mode d'emploi :
+--   1. remplacer ADRESSE_A_DESIGNER par l'adresse du compte UZU (base de test) de la personne désignée ;
+--   2. remplacer MOTIF par la référence de la décision (ex. « Accord d'Ali du 20/11/2026, essai base de test ») ;
+--   3. exécuter dans l'éditeur SQL de la base de TEST ; la dernière requête affiche les référents actifs.
+-- Pour retirer le rôle : bloc RETRAIT en bas (le journal de modération est conservé).
 -- =========================================================================================
 do $$
 declare
   v_email text := 'ADRESSE_A_DESIGNER';
   v_note  text := 'MOTIF';
-  v_uid uuid;
+  v_url text; v_uid uuid;
 begin
+  select decrypted_secret into v_url from vault.decrypted_secrets where name = 'class_media_function_url';
+  if v_url is null or v_url not like '%ntypsrdwxrkanahhuixx%' then
+    raise exception 'Arrêt : cette base n''est pas reconnue comme la base de test. Rien n''a été fait.';
+  end if;
   if v_email = 'ADRESSE_A_DESIGNER' or v_note = 'MOTIF' then
     raise exception 'Arrêt : renseigne l''adresse du compte désigné et le motif. Rien n''a été fait.';
   end if;
   if to_regclass('public.dir_moderators') is null then raise exception 'Arrêt : uzu-14a2 n''est pas installé.'; end if;
   select id into v_uid from auth.users where lower(email) = lower(btrim(v_email));
-  if v_uid is null then raise exception 'Arrêt : aucun compte UZU avec cette adresse. Rien n''a été fait.'; end if;
+  if v_uid is null then raise exception 'Arrêt : aucun compte UZU avec cette adresse sur la base de test. Rien n''a été fait.'; end if;
   insert into public.dir_moderators (user_id, label, active, granted_note, revoked_at)
   values (v_uid, 'Référent UZU', true, left(v_note, 200), null)
   on conflict (user_id) do update set active = true, revoked_at = null, granted_at = now(), granted_note = excluded.granted_note;
@@ -36,8 +42,10 @@ select m.label, coalesce(nullif(p.display_name, ''), 'compte ' || left(m.user_id
 
 -- ----------------------------------------------------------------------------------------- RETRAIT
 -- do $$
--- declare v_email text := 'ADRESSE_A_RETIRER'; v_uid uuid;
+-- declare v_email text := 'ADRESSE_A_RETIRER'; v_url text; v_uid uuid;
 -- begin
+--   select decrypted_secret into v_url from vault.decrypted_secrets where name = 'class_media_function_url';
+--   if v_url is null or v_url not like '%ntypsrdwxrkanahhuixx%' then raise exception 'Arrêt : pas la base de test.'; end if;
 --   select id into v_uid from auth.users where lower(email) = lower(btrim(v_email));
 --   if v_uid is null then raise exception 'Arrêt : aucun compte avec cette adresse.'; end if;
 --   update public.dir_moderators set active = false, revoked_at = now() where user_id = v_uid;
