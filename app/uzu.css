@@ -751,3 +751,12 @@ button.uzu-jv-bar:hover .uzu-jv-bl { text-decoration: underline; }
 .uzu-cm-head { display: flex; align-items: baseline; justify-content: space-between; }
 .uzu-cm-row { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 8px; }
 .uzu-cm-row > span { display: inline-flex; flex: 1; align-items: center; gap: 6px; }
+/* Class Media : message quand l'ajout est bloqué ; encadré Groupes (Équipe) */
+.uzu-cm-hint { margin-top: 2px; }
+.uzu-cm-manager .button:disabled { opacity: .45; cursor: not-allowed; }
+.uzu-gr-row { flex-wrap: wrap; gap: 8px 14px; }
+.uzu-gr-name { flex: 1; min-width: 0; }
+.uzu-gr-acts { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.uzu-gr-edit { display: flex; flex: 1; flex-wrap: wrap; gap: 8px; align-items: center; }
+.uzu-gr-edit .uzu-input { flex: 1; min-width: 160px; }
+.uzu-gr-row > .uzu-gr-acts { flex: 0 0 auto; justify-content: flex-end; }

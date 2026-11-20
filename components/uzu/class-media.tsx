@@ -4,6 +4,7 @@
 // option « Groupe de mineurs ». Les droits sont vérifiés par le serveur à chaque action et à chaque lecture.
 import { useEffect, useRef, useState } from "react"
 import { Camera, Film, ShieldAlert } from "lucide-react"
+import { saveSection } from "@/lib/uzu/club"
 import {
   addMedia, handleRequest, mediaQueue, mediaTicket, photoBlobUrl, removeMedia, requestRemoval, restoreMedia, sectionMinorsList, sessionMedia,
   setSectionMinors, validateMedia, videoSrc, REQ_LBL, STATE_LBL, VALID_LBL, type MediaItem, type QueueItem, type SessionMedia, type UploadStep,
@@ -44,12 +45,14 @@ function PhotoView({ m, onGone }: { m: MediaItem; onGone: () => void }) {
 
 function VideoView({ m, onGone }: { m: MediaItem; onGone: () => void }) {
   const ref = useRef<HTMLVideoElement | null>(null)
-  const [src, setSrc] = useState(""), [err, setErr] = useState(""), retries = useRef(0)
+  const [src, setSrc] = useState(""), [err, setErr] = useState(""), retries = useRef(0), seq = useRef(0)
   const load = async (keepTime: boolean) => {
     const t = await mediaTicket(m.id)
     if (!t.ok) { setErr("Vidéo retirée ou plus accessible"); setSrc(""); onGone(); return }
     const at = keepTime && ref.current ? ref.current.currentTime : 0, playing = !!ref.current && !ref.current.paused
-    setSrc(videoSrc(t.data.token))
+    const url = await videoSrc(m.id, t.data, ++seq.current)
+    if (!url) { setErr("Lecture de la vidéo impossible pour le moment"); setSrc(""); return }
+    setSrc(url)
     if (keepTime) setTimeout(() => { if (ref.current) { ref.current.currentTime = at; if (playing) ref.current.play().catch(() => {}) } }, 50)
   }
   useEffect(() => { load(false); return () => { if (ref.current) { ref.current.removeAttribute("src"); ref.current.load() } } }, [m.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -162,6 +165,7 @@ export function MediaManager({ sessionId, onToast }: { sessionId: string | null;
       </div>
       <input ref={photo} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden onChange={e => { send(e.target.files?.[0], "photo"); e.target.value = "" }} />
       <input ref={video} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={e => { send(e.target.files?.[0], "video"); e.target.value = "" }} />
+      {!ready && !step && <p className="uzu-note wait uzu-cm-hint" role="status">{!rights ? "Coche la case d'accord pour ajouter un média." : "Groupe de mineurs : coche aussi la case des autorisations écrites pour ajouter un média."}</p>}
       <p className="uzu-text uzu-small uzu-muted">Photo réduite à 1600 px et sans métadonnées. Vidéo MP4, MOV ou WebM de 50 Mo au plus, sans sa localisation.{d.minors ? " Groupe de mineurs : le média reste invisible jusqu'à la validation d'un responsable." : ""}</p>
     </>}
     {full && <p className="uzu-text uzu-small uzu-muted">Limite de {d.max} médias atteinte pour cette séance.</p>}
@@ -182,20 +186,35 @@ export function MediaQueueBlock({ onOpen }: { onOpen: (session: string) => void 
 }
 
 // ---------------------------------------------------------------- Équipe : groupes de mineurs
-export function MinorGroupsPanel({ onToast }: { onToast: Toast }) {
-  const [d, setD] = useState<{ can_update: boolean; sections: { id: string; name: string; minors: boolean }[] } | null>(null)
-  const [tick, setTick] = useState(0), [arm, setArm] = useState("")
+export function GroupsPanel({ canEdit, disc, onToast, onChanged }: { canEdit: boolean; disc: Record<string, string>; onToast: Toast; onChanged?: () => void }) {
+  type G = { id: string; name: string; minors: boolean }
+  const [d, setD] = useState<{ can_update: boolean; sections: G[] } | null>(null)
+  const [tick, setTick] = useState(0), [arm, setArm] = useState(""), [ren, setRen] = useState(""), [name, setName] = useState(""), [fresh, setFresh] = useState(""), [busy, setBusy] = useState(false)
   useEffect(() => { let live = true; sectionMinorsList().then(r => { if (live && r.ok && r.data && Array.isArray(r.data.sections)) setD(r.data) }); return () => { live = false } }, [tick])
-  if (!d || !d.sections.length) return null
-  return <section className="panel uzu-panel-col uzu-grid-gap" aria-labelledby="mg-h">
-    <div className="section-title"><h2 id="mg-h">Groupes de mineurs</h2></div>
-    <p className="uzu-text uzu-small uzu-muted">Dans un groupe de mineurs, chaque photo ou vidéo de séance demande une deuxième confirmation et reste invisible jusqu'à la validation d'un responsable. En cochant un groupe, ses médias déjà en ligne repassent en attente.</p>
-    {d.sections.map(s => <div key={s.id} className="uzu-cm-row">
-      <span><b>{s.name}</b> {s.minors ? <span className="uzu-lib-badge uzu-cm-va--pending_validation">Groupe de mineurs</span> : null}</span>
-      {d.can_update && (arm === s.id
-        ? <button type="button" className="button button--outline uzu-small-btn is-armed" onClick={async () => { setArm(""); const r = await setSectionMinors(s.id, !s.minors); onToast(r.ok ? (s.minors ? "Option retirée" : `Groupe de mineurs : ${r.data} média(s) à revalider`) : r.msg); setTick(x => x + 1) }}>{s.minors ? "Confirmer : retirer l'option" : "Confirmer : groupe de mineurs"}</button>
-        : <button type="button" className="text-link" onClick={() => setArm(s.id)}>{s.minors ? "Retirer l'option" : "Marquer comme groupe de mineurs"}</button>)}
+  if (!d) return null
+  const done = () => { setTick(x => x + 1); onChanged?.() }
+  const create = async () => { const n = fresh.trim(); if (!n) { onToast("Donne un nom au groupe"); return } setBusy(true); const r = await saveSection(null, n, ""); setBusy(false); onToast(r.ok ? "Groupe créé" : r.msg); if (r.ok) { setFresh(""); done() } }
+  const rename = async (g: G) => { const n = name.trim(); if (!n) { onToast("Donne un nom au groupe"); return } setBusy(true); const r = await saveSection(g.id, n, disc[g.id] || ""); setBusy(false); onToast(r.ok ? "Groupe renommé" : r.msg); if (r.ok) { setRen(""); done() } }
+  return <section className="panel uzu-panel-col uzu-grid-gap" aria-labelledby="gr-h">
+    <div className="section-title"><h2 id="gr-h">Groupes</h2></div>
+    <p className="uzu-text uzu-small uzu-muted">Les groupes servent au Journal des cours, aux cours du planning et aux fiches élèves. Dans un groupe de mineurs, chaque photo ou vidéo de séance demande une deuxième confirmation et reste invisible jusqu'à la validation d'un responsable ; en cochant un groupe, ses médias déjà en ligne repassent en attente.</p>
+    {!d.sections.length && <p className="uzu-text uzu-muted">Aucun groupe pour l'instant.</p>}
+    {d.sections.map(g => <div key={g.id} className="uzu-cm-row uzu-gr-row">
+      {ren === g.id
+        ? <span className="uzu-gr-edit"><input className="uzu-input" aria-label={`Nouveau nom de ${g.name}`} maxLength={60} value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") rename(g) }} />
+            <button type="button" className="button button--dark uzu-small-btn" disabled={busy} onClick={() => rename(g)}>Enregistrer</button>
+            <button type="button" className="text-link" onClick={() => setRen("")}>Annuler</button></span>
+        : <span className="uzu-gr-name"><b>{g.name}</b> {g.minors ? <span className="uzu-lib-badge uzu-cm-va--pending_validation">Groupe de mineurs</span> : null}</span>}
+      {ren !== g.id && <span className="uzu-gr-acts">
+        {canEdit && <button type="button" className="text-link" onClick={() => { setRen(g.id); setName(g.name); setArm("") }}>Renommer</button>}
+        {d.can_update && (arm === g.id
+          ? <button type="button" className="button button--outline uzu-small-btn is-armed" onClick={async () => { setArm(""); const r = await setSectionMinors(g.id, !g.minors); onToast(r.ok ? (g.minors ? "Option retirée" : `Groupe de mineurs : ${r.data} média(s) à revalider`) : r.msg); done() }}>{g.minors ? "Confirmer : retirer l'option" : "Confirmer : groupe de mineurs"}</button>
+          : <button type="button" className="text-link" onClick={() => setArm(g.id)}>{g.minors ? "Retirer l'option" : "Marquer comme groupe de mineurs"}</button>)}
+      </span>}
     </div>)}
-    {!d.can_update && <p className="uzu-text uzu-small uzu-muted">Seul le droit « Groupes de mineurs » permet de modifier cette option.</p>}
+    {canEdit && <div className="uzu-row2"><div className="uzu-field"><label className="uzu-label" htmlFor="gr-new">Nouveau groupe</label><input id="gr-new" className="uzu-input" maxLength={60} placeholder="Ex. : Adultes Gi, Enfants, Compétition" value={fresh} onChange={e => setFresh(e.target.value)} onKeyDown={e => { if (e.key === "Enter") create() }} /></div>
+      <div className="uzu-field uzu-field--end"><button type="button" className="button button--outline uzu-small-btn" disabled={busy} onClick={create}>Créer le groupe</button></div></div>}
+    {!canEdit && !d.can_update && <p className="uzu-text uzu-small uzu-muted">Seuls le droit « Paramètres de l'académie » (créer, renommer) et le droit « Groupes de mineurs » permettent de modifier les groupes.</p>}
+    {canEdit && !d.can_update && <p className="uzu-text uzu-small uzu-muted">Seul le droit « Groupes de mineurs » permet de déclarer un groupe de mineurs.</p>}
   </section>
 }

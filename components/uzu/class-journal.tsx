@@ -265,7 +265,7 @@ export function StaffJournal({ ctx, onToast, init }: { ctx: UzuContext | null; o
   const shown = (list || []).filter(s => s.status !== "brouillon")
   return <div className="uzu-lib uzu-jr">
     {canCreate && <button type="button" className="button button--dark uzu-jr-new" onClick={() => setEdit("new")}><Plus size={17} aria-hidden="true" />Nouvelle séance</button>}
-    {!groups.length && <p className="uzu-lib-empty">Aucun groupe dans le club pour l'instant. Les groupes du Journal sont les sections de l'académie : le responsable les crée dans Équipe.</p>}
+    {!groups.length && <p className="uzu-lib-empty">Aucun groupe dans le club pour l'instant. Les groupes du Journal sont les sections de l'académie : le responsable les crée dans Équipe, encadré « Groupes ».</p>}
     <div className="uzu-jr-grid">
       <label className="uzu-field"><span className="uzu-label">Groupe</span><select className="uzu-input" value={section} onChange={e => setSection(e.target.value)}><option value="">Tous les groupes</option>{groups.filter(g => g.can_view || g.can_create).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
       {lib && <label className="uzu-field"><span className="uzu-label">Discipline</span><select className="uzu-input" value={disc} onChange={e => setDisc(e.target.value)}><option value="">Toutes</option>{lib.disciplines.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}</select></label>}

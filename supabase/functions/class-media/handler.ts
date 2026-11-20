@@ -92,7 +92,9 @@ export function makeHandler(env: Env, fetchImpl: Fetch = fetch, log: (o: Json) =
   // ---- stream : une requête = un contrôle en base
   const stream = async (req: Request, u: URL) => {
     const t0 = Date.now()
-    const tok = req.headers.get("x-media-ticket") || u.searchParams.get("t") || ""
+    // Jeton accepté UNIQUEMENT dans un en-tête : une adresse est conservée dans les journaux d'appels de la plateforme
+    if (u.searchParams.has("t")) { log({ a: "stream", ok: false, code: "token_in_url" }); return json(req, 400, { error: "Jeton refusé dans l'adresse", code: "token_in_url" }) }
+    const tok = req.headers.get("x-media-ticket") || ""
     if (!/^[0-9a-f]{64}$/.test(tok)) return json(req, 403, { error: "Accès refusé", code: "invalid" })
     const ck = await rpc("media_stream_check", { p_token_hash: await sha256(tok) }) as { ok: boolean; code?: string; media?: string; kind?: string; bucket?: string; path?: string; mime?: string; size?: number; chunk?: number }
     if (!ck.ok) { log({ a: "stream", ok: false, code: ck.code }); return json(req, 403, { error: "Accès refusé", code: ck.code || "denied" }) }

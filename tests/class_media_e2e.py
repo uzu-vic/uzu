@@ -9,6 +9,9 @@ from PIL import Image
 from playwright.sync_api import sync_playwright
 src = open("tests/class_journal_e2e.py").read().split("\nwith sync_playwright()")[0]
 exec(src)  # Mock, S, ctx, open_page, courses… du parcours du Journal
+_open_page = open_page
+def open_page(b, m, *a, **k):
+    c, pg, errs = _open_page(b, m, *a, **k); pg.route("**/api/cm/video/**", m.video); return c, pg, errs
 
 FIX = "tests/fixtures/class-media/"
 WEBM = open(FIX + "long.webm", "rb").read()  # 20 s : la lecture se fait en plusieurs morceaux
@@ -40,6 +43,15 @@ class MediaMock(Mock):
             elif s.visible(m): out.append(dict(id=m["id"], kind=m["kind"], position=m["position"], created_at=d(1), viewable=True))
         used = len([m for m in L if m["state"] in ("ready", "quarantined", "uploading")])
         return dict(max=4, max_bytes=52428800, minors=s.minors, can_add=staff, can_validate=staff, used=used, items=out)
+    def video(s, route):  # relais du site /api/cm/video/<id> : le navigateur n'envoie que le cookie, jamais de jeton dans l'adresse
+        r = route.request; u = r.url; h = r.all_headers()
+        mid = up.urlparse(u).path.split("/api/cm/video/")[1]
+        ck = dict(x.strip().split("=", 1) for x in (h.get("cookie") or "").split(";") if "=" in x)
+        s.fn_calls.append(("stream", r.method, {"range": h.get("range", ""), "x-media-ticket": ck.get("uzu_cmv", ""), "via": "site", "url": u}, None))
+        tok = ck.get("uzu_cmv", "")
+        if tok != HEX(mid) or mid in s.denied: return route.fulfill(status=403, content_type="application/json", headers={"Cache-Control": "no-store, private"}, body=json.dumps({"error": "Accès refusé", "code": "denied"}))
+        rg = re.match(r"bytes=(\d+)-(\d*)", h.get("range", "") or "bytes=0-"); a = int(rg.group(1)); e = min(int(rg.group(2) or len(WEBM) - 1), a + 262143, len(WEBM) - 1)
+        return route.fulfill(status=206, headers={"Content-Type": "video/webm", "Content-Range": f"bytes {a}-{e}/{len(WEBM)}", "Accept-Ranges": "bytes", "Cache-Control": "no-store, private"}, body=WEBM[a:e + 1])
     def handle(s, route):
         r = route.request; u = r.url
         J = lambda o, st=200: route.fulfill(status=st, content_type="application/json", headers={"Access-Control-Allow-Origin": "http://127.0.0.1:3100", "Access-Control-Allow-Headers": "*", "Cache-Control": "no-store, private"}, body=json.dumps(o))
@@ -74,6 +86,7 @@ class MediaMock(Mock):
             return J({"error": "?"}, 404)
         if "/rpc/" in u:
             name = u.split("/rpc/")[1].split("?")[0]; a = json.loads(r.post_data or "{}")
+            if name == "upsert_section": s.calls.append((name, a)); return J("sec-new")
             media_fns = {"session_media", "media_ticket", "media_reserve", "media_validate", "media_remove", "media_request_removal", "media_handle_request", "media_restore", "section_minors_list", "set_section_minors", "media_queue"}
             if name in media_fns:
                 s.calls.append((name, a))
@@ -119,9 +132,10 @@ with sync_playwright() as p:
     check("photo : affichée depuis la mémoire (blob), jeton passé en en-tête", img.count() == 1 and img.get_attribute("src").startswith("blob:") and any(a == "stream" and h.get("x-media-ticket") == HEX("p1") and "t=" not in "" for a, _, h, _ in m.fn_calls))
     vid = g.locator("video.uzu-cm-video").first
     vs = vid.get_attribute("src") or ""
-    check("vidéo : adresse de la fonction serveur avec jeton opaque, jamais un lien de stockage", vs.startswith(f"https://{REF}.supabase.co/functions/v1/class-media/stream?t=") and "storage" not in vs, vs)
+    check("vidéo : adresse du site SANS jeton (ni lien de stockage, ni adresse de la fonction)", re.fullmatch(r"/api/cm/video/v\d\?n=\d+", vs) is not None and HEX("v1") not in vs and HEX("v2") not in vs, vs)
     pg.wait_for_timeout(1500)
-    check("vidéo : lecture par plages (Range) servies en 206", any(a == "stream" and (h.get("range") or "").startswith("bytes=") for a, _, h, _ in m.fn_calls))
+    check("vidéo : lecture par plages (Range) servies en 206, jeton dans un cookie du site", any(a == "stream" and h.get("via") == "site" and (h.get("range") or "").startswith("bytes=") and len(h.get("x-media-ticket", "")) == 64 for a, _, h, _ in m.fn_calls))
+    check("vidéo : aucune requête portant un jeton dans l'adresse", not any("t=" in (h.get("url") or "") or "stream?t" in (h.get("url") or "") for a, _, h, _ in m.fn_calls) and not any("/functions/v1/class-media/stream?" in x for x in pg.evaluate("performance.getEntriesByType('resource').map(e => e.name)")))
     check("lecture : aucune requête de lecture vers le stockage depuis le navigateur", not [x for x in m.reads if x[0] == "GET"] and not any("sign" in x[1] for x in m.reads), m.reads)
     pg.screenshot(path="/tmp/cm_staff.png", full_page=True)
     it = g.locator(".uzu-cm-item").nth(2)
@@ -161,7 +175,10 @@ with sync_playwright() as p:
     mm = pg.locator(".uzu-cm-manager")
     bp = mm.get_by_role("button", name="Ajouter une photo")
     check("saisie : compteur « 1 sur 4 », boutons bloqués sans la case d'accord", "1 sur 4" in mm.inner_text() and bp.is_disabled())
+    mm.screenshot(path="/tmp/cm_hint.png")
+    check("amélioration : message visible « Coche la case d'accord pour ajouter un média. »", mm.locator(".uzu-cm-hint").count() == 1 and "Coche la case d'accord pour ajouter un média." in mm.locator(".uzu-cm-hint").inner_text())
     mm.locator("input[type=checkbox]").first.check()
+    check("amélioration : le message disparaît dès que la case est cochée", mm.locator(".uzu-cm-hint").count() == 0 and not bp.is_disabled())
     with pg.expect_file_chooser() as fc: bp.click()
     fc.value.set_files(FIX + "photo_gps.jpg"); pg.wait_for_timeout(2500)
     rs = m.last("media_reserve"); upl = m.uploads[-1] if m.uploads else {}
@@ -180,8 +197,16 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/cm_editor.png", full_page=True)
     # Équipe : groupes de mineurs
     pg.locator(".primary-nav .nav-item", has_text="Équipe").first.click(); pg.wait_for_timeout(1800)
-    mg = pg.locator("section[aria-labelledby=mg-h]")
-    check("Équipe : panneau « Groupes de mineurs »", mg.count() == 1 and "No-Gi" in mg.inner_text() and "Groupe de mineurs" in mg.inner_text())
+    mg = pg.locator("section[aria-labelledby=gr-h]")
+    check("Équipe : encadré « Groupes » visible (groupes, option mineurs, création)", mg.count() == 1 and "No-Gi" in mg.inner_text() and "Groupe de mineurs" in mg.inner_text() and mg.get_by_role("button", name="Créer le groupe").count() == 1)
+    mg.get_by_label("Nouveau groupe").fill("Enfants"); mg.get_by_role("button", name="Créer le groupe").click(); pg.wait_for_timeout(800)
+    cr = m.last("upsert_section")
+    check("Groupes : création envoyée au serveur", cr and cr[-1] == {"p_id": None, "p_name": "Enfants", "p_discipline": ""}, cr[-1] if cr else None)
+    mg.locator(".uzu-gr-row", has_text="Adultes Gi").get_by_role("button", name="Renommer").click()
+    mg.get_by_label("Nouveau nom de Adultes Gi").fill("Adultes Gi avancés"); mg.get_by_role("button", name="Enregistrer").click(); pg.wait_for_timeout(800)
+    rn = m.last("upsert_section")
+    mg.screenshot(path="/tmp/cm_groups.png")
+    check("Groupes : renommage envoyé au serveur, discipline conservée", rn and rn[-1]["p_id"] == GI and rn[-1]["p_name"] == "Adultes Gi avancés" and "p_discipline" in rn[-1], rn[-1] if rn else None)
     mg.get_by_role("button", name="Marquer comme groupe de mineurs").click(); mg.get_by_role("button", name="Confirmer : groupe de mineurs").click(); pg.wait_for_timeout(800)
     check("V3/V4 · option cochée avec confirmation, envoyée au serveur", m.last("set_section_minors")[-1] == {"p_section": GI, "p_minors": True})
     check("responsable : aucune erreur JavaScript", not errs, errs); c.close()
@@ -194,6 +219,7 @@ with sync_playwright() as p:
     mm = pg.locator(".uzu-cm-manager"); boxes = mm.locator("input[type=checkbox]")
     boxes.first.check()
     check("12 · groupe de mineurs : deuxième case obligatoire avant tout envoi", boxes.count() == 2 and mm.get_by_role("button", name="Ajouter une photo").is_disabled() and "autorisations écrites" in mm.inner_text())
+    check("amélioration : message dédié tant que la case des autorisations écrites n'est pas cochée", "coche aussi la case des autorisations écrites" in mm.locator(".uzu-cm-hint").inner_text())
     boxes.nth(1).check()
     with pg.expect_file_chooser() as fc: mm.get_by_role("button", name="Ajouter une photo").click()
     fc.value.set_files(FIX + "photo_gps.jpg"); pg.wait_for_timeout(2500)

@@ -21,7 +21,7 @@ import { checkVideo, loadVideos, removeVideo, uploadVideo, videoSlots, type Vide
 import { useLibrary } from "@/components/uzu/library"
 import { ClubLibrary, type ClubTab } from "@/components/uzu/library-contrib"
 import { GroupFocusSection } from "@/components/uzu/group-focus"
-import { MinorGroupsPanel } from "@/components/uzu/class-media"
+import { GroupsPanel } from "@/components/uzu/class-media"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -301,7 +301,7 @@ export function ClubTeam({ uid, ctx, onToast, onReloadCtx }: AdminProps) {
       </div>)}
       {!team.members.length && !team.invitations.length && <p className="uzu-text uzu-muted">Aucun membre pour l'instant.</p>}
     </section>
-    <MinorGroupsPanel onToast={onToast} />
+    <GroupsPanel canEdit={can(ctx, "academy_settings", "update")} disc={Object.fromEntries(team.sections.map(x => [x.id, x.discipline || ""]))} onToast={onToast} onChanged={reload} />
     <div className="content-grid team-lower">
       <section className="panel"><div className="panel-header"><div className="section-title"><h2>Rôles &amp; permissions</h2></div></div>
         {roles.map(r => { const x = roleSummary(r); return <div className="permission-row" key={r}><span className="permission-shield"><ShieldCheck size={15} /></span>

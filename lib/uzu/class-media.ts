@@ -52,8 +52,14 @@ export const reconcileSession = (session: string) => fn<{ done: number }>("recon
 
 export type Ticket = { token: string; expires_in: number; kind: string; mime: string; size: number }
 export const mediaTicket = (media: string) => rpc<Ticket>("media_ticket", { p_media: media })
-/** Adresse de lecture vidéo : seul un jeton opaque y figure, jamais un lien ni un chemin de stockage */
-export const videoSrc = (token: string) => `${FN_URL}/stream?t=${token}`
+/** Adresse de lecture vidéo : relais du site, sans jeton (ni lien ni chemin de stockage) dans l'adresse.
+ *  Le jeton est confié au site, qui le garde dans un cookie HttpOnly limité à cette vidéo (lib/uzu/cm-proxy.ts). */
+export async function videoSrc(media: string, t: Ticket, n: number): Promise<string | null> {
+  try {
+    const r = await fetch("/api/cm/ticket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ media, token: t.token, expires_in: t.expires_in }), cache: "no-store", credentials: "same-origin" })
+    return r.ok ? `/api/cm/video/${media}?n=${n}` : null
+  } catch { return null }
+}
 /** Photo : jeton passé dans un en-tête, image gardée en mémoire le temps de l'affichage */
 export async function photoBlobUrl(token: string): Promise<{ ok: true; url: string } | { ok: false; code: string }> {
   try {

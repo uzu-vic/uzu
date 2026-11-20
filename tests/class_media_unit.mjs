@@ -1,6 +1,7 @@
 // Class Media — tests de la fonction serveur et du module de formats, sans réseau (node tests/class_media_unit.mjs)
 import { detectMime, photoHasMetadata, moovHasLocation, neutralizeLocation, findTopBox, parseRange } from "../supabase/functions/_shared/media-format.ts"
 import { makeHandler } from "../supabase/functions/class-media/handler.ts"
+import { storeTicket, relayVideo } from "../lib/uzu/cm-proxy.ts"
 
 const R = []; const ok = (l, c, g = "") => { R.push(!!c); console.log((c ? "✔ " : "✖ ") + l + (c ? "" : " → " + JSON.stringify(g))) }
 const enc = s => Array.from(s, c => c.charCodeAt(0) & 0xff)
@@ -111,28 +112,30 @@ const handle = makeHandler({ url: URL0, anonKey: "sb_publishable_simule", servic
 const get = (q, headers = {}) => handle(new Request(`${URL0}/functions/v1/class-media/stream${q}`, { headers }))
 const post = (a, body, headers = {}) => handle(new Request(`${URL0}/functions/v1/class-media/${a}`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) }))
 
-let r = await get("?t=" + tokenOk, { Range: "bytes=0-" })
+let r = await get("", { "x-media-ticket": tokenOk, Range: "bytes=0-" })
 let buf = new Uint8Array(await r.arrayBuffer())
 ok("stream : morceau de 2 Mo au plus (206, Content-Range)", r.status === 206 && buf.length === 2097152 && r.headers.get("Content-Range") === `bytes 0-2097151/${5 * 1024 * 1024}` && buf[300] === 300 % 251)
 ok("stream : aucune mise en cache (no-store, private), nosniff", /no-store/.test(r.headers.get("Cache-Control")) && /private/.test(r.headers.get("Cache-Control")) && r.headers.get("X-Content-Type-Options") === "nosniff")
 ok("stream : aucun chemin ni adresse de stockage dans la réponse", ![...r.headers.values()].some(v => v.includes("club/sess") || v.includes("/storage/")))
-r = await get("?t=" + tokenOk, { Range: "bytes=0-1" })
+r = await get("", { "x-media-ticket": tokenOk, Range: "bytes=0-1" })
 ok("iPhone · sonde bytes=0-1 : 206 avec 2 octets et taille totale", r.status === 206 && (await r.arrayBuffer()).byteLength === 2 && r.headers.get("Content-Range") === `bytes 0-1/${5 * 1024 * 1024}` && r.headers.get("Accept-Ranges") === "bytes")
-r = await handle(new Request(`${URL0}/functions/v1/class-media/stream?t=${tokenOk}`, { method: "HEAD", headers: { Range: "bytes=0-1" } }))
+r = await handle(new Request(`${URL0}/functions/v1/class-media/stream`, { method: "HEAD", headers: { "x-media-ticket": tokenOk, Range: "bytes=0-1" } }))
 ok("HEAD : en-têtes sans corps", r.status === 206 && r.headers.get("Content-Length") === "2")
 const n0 = calls.filter(c => c.path.endsWith("media_stream_check")).length
-await get("?t=" + tokenOk, { Range: "bytes=2097152-" }); await get("?t=" + tokenOk, { Range: "bytes=4194304-" })
+await get("", { "x-media-ticket": tokenOk, Range: "bytes=2097152-" }); await get("", { "x-media-ticket": tokenOk, Range: "bytes=4194304-" })
 ok("chaque morceau déclenche un contrôle en base", calls.filter(c => c.path.endsWith("media_stream_check")).length === n0 + 2)
 db.allowed = false
-r = await get("?t=" + tokenOk, { Range: "bytes=2097152-" })
+r = await get("", { "x-media-ticket": tokenOk, Range: "bytes=2097152-" })
 ok("R-1 · droits retirés en base : le morceau suivant est refusé (403)", r.status === 403 && /no-store/.test(r.headers.get("Cache-Control")))
-r = await get("?t=" + tokenOk, { Range: "bytes=0-" })
+r = await get("", { "x-media-ticket": tokenOk, Range: "bytes=0-" })
 ok("R-3 · la même requête rejouée : refusée, rien servi", r.status === 403 && (await r.json()).code === "denied")
 db.allowed = true
 const before = calls.length
-r = await get("?t=zz")
+r = await get("", { "x-media-ticket": "zz" })
 ok("jeton mal formé : refusé sans interroger la base", r.status === 403 && calls.length === before)
-r = await get("?t=" + tokenOk, { Range: "bytes=999999999-" })
+r = await get("?t=" + tokenOk, { Range: "bytes=0-" })
+ok("jeton dans l'adresse (stream?t=…) : refusé (400) sans interroger la base ni servir de fichier", r.status === 400 && (await r.json()).code === "token_in_url" && calls.length === before)
+r = await get("", { "x-media-ticket": tokenOk, Range: "bytes=999999999-" })
 ok("plage hors du fichier : 416", r.status === 416)
 files.set("class-media/club/sess/p1.jpg", jpegClean); db.kind = "photo"; db.path = "club/sess/p1.jpg"; db.mime = "image/jpeg"
 r = await get("", { "x-media-ticket": tokenOk, Origin: "https://uzu.example" })
@@ -177,6 +180,39 @@ await post("reconcile", { session: "00000000-0000-0000-0000-000000000002" }, A);
 ok("quarantaine : repli copie puis effacement si le déplacement est refusé", files.has("class-media-quarantine/club/q2.mp4") && !files.has("class-media/club/sess/q2.mp4"))
 ok("reconcile sans session : 401", (await post("reconcile", { session: "00000000-0000-0000-0000-000000000002" })).status === 401)
 ok("purge : appelle la purge puis le rapprochement", (await post("purge", {}, { "x-cron-secret": CRON })).status === 200 && calls.some(c => c.path.endsWith("media_purge")))
+
+// Relais vidéo du site (lib/uzu/cm-proxy.ts) : aucun jeton dans une adresse, de bout en bout
+{
+  const SITE = "https://uzu.example", MID = "0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9"
+  const tk = (body, headers = {}) => storeTicket(new Request(SITE + "/api/cm/ticket", { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-proto": "https", host: "uzu.example", ...headers }, body: JSON.stringify(body) }))
+  ok("relais · jeton confié par un autre site : refusé", (await tk({ media: MID, token: tokenOk, expires_in: 900 }, { Origin: "https://autre.example" })).status === 403)
+  ok("relais · jeton confié sans origine : refusé", (await tk({ media: MID, token: tokenOk, expires_in: 900 })).status === 403)
+  ok("relais · jeton ou identifiant mal formé : refusé", (await tk({ media: MID, token: "zz", expires_in: 900 }, { Origin: SITE })).status === 400 && (await tk({ media: "../x", token: tokenOk, expires_in: 900 }, { Origin: SITE })).status === 400)
+  r = await tk({ media: MID, token: tokenOk, expires_in: 5000 }, { Origin: SITE })
+  const sc = r.headers.get("set-cookie") || ""
+  ok("relais · cookie HttpOnly, Secure, SameSite=Strict, limité à cette vidéo, 15 min au plus", r.status === 204 && /HttpOnly/.test(sc) && /Secure/.test(sc) && /SameSite=Strict/.test(sc) && sc.includes("Path=/api/cm/video/" + MID + ";") && /Max-Age=900;/.test(sc) && /no-store/.test(r.headers.get("cache-control")))
+  db.kind = "video"; db.path = "club/sess/m1.mp4"; db.mime = "video/mp4"; db.allowed = true
+  const seen = []
+  const up = (url, init) => { seen.push({ url, h: new Headers(init.headers) }); return handle(new Request(url, init)) }
+  const play = (cookie, range = "bytes=0-", method = "GET") => relayVideo(new Request(SITE + "/api/cm/video/" + MID + "?n=1", { method, headers: { ...(cookie ? { cookie } : {}), range } }), MID, URL0, up)
+  r = await play("")
+  ok("relais · sans cookie : refusé, rien demandé à la fonction", r.status === 403 && seen.length === 0)
+  r = await play("autre=1; uzu_cmv=" + tokenOk, "bytes=2097152-")
+  buf = new Uint8Array(await r.arrayBuffer())
+  ok("relais · lecture par morceaux : 206, plage transmise, aucune mise en cache", r.status === 206 && r.headers.get("content-range") === `bytes 2097152-4194303/${5 * 1024 * 1024}` && buf.length === 2097152 && /no-store/.test(r.headers.get("cache-control")) && r.headers.get("x-content-type-options") === "nosniff")
+  ok("relais · vers la fonction : jeton en en-tête, adresse SANS jeton ni paramètre", seen.every(x => !x.url.includes("?") && !x.url.includes(tokenOk) && x.h.get("x-media-ticket") === tokenOk))
+  ok("relais · réponse au navigateur : ni jeton ni chemin de stockage dans les en-têtes", ![...r.headers.values()].some(v => v.includes(tokenOk) || v.includes("club/sess") || v.includes("supabase.co")))
+  r = await play("uzu_cmv=" + tokenOk, "bytes=0-1", "HEAD")
+  ok("relais · HEAD (sonde iPhone) : en-têtes sans corps", r.status === 206 && r.body === null && r.headers.get("content-length") === "2")
+  r = await play("uzu_cmv=" + tokenOk, "n'importe quoi")
+  ok("relais · plage invalide : non transmise", r.status === 206 && !seen[seen.length - 1].h.has("range"))
+  db.allowed = false
+  r = await play("uzu_cmv=" + tokenOk, "bytes=4194304-")
+  ok("relais · R-1 : droits retirés en base, le morceau suivant est refusé", r.status === 403 && /no-store/.test(r.headers.get("cache-control")))
+  db.allowed = true
+  ok("relais · identifiant de vidéo invalide : refusé", (await relayVideo(new Request(SITE + "/api/cm/video/x", { headers: { cookie: "uzu_cmv=" + tokenOk } }), "../x", URL0, up)).status === 400)
+  ok("relais · méthode autre que GET/HEAD : refusée", (await relayVideo(new Request(SITE + "/api/cm/video/" + MID, { method: "POST", headers: { cookie: "uzu_cmv=" + tokenOk } }), MID, URL0, up)).status === 405)
+}
 
 // Journaux et secrets
 const all = logs.join("\n")

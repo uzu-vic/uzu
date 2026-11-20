@@ -251,6 +251,8 @@ export const setMemberStatus = (id: string, status: "active" | "suspended" | "re
 export const transferOwnership = (id: string) => call("transfer_ownership", { p_member: id })
 export const setStudentAccess = (id: string, students: string[]) => call("set_student_access", { p_member: id, p_students: students })
 export const upsertSection = (name: string) => call<string>("upsert_section", { p_id: null, p_name: name, p_discipline: "" })
+// Création ou renommage d'un groupe (section) ; au renommage, la discipline existante est conservée
+export const saveSection = (id: string | null, name: string, discipline: string) => call<string>("upsert_section", { p_id: id, p_name: name, p_discipline: discipline })
 export const setCourseStaff = (course: string, date: string | null, staff: { member_id: string; role: string }[]) => call("set_course_staff", { p_course: course, p_date: date, p_staff: staff })
 export const setCourseMeta = (course: string, section: string | null, discipline: string, level: string) => call("set_course_meta", { p_course: course, p_section: section, p_discipline: discipline, p_level: level })
 /** Modification partielle de l'académie : le serveur ne contrôle que les champs réellement changés. */
