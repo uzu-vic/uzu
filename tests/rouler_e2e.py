@@ -132,7 +132,7 @@ with sync_playwright() as p:
               and sa[-1]["p_insee"] == "91286" and sa[-1]["p_from"] == D(0) and sa[-1]["p_to"] == D(13), sa[-1:] )
         L = pg.locator(".uzu-dir-list").inner_text()
         check(f"[{name}] résultats : 3 partenaires, prénom et initiale, tranches de distance, ceinture si montrée",
-              pg.locator(".uzu-dir-card").count() == 3 and "Sarah B." in L and "moins de 10 km" in L and "10 à 25 km" in L and "Bleue" in L and "15 ans de pratique" in L, L[:500])
+              pg.locator(".uzu-dir-card").count() == 3 and "Sarah B." in L and "moins de 10 km" in L and "10 à 25 km" in L and "Bleue" in L and "DA Club test · 15 ans de pratique" in L, L[:500])
         check(f"[{name}] résultats : ni identifiant, ni courriel, ni ville habituelle", not leaks(L), leaks(L))
         sh(pg, "4-resultats")
         pg.get_by_label("Ceinture minimale").select_option("bleue"); pg.wait_for_timeout(1000)

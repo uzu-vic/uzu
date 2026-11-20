@@ -119,7 +119,7 @@ function ProfileForm({ me, activation, onBack, onSaved }: { me: RoulerMe; activa
   return <><Back onClick={onBack} />
     <form noValidate className="panel uzu-panel-col uzu-grid-gap" aria-label="Mon profil de roulage" onSubmit={e => { e.preventDefault(); save() }}>
       <div className="eyebrow">PARTENAIRES · MON PROFIL</div><h2 className="uzu-h2">Mon profil de roulage</h2>
-      <CommunePicker id="rl-home" label="Ma ville habituelle" value={home} onPick={c => { setHome(c); rememberCommune(c) }} />
+      <CommunePicker id="rl-home" label="Ma ville habituelle" value={home} onPick={c => { setHome(c); rememberCommune(c); setErr("") }} />
       <p className="uzu-text uzu-small uzu-muted">Jamais montrée : les autres ne voient qu&apos;une distance approximative.</p>
       <Chips label="Disciplines" all={Object.keys(DISC_LBL) as DirDisc[]} value={disc} onChange={setDisc} lbl={d => DISC_LBL[d]} />
       <Chips label="Roulages acceptés" all={Object.keys(INT_LBL) as Intensity[]} value={ints} onChange={setInts} lbl={i => INT_LBL[i]} />
@@ -177,7 +177,7 @@ function AvailabilityForm({ me, edit, onBack, onSaved }: { me: RoulerMe; edit?: 
         <button type="button" className={!travel ? "on" : ""} aria-pressed={!travel} onClick={() => setTravel(false)}>Dans ma ville{p.home_commune ? ` · ${p.home_commune}` : ""}</button>
         <button type="button" className={travel ? "on" : ""} aria-pressed={travel} onClick={() => setTravel(true)}>En déplacement</button>
       </div>
-      {travel && <><CommunePicker id="rl-travel" label="Ville du déplacement" value={commune} onPick={setCommune} />
+      {travel && <><CommunePicker id="rl-travel" label="Ville du déplacement" value={commune} onPick={c => { setCommune(c); setErr("") }} />
         <p className="uzu-text uzu-small uzu-muted">Ta ville habituelle ne change pas et n&apos;est pas montrée.</p></>}
       <div className="uzu-field"><span className="uzu-label">Quand ?</span>
         <div className="uzu-rl-dates">
@@ -310,6 +310,7 @@ function Search({ me, onOpen, onAvail, onProfile, onVisible }: { me: RoulerMe; o
 function partnerLines(p: Partner) {
   return {
     top: [p.belt ? `Ceinture ${BELT_LBL[p.belt].toLowerCase()}` : "", p.club || "", p.years != null ? `${p.years} an${p.years > 1 ? "s" : ""} de pratique` : ""].filter(Boolean).join(" · "),
+    extra: [p.club || "", p.years != null ? `${p.years} an${p.years > 1 ? "s" : ""} de pratique` : ""].filter(Boolean).join(" · "),
     where: `${p.commune} (${p.dep}) · ${p.band}`,
     when: `${fmtRange(p.starts_on, p.ends_on)} · ${daysLine(p.days)} · ${p.parts.map(x => PART_LBL[x].toLowerCase()).join(", ")}`,
     what: `${p.disciplines.map(d => DISC_LBL[d]).join(", ")} · ${p.intensities.map(i => INT_LBL[i].toLowerCase()).join(", ")} · ${p.places.map(x => PLACE_LBL[x].toLowerCase()).join(", ")}`,
@@ -319,8 +320,8 @@ function PartnerCard({ p, onOpen }: { p: Partner; onOpen: () => void }) {
   const l = partnerLines(p)
   return <button type="button" className="uzu-dir-card" onClick={onOpen} aria-label={`${p.name}, ${p.commune}, ${p.band}`}>
     <span className="uzu-dir-card-top"><b>{p.name}</b>{p.belt && <span className={`uzu-rl-belt uzu-rl-belt--${p.belt}`}>{BELT_LBL[p.belt]}</span>}</span>
-    {l.top && <span className="uzu-dir-meta">{l.top}</span>}
-    <span className="uzu-dir-meta"><MapPin size={12} aria-hidden="true" /> {l.where}</span>
+    {l.extra && <span className="uzu-dir-meta">{l.extra}</span>}
+    <span className="uzu-dir-meta">{l.where}</span>
     <span className="uzu-dir-meta">{l.when}</span>
     <span className="uzu-dir-meta">{l.what}</span>
     {p.note && <span className="uzu-text uzu-small">« {p.note} »</span>}
