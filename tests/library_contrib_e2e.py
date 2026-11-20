@@ -92,7 +92,7 @@ with sync_playwright() as p:
     pg.locator(".uzu-lib-volets button", has_text="Bibliothèque").click(); pg.wait_for_timeout(500)
     check("élève : boutons « Proposer un contenu » et « Mes contributions »", pg.get_by_role("button", name="Proposer un contenu").count()==1 and pg.get_by_role("button", name="Mes contributions").count()==1)
     pg.fill(".uzu-lib-search input","mata leao"); pg.wait_for_timeout(300); pg.locator(".uzu-lib-card").first.click(); pg.wait_for_timeout(500)
-    pg.get_by_role("button", name="Proposer une vidéo").click(); pg.wait_for_timeout(500)
+    pg.get_by_role("button", name="Proposer un lien vidéo").click(); pg.wait_for_timeout(500)
     f=pg.locator(".uzu-lib-form")
     check("fiche → proposer une vidéo : type « Vidéo ou lien » et fiche N27 préremplis", f.locator("input[type=radio]:checked").locator("xpath=..").inner_text().strip()=="Vidéo ou lien" and f.locator("select").first.input_value()=="N27")
     check("élève : pas de type « Annotation » (réservé à l'équipe)", "Annotation" not in f.inner_text())

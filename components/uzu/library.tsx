@@ -10,6 +10,7 @@ import {
   type Library, type LibraryState, type LibStep, type LibTechnique,
 } from "@/lib/uzu/library"
 import { Stars } from "@/components/uzu/progress"
+import { LibVideos } from "@/components/uzu/library-videos"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -60,10 +61,11 @@ export function LibraryPane({ lib, C, P, onOpen, onPropose, onMine, initialQuery
   const [mine, setMine] = useState(false)
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const clubCount = useMemo(() => { const m: Record<string, { all: number; video: number }> = {}; for (const it of lib.items) { if (!it.technique_id) continue; const x = m[it.technique_id] || (m[it.technique_id] = { all: 0, video: 0 }); x.all++; if (videoSource(it.url)) x.video++ } return m }, [lib.items])
+  const upCount = useMemo(() => { const m: Record<string, number> = {}; for (const v of lib.videos || []) if (v.technique_id) m[v.technique_id] = (m[v.technique_id] || 0) + 1; return m }, [lib.videos])
   const searching = q.trim().length > 0 || !!linkedIds
   const list = lib.techniques.filter(t => (searching || t.discipline_id === disc) && matches(t, q) && (!linkedIds || linkedIds.has(t.id))
     && (origin === "all" || (origin === "ref" && t.origin === "document") || (origin === "prop" && t.origin === "proposition") || (origin === "club" && !!clubCount[t.id]))
-    && (!withVideo || !!clubCount[t.id]?.video)
+    && (!withVideo || !!clubCount[t.id]?.video || !!upCount[t.id])
     && (!mine || (starsFor(t, C, P)?.lvl || 0) > 0))
   const filtered = searching || origin !== "all" || withVideo || mine
   const cats = lib.categories.filter(c => searching ? list.some(t => t.category_id === c.id) : c.discipline_id === disc)
@@ -118,6 +120,7 @@ export function LibraryPane({ lib, C, P, onOpen, onPropose, onMine, initialQuery
             <span className="uzu-lib-badges">
               {t.origin === "document" ? <Badge kind="plain">Référence UZU · à valider</Badge> : <Badge kind="prop">Proposée par UZU · à valider</Badge>}
               {t.restricted && <Badge kind="warn">Clé de talon</Badge>}
+              {upCount[t.id] > 0 && <Badge kind="club">{upCount[t.id]} vidéo{upCount[t.id] > 1 ? "s" : ""}</Badge>}
               {cc && <Badge kind="club">{cc.all} contenu{cc.all > 1 ? "s" : ""} du club</Badge>}
               {fl.map(f => <Badge key={f.flow.id} kind="plain">{f.flow.id}</Badge>)}
             </span>
@@ -152,15 +155,16 @@ export function FicheView({ lib, C, P, id, onBack, onOpenFlow, onPropose }: { li
       {t.source_text && <div className="panel uzu-lib-text"><span className="uzu-lib-label">Texte du document</span><p>{t.source_text}</p></div>}
       {t.proposed_text && <div className="uzu-lib-text uzu-lib-text--prop"><span className="uzu-lib-label">{t.source_text ? "Correction proposée · à valider par un professeur" : "Description proposée par UZU · à valider par un professeur"}</span><p>{t.proposed_text}</p></div>}
     </section>
+    <LibVideos lib={lib} kind="technique" target={t.id} label={nm.main} />
     <FicheDetailsSection key={t.id} lib={lib} t={t} />
     {flows.length > 0 && <section className="uzu-lib-sec" aria-labelledby="fiche-flows"><h3 id="fiche-flows">Dans les enchaînements</h3>
       {flows.map(f => <button key={f.flow.id} type="button" className="panel uzu-lib-row" onClick={() => onOpenFlow(f.flow.id)}>
         <span><b>{f.flow.id} · {f.flow.title.replace(/^Le système « (.+) »$/, "$1")}</b><small>{KIND_LABEL[f.step.kind]}{f.step.branch_label ? " · " + f.step.branch_label : ""}</small></span><ChevronRight size={16} aria-hidden="true" /></button>)}
     </section>}
-    <section className="uzu-lib-sec" aria-labelledby="fiche-videos"><h3 id="fiche-videos">Vidéos du club</h3>
+    <section className="uzu-lib-sec" aria-labelledby="fiche-videos"><h3 id="fiche-videos">Liens vidéo du club</h3>
       {videos.length ? videos.map(v => <a key={v.id} className="panel uzu-lib-row" href={v.url || "#"} target="_blank" rel="noopener noreferrer">
         <span><b>{v.title}</b><small>{videoSource(v.url)} · s'ouvre dans un nouvel onglet</small></span><ExternalLink size={16} aria-hidden="true" /></a>)
-        : <p className="uzu-lib-empty">Aucune vidéo du club pour cette fiche.</p>}
+        : <p className="uzu-lib-empty">Aucun lien vidéo (YouTube, Instagram) proposé par le club pour cette fiche.</p>}
     </section>
     <section className="uzu-lib-sec" aria-labelledby="fiche-club"><h3 id="fiche-club">Variantes et notes du club</h3>
       {notes.length ? notes.map(n => <div key={n.id} className="panel uzu-lib-text"><span className="uzu-lib-badges"><Badge kind="club">Validée par le club</Badge><Badge kind="plain">{({ technique: "Technique du club", variante: "Variante", note: "Note", lien: "Lien", astuce: "Astuce" } as Record<string, string>)[n.kind]}</Badge></span>
@@ -169,7 +173,7 @@ export function FicheView({ lib, C, P, id, onBack, onOpenFlow, onPropose }: { li
     </section>
     {onPropose && <div className="uzu-lib-actions">
       <button type="button" className="button button--dark" onClick={() => onPropose({ kind: "variante", technique_id: t.id })}>Proposer une variante</button>
-      <button type="button" className="button button--outline" onClick={() => onPropose({ kind: "lien", technique_id: t.id })}>Proposer une vidéo</button>
+      <button type="button" className="button button--outline" onClick={() => onPropose({ kind: "lien", technique_id: t.id })}>Proposer un lien vidéo</button>
       <button type="button" className="text-link" onClick={() => onPropose({ kind: "question", technique_id: t.id, title: "Remarque sur la fiche " + t.id })}>Poser une question ou signaler une erreur</button>
     </div>}
   </article>
@@ -231,6 +235,7 @@ export function FlowsPane({ lib, flowId, onFlow, onOpen }: { lib: Library; flowI
     <div className="eyebrow">{disc.toUpperCase()}</div>
     <h2 className="uzu-lib-title uzu-lib-title--flow">{flow.title.replace(/^Le système « (.+) »$/, "$1")}</h2>
     {flow.intro && <p className="uzu-text">{flow.intro}</p>}
+    <LibVideos lib={lib} kind="flow" target={flow.id} label={flow.title} />
     <ol className="uzu-lib-steps">{path.map((x, i) => "fork" in x
       ? <li key={"f" + i} className="uzu-lib-fork"><span className="uzu-lib-label uzu-lib-label--wine">Choisis la suite</span>
           <div className="uzu-lib-forkbtns">{x.fork.map(s => { const on = s.id === (path[i + 1] as LibStep).id

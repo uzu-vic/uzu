@@ -5,6 +5,7 @@
 // autorise pour l'académie de l'utilisateur. Si le script n'est pas encore appliqué, la bibliothèque
 // est simplement absente (status « unavailable ») et l'écran Techniques reste celui d'avant.
 import { uzu } from "./client"
+import type { LibVideo } from "./library-videos"
 
 export type LibDiscipline = { id: string; label: string; long_label: string; position: number }
 export type LibCategory = { id: string; discipline_id: string; position: number; label: string }
@@ -32,6 +33,8 @@ export type Library = {
   all: LibTechnique[]
   /** Étapes pédagogiques, vigilance, niveau saisis par les professeurs du club (décision D3) */
   details: Record<string, FicheDetails>
+  /** Vidéos pédagogiques du club (fiches et enchaînements, script uzu-9b) ; vide si le script est absent */
+  videos: LibVideo[]
 }
 export type FicheDetails = { steps: string; vigilance: string; level: number | null; updated_at?: string }
 export type LibraryState = { status: "loading" } | { status: "unavailable" } | { status: "error"; msg: string } | { status: "ok"; lib: Library }
@@ -71,6 +74,9 @@ async function fetchLibrary(): Promise<LibraryState> {
   const dt = await db.from("club_lib_technique_details").select("technique_id,steps,vigilance,level,updated_at")
   const details: Record<string, FicheDetails> = {}
   if (!dt.error) for (const x of (dt.data || []) as (FicheDetails & { technique_id: string })[]) details[x.technique_id] = { steps: x.steps || "", vigilance: x.vigilance || "", level: x.level ?? null, updated_at: x.updated_at }
+  // Vidéos pédagogiques du club : facultatives (table absente tant que uzu-9b n'est pas appliqué)
+  const vq = await db.from("club_lib_videos").select("id,target_kind,technique_id,flow_id,title,path,poster_path,mime,size_bytes,duration_s,width,height,position").eq("status", "ready").order("position")
+  const videos = vq.error || !Array.isArray(vq.data) ? [] : (vq.data as LibVideo[]).map(v => ({ ...v, duration_s: v.duration_s == null ? null : Number(v.duration_s), size_bytes: Number(v.size_bytes) }))
   const open = new Set(ctx.disciplines)
   const hidden = new Set(ctx.hidden || [])
   const all = ((t.data || []) as LibTechnique[]).filter(x => open.has(x.discipline_id))
@@ -89,7 +95,7 @@ async function fetchLibrary(): Promise<LibraryState> {
       stepTechs: ((st.data || []) as LibStepTech[]).filter(x => byId[x.technique_id]),
       items: ((it.data || []) as ClubItem[]).filter(x => x.status === "publie"),
       collections: ((co.data || []) as Collection[]).map(x => ({ ...x, items: ((ci.data || []) as { collection_id: string; technique_id: string | null; item_id: string | null }[]).filter(y => y.collection_id === x.id) })),
-      ctx, byId, all, details,
+      ctx, byId, all, details, videos,
     },
   }
 }
