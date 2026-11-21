@@ -842,10 +842,60 @@ button.uzu-jv-bar:hover .uzu-jv-bl { text-decoration: underline; }
 .uzu-rl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .uzu-rl-menu { margin: 4px 0 10px; }
 .uzu-rl-danger { color: #7a1623; }
-.uzu-rl-remind { margin: 0; }
 .uzu-rl-belt { display: inline-flex; flex: none; align-items: center; min-height: 22px; padding: 0 9px; border-radius: 999px; border: 1px solid #d6d0c8; font-size: 11px; font-weight: 700; background: #fff; color: #292522; }
 .uzu-rl-belt--bleue { background: #1f4fa3; border-color: #1f4fa3; color: #fff; }
 .uzu-rl-belt--violette { background: #5b2d8c; border-color: #5b2d8c; color: #fff; }
 .uzu-rl-belt--marron { background: #6b3f1d; border-color: #6b3f1d; color: #fff; }
 .uzu-rl-belt--noire { background: #171717; border-color: #171717; color: #fff; }
 .uzu-dir-card .uzu-dir-meta svg { vertical-align: -1px; }
+
+/* « Où rouler ? » révision court terme : créneaux, raccourcis, temps en commun */
+.uzu-rl-when { display: grid; gap: 8px; }
+.uzu-rl-now, .uzu-rl-mine { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 50px; padding: 0 14px; border-radius: 12px; border: 1.5px solid #171717; background: #fff; color: #171717; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; text-align: left; }
+.uzu-rl-now i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #1f8a3c; margin-right: 9px; box-shadow: 0 0 0 4px rgba(31, 138, 60, .15); }
+.uzu-rl-now small, .uzu-rl-mine small { font-size: 12px; font-weight: 500; color: #6e6761; }
+.uzu-rl-now.on { background: #171717; color: #fff; }
+.uzu-rl-now.on small { color: #d9d2ca; }
+.uzu-rl-mine { border-color: #e5dfd8; }
+.uzu-rl-mine.on { background: #941b2b; border-color: #941b2b; color: #fff; }
+.uzu-rl-mine.on small { color: #f3dfe2; }
+.uzu-rl-quick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.uzu-rl-quick button { min-height: 48px; border: 1px solid #e5dfd8; border-radius: 10px; background: #fff; color: #292522; font: inherit; font-size: 12px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; cursor: pointer; }
+.uzu-rl-quick button small { font-size: 11px; font-weight: 500; color: #6e6761; }
+.uzu-rl-quick button.on { background: #941b2b; border-color: #941b2b; color: #fff; }
+.uzu-rl-quick button.on small { color: #f3dfe2; }
+.uzu-rl-sum { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: #e7f3ea; border: 1px solid #cfe6d5; }
+.uzu-rl-sum b { color: #1f6b35; font-size: 15px; }
+.uzu-rl-sum span { color: #1f6b35; font-size: 12px; }
+.uzu-rl-ban { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px; background: #171717; color: #fff; margin-bottom: 10px; }
+.uzu-rl-ban > b { font-size: 14px; }
+.uzu-rl-ban > span { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: #cfc6c0; }
+.uzu-rl-ban > span b { color: #fff; text-align: right; }
+.uzu-rl-slotline { font-size: 14px; font-weight: 700; color: #171717; }
+.uzu-rl-badge-ok { background: #e7f3ea; color: #1f6b35; border-color: #cfe6d5; }
+.uzu-rl-ok { color: #1f6b35; font-weight: 700; }
+.uzu-rl-card { gap: 9px; }
+.uzu-rl-name { border: 0; background: none; padding: 0; font: inherit; font-size: 16px; font-weight: 700; color: #171717; cursor: pointer; text-align: left; }
+.uzu-rl-cm { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.uzu-rl-cm > span { display: flex; flex-direction: column; gap: 2px; }
+.uzu-rl-cm small { font-size: 11px; color: #6e6761; }
+.uzu-rl-cm b { font-size: 14px; }
+.uzu-rl-common { text-align: right; align-items: flex-end; }
+.uzu-rl-common b { font-size: 22px; font-weight: 800; color: #1f6b35; letter-spacing: -.02em; }
+.uzu-rl-common small { color: #1f6b35; font-weight: 700; }
+.uzu-rl-frise { display: grid; grid-template-columns: 52px 1fr; gap: 4px 8px; align-items: center; font-size: 10px; color: #6e6761; }
+.uzu-rl-tr { position: relative; height: 12px; border-radius: 4px; background: #f4f1ec; }
+.uzu-rl-tr i { position: absolute; top: 0; height: 12px; border-radius: 4px; }
+.uzu-rl-tr i.me { background: #171717; }
+.uzu-rl-tr i.him { background: #6b3fa0; }
+.uzu-rl-tr i.co { background: #1f8a3c; }
+.uzu-rl-ax { display: flex; justify-content: space-between; font-size: 9px; color: #8a827b; }
+.uzu-rl-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.uzu-rl-tags > span { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: #f4f1ec; color: #3b3531; }
+.uzu-rl-homeq { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.uzu-rl-homeq button { min-height: 52px; border: 1px solid #e5dfd8; border-radius: 12px; background: #fff; color: #292522; font: inherit; font-size: 12px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; cursor: pointer; }
+.uzu-rl-homeq button:first-child { background: #941b2b; border-color: #941b2b; color: #fff; }
+.uzu-rl-homeq button small { font-size: 11px; font-weight: 500; color: #6e6761; }
+.uzu-rl-homeq button:first-child small { color: #f3dfe2; }
+.uzu-rl-remind { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 12px; border: 1px solid #cfe6d5; background: #f3faf5; font-size: 13px; }
+.uzu-rl-remind b { font-size: 14px; }

@@ -163,11 +163,12 @@ function SuggestForm({ slug, name, onCancel, onDone }: { slug: string | null; na
 
 // ---------------------------------------------------------------- Espace Tatami (volets)
 export function TatamiSpace({ initial, ctx, onToast, renderFeed }: { initial?: string; ctx: UzuContext | null; onToast: (m: string) => void; renderFeed: (tabs: React.ReactNode) => React.ReactNode }) {
-  const [vol, setVol] = useState<TatamiVolet>(initial === "clubs" ? "clubs" : initial === "partners" ? "partners" : "fil")
+  const [vol, setVol] = useState<TatamiVolet>(initial === "clubs" ? "clubs" : initial === "partners" || initial?.startsWith("partners:") ? "partners" : "fil")
+  const sub = initial?.startsWith("partners:") ? initial.slice(9) : undefined
   const tabs = <TatamiTabs value={vol} onChange={v => { setVol(v); window.scrollTo(0, 0) }} />
   void ctx
   if (vol === "clubs") return <ClubsPane tabs={tabs} onToast={onToast} />
-  if (vol === "partners") return <PartnersPane tabs={tabs} onToast={onToast} />
+  if (vol === "partners") return <PartnersPane tabs={tabs} onToast={onToast} initial={sub} />
   return <>{renderFeed(tabs)}</>
 }
 

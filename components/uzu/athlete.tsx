@@ -8,7 +8,7 @@ import { ClubVideo } from "@/components/uzu/club-video"
 import { Stars } from "@/components/uzu/progress"
 import { ReminderCard } from "@/components/uzu/combat-map"
 import type { UzuContext } from "@/lib/uzu/context"
-import { RoulerReminder } from "@/components/uzu/rouler"
+import { RoulerHome } from "@/components/uzu/rouler"
 import {
   beltColor, beltName, compResult, durTxt, frDate, loadTraining, nextClasses, normSched, slotOpenOn, parseYmd, sessionKind, sessionMeta, sessionTitle, ymd,
   type Session, type Training,
@@ -173,11 +173,10 @@ function HomeExtras({ uid, ctx, solo, sessions, onNavigate, onCompose }: { uid: 
       <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("progress")}>Voir mes techniques</button>
     </section>}
     {core && <ReminderCard C={core} S={core.allSessions().filter((x: { sample?: boolean }) => !x.sample)} onOpen={() => onNavigate("stats")} />}
-    <section className="panel uzu-panel-col uzu-grid-gap uzu-dir-home"><div className="eyebrow">OÙ ROULER ?</div>
-      <p className="uzu-text">Trouve un partenaire de roulage ou un open mat, chez toi ou en déplacement.</p>
+    <section className="panel uzu-panel-col uzu-grid-gap uzu-dir-home uzu-rl-homecard"><div className="eyebrow">OÙ ROULER ? · JE SUIS DISPO</div>
+      <RoulerHome onNavigate={arg => onNavigate("feed", arg)} />
       <div className="uzu-actions uzu-actions--start"><button className="button button--dark uzu-small-btn" onClick={() => onNavigate("feed", "partners")}>Trouver un partenaire</button>
-        <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("feed", "clubs")}>Trouver un club</button></div>
-      <RoulerReminder onOpen={() => onNavigate("feed", "partners")} /></section>
+        <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("feed", "clubs")}>Trouver un club</button></div></section>
     {solo && <section className="panel uzu-panel-col uzu-grid-gap"><div className="eyebrow">CARNET SOLO</div>
       <p className="uzu-text">Tu t'entraînes dans un club ? Relie ton carnet : ton prof validera tes ceintures et tes techniques ★★★. Tout ton historique te suit.</p>
       <button className="button button--outline uzu-small-btn" onClick={() => onNavigate("profile")}>J'ai un code d'invitation</button></section>}
